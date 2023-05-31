@@ -23,15 +23,15 @@ describe('Models', () => {
     context.server.stop();
   });
 
-  it<ModelsTestContext>('expects the injected client to be of the type RealtimePromise', ({ client }) => {
-    const models = new Models(client);
-    expectTypeOf(models.ably).toMatchTypeOf<Types.RealtimePromise>();
-  });
-
   it<ModelsTestContext>('connects successfully with the Ably Client', async ({ client, server }) => {
     server.start();
     const connectSuccess = await client.connection.whenState('connected');
     expect(connectSuccess.current).toBe('connected');
+  });
+
+  it<ModelsTestContext>('expects the injected client to be of the type RealtimePromise', ({ client }) => {
+    const models = new Models(client);
+    expectTypeOf(models.ably).toMatchTypeOf<Types.RealtimePromise>();
   });
 
   it<ModelsTestContext>('creates a client with default options when a key is passed in', () => {
@@ -64,5 +64,45 @@ describe('Models', () => {
       `ably-models/${models.version}`,
       'model-default-client',
     ]);
+  });
+
+  it<ModelsTestContext>('creates a model that inherits the root class ably client', () => {
+    const models = new Models({ ...defaultClientConfig });
+    const model = models.Model('test');
+    expect(model.name).toEqual('test');
+    expect(model.client['options']).toContain(defaultClientConfig);
+  });
+
+  it<ModelsTestContext>('getting a model with the same name returns the same instance', () => {
+    const models = new Models({ ...defaultClientConfig });
+    const model1 = models.Model('test');
+    expect(model1.name).toEqual('test');
+    const model2 = models.Model('test');
+    expect(model2.name).toEqual('test');
+    expect(model1).toEqual(model2);
+  });
+
+  it<ModelsTestContext>('creates an event stream that inherits the root class ably client', () => {
+    const models = new Models({ ...defaultClientConfig });
+    const eventStream = models.EventStream('test', { channel: 'foobar' });
+    expect(eventStream.name).toEqual('test');
+    expect(eventStream.client['options']).toContain(defaultClientConfig);
+  });
+
+  it<ModelsTestContext>('getting an event stream without options throws', () => {
+    const models = new Models({ ...defaultClientConfig });
+    expect(() => models.EventStream('test')).toThrow('EventStream cannot be instantiated without options');
+  });
+
+  it<ModelsTestContext>('getting an event stream with the same name returns the same instance', () => {
+    const models = new Models({ ...defaultClientConfig });
+    const eventStream1 = models.EventStream('test', { channel: 'foobar' }); // first call requires options to instantiate
+    expect(eventStream1.name).toEqual('test');
+    const eventStream2 = models.EventStream('test'); // subsequent calls do not require options
+    expect(eventStream2.name).toEqual('test');
+    expect(eventStream1).toEqual(eventStream2);
+    const eventStream3 = models.EventStream('test', { channel: 'barbaz' }); // providing options to subsequent calls is allowed but ignored
+    expect(eventStream3.name).toEqual('test');
+    expect(eventStream1).toEqual(eventStream3);
   });
 });
