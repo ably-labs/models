@@ -1,0 +1,54 @@
+{
+  "name": "@ably-labs/models",
+  "version": "0.0.1",
+  "description": "",
+  "main": "dist/cjs/index.js",
+  "module": "dist/mjs/index.js",
+  "types": "dist/mjs/index.d.ts",
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
+    "format": "prettier --write --ignore-path .gitignore src",
+    "format:check": "prettier --check --ignore-path .gitignore src",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage",
+    "build": "npm run build:cjs && npm run build:mjs",
+    "build:mjs": "tsc --project tsconfig.mjs.json && cp res/package.mjs.json dist/mjs/package.json",
+    "build:cjs": "tsc --project tsconfig.cjs.json && cp res/package.cjs.json dist/cjs/package.json",
+    "prepare": "husky install"
+  },
+  "exports": {
+    "import": "./dist/mjs/index.js",
+    "require": "./dist/cjs/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ably-labs/models.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": ""
+  },
+  "homepage": "https://github.com/ably-labs/models",
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [],
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^5.51.0",
+    "@typescript-eslint/parser": "^5.51.0",
+    "@vitest/coverage-c8": "^0.28.4",
+    "eslint": "^8.41.0",
+    "eslint-plugin-jsdoc": "^46.0.0",
+    "eslint-plugin-security": "^1.7.1",
+    "husky": "^8.0.0",
+    "mock-socket": "^9.1.5",
+    "prettier": "^2.8.3",
+    "typescript": "^4.9.5",
+    "vitest": "^0.29.8"
+  },
+  "dependencies": {
+    "ably": "^1.2.39"
+  }
+}
