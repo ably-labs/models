@@ -3,7 +3,7 @@ import { Realtime, Types } from 'ably/promises';
 import { WebSocket } from 'mock-socket';
 
 import Model from './Model';
-import EventStream from './EventStream';
+import Stream from './Stream';
 
 import Server from './utilities/test/mock-server.js';
 import defaultClientConfig from './utilities/test/default-client-config.js';
@@ -38,7 +38,7 @@ describe('Model', () => {
 
   it<ModelTestContext>('expects model to be instantiated with the provided event streams', ({ client }) => {
     const model = new Model('test', client, {
-      streams: [new EventStream('s1', client, { channel: 's1' }), new EventStream('s2', client, { channel: 's2' })],
+      streams: [new Stream('s1', client, { channel: 's1' }), new Stream('s2', client, { channel: 's2' })],
     });
     expect(model.name).toEqual('test');
     expect(model.stream('s1')).toBeTruthy();

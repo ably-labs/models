@@ -1,7 +1,7 @@
-import EventStream from '../EventStream';
+import Stream from '../Stream';
 
 type ModelOptions = {
-  streams: Array<EventStream<any>>;
+  streams: Array<Stream<any>>;
 };
 
 export default ModelOptions;
