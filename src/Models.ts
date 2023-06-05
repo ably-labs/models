@@ -1,8 +1,6 @@
 import { Types, Realtime } from 'ably';
-import ModelOptions from './options/ModelOptions';
-import Model from './Model';
-import StreamOptions from './options/StreamOptions';
-import Stream from './Stream';
+import Model, { ModelOptions, Versionable } from './Model';
+import Stream, { StreamOptions } from './Stream';
 
 class Models {
   private models: Record<string, Model<any>>;
@@ -35,7 +33,7 @@ class Models {
     }
   }
 
-  Model = <T>(name: string, options?: ModelOptions) => {
+  Model = <T extends Versionable>(name: string, options?: ModelOptions) => {
     if (typeof name !== 'string' || name.length === 0) {
       throw new Error('Model must have a non-empty name');
     }
