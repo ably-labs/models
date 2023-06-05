@@ -1,5 +1,4 @@
 import { Types } from 'ably';
-import StreamOptions from './options/StreamOptions';
 import EventEmitter, { EventListener } from './utilities/EventEmitter';
 import { StandardCallback } from './types/callbacks';
 
@@ -31,7 +30,11 @@ export enum StreamState {
   DISPOSED = 'disposed',
 }
 
-type StreamStateChange = {
+export type StreamOptions = {
+  channel: string;
+};
+
+export type StreamStateChange = {
   current: StreamState;
   previous: StreamState;
   reason?: Types.ErrorInfo | string;

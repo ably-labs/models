@@ -39,6 +39,7 @@ describe('Model', () => {
   it<ModelTestContext>('expects model to be instantiated with the provided event streams', ({ client }) => {
     const model = new Model('test', client, {
       streams: [new Stream('s1', client, { channel: 's1' }), new Stream('s2', client, { channel: 's2' })],
+      sync: async () => {},
     });
     expect(model.name).toEqual('test');
     expect(model.stream('s1')).toBeTruthy();
