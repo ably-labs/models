@@ -2,7 +2,7 @@ import { Types } from 'ably';
 import Stream from './Stream';
 import EventEmitter from './utilities/EventEmitter';
 
-enum ModelState {
+export enum ModelState {
   /**
    * The model has been initialized but no attach has yet been attempted.
    */
@@ -29,9 +29,9 @@ enum ModelState {
   DISPOSED = 'disposed',
 }
 
-export type ModelOptions = {
+export type ModelOptions<T> = {
   streams: Array<Stream<any>>;
-  sync: SyncFunc<any>;
+  sync: () => Promise<Versionable<T>>;
 };
 
 type ModelStateChange = {
@@ -40,19 +40,18 @@ type ModelStateChange = {
   reason?: Types.ErrorInfo | string;
 };
 
-export type Versionable = {
+export type Versionable<T> = {
   version: number;
+  data: T;
 };
 
-type SyncFunc<T extends Versionable> = () => Promise<T>;
-
-class Model<T extends Versionable> extends EventEmitter<Record<ModelState, ModelStateChange>> {
+class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   private currentState: ModelState = ModelState.INITIALIZED;
   private streams: Record<string, Stream<any>> = {};
-  private sync: SyncFunc<T>;
-  private data: T;
+  private sync: () => Promise<Versionable<T>>;
+  private currentData: Versionable<T>;
 
-  constructor(readonly name: string, readonly client: Types.RealtimePromise, options?: ModelOptions) {
+  constructor(readonly name: string, options: ModelOptions<T>) {
     super();
     if (options) {
       for (let stream of options.streams) {
@@ -60,10 +59,15 @@ class Model<T extends Versionable> extends EventEmitter<Record<ModelState, Model
       }
       this.sync = options.sync;
     }
+    this.init();
   }
 
   get state() {
     return this.currentState;
+  }
+
+  get data() {
+    return this.currentData;
   }
 
   setState(state: ModelState, reason?: Types.ErrorInfo | string) {
@@ -85,7 +89,7 @@ class Model<T extends Versionable> extends EventEmitter<Record<ModelState, Model
 
   async init() {
     this.setState(ModelState.PREPARING);
-    this.data = await this.sync();
+    this.currentData = await this.sync();
     this.setState(ModelState.READY);
   }
 }
