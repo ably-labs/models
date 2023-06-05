@@ -82,27 +82,27 @@ describe('Models', () => {
     expect(model1).toEqual(model2);
   });
 
-  it<ModelsTestContext>('creates an event stream that inherits the root class ably client', () => {
+  it<ModelsTestContext>('creates a stream that inherits the root class ably client', () => {
     const models = new Models({ ...defaultClientConfig });
-    const eventStream = models.EventStream('test', { channel: 'foobar' });
-    expect(eventStream.name).toEqual('test');
-    expect(eventStream.client['options']).toContain(defaultClientConfig);
+    const stream = models.Stream('test', { channel: 'foobar' });
+    expect(stream.name).toEqual('test');
+    expect(stream.ably['options']).toContain(defaultClientConfig);
   });
 
-  it<ModelsTestContext>('getting an event stream without options throws', () => {
+  it<ModelsTestContext>('getting a stream without options throws', () => {
     const models = new Models({ ...defaultClientConfig });
-    expect(() => models.EventStream('test')).toThrow('EventStream cannot be instantiated without options');
+    expect(() => models.Stream('test')).toThrow('Stream cannot be instantiated without options');
   });
 
   it<ModelsTestContext>('getting an event stream with the same name returns the same instance', () => {
     const models = new Models({ ...defaultClientConfig });
-    const eventStream1 = models.EventStream('test', { channel: 'foobar' }); // first call requires options to instantiate
-    expect(eventStream1.name).toEqual('test');
-    const eventStream2 = models.EventStream('test'); // subsequent calls do not require options
-    expect(eventStream2.name).toEqual('test');
-    expect(eventStream1).toEqual(eventStream2);
-    const eventStream3 = models.EventStream('test', { channel: 'barbaz' }); // providing options to subsequent calls is allowed but ignored
-    expect(eventStream3.name).toEqual('test');
-    expect(eventStream1).toEqual(eventStream3);
+    const stream1 = models.Stream('test', { channel: 'foobar' }); // first call requires options to instantiate
+    expect(stream1.name).toEqual('test');
+    const stream2 = models.Stream('test'); // subsequent calls do not require options
+    expect(stream2.name).toEqual('test');
+    expect(stream1).toEqual(stream2);
+    const stream3 = models.Stream('test', { channel: 'barbaz' }); // providing options to subsequent calls is allowed but ignored
+    expect(stream3.name).toEqual('test');
+    expect(stream1).toEqual(stream3);
   });
 });

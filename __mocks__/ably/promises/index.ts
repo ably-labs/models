@@ -1,69 +1,33 @@
 import { Types } from 'ably/promises';
 
-const MOCK_CLIENT_ID = 'MOCK_CLIENT_ID';
+const mockPromiseErrorNotImplemented = <T>(name: string): Promise<T> => new Promise((_, reject) => reject(new Error(`mock '${name}' not implemented`)));
+const mockNotImplemented = <T>(name: string): T => { throw new Error(`mock ${name} not implemented`) };
 
-const mockPromisify = <T>(expectedReturnValue): Promise<T> => new Promise((resolve) => resolve(expectedReturnValue));
-const methodReturningVoidPromise = () => mockPromisify<void>((() => {})());
+type MockChannel = Partial<Types.RealtimeChannelPromise>;
 
-const mockPresence = {
-  get: () => mockPromisify<Types.PresenceMessage[]>([]),
-  update: () => mockPromisify<void>(undefined),
-  enter: methodReturningVoidPromise,
-  leave: methodReturningVoidPromise,
-  subscriptions: {
-    once: async (_, fn) => {
-      return await fn();
-    },
-  },
-  subscribe: () => {},
-};
+const mockChannel: MockChannel = {
+	on: () => mockNotImplemented<void>('on'),
+	attach: () => mockPromiseErrorNotImplemented<void>('attach'),
+	detach: () => mockPromiseErrorNotImplemented<void>('detach'),
+	subscribe: () => mockPromiseErrorNotImplemented<void>('subscribe'),
+}
 
-const mockHistory = {
-  items: [],
-  first: () => mockPromisify(mockHistory),
-  next: () => mockPromisify(mockHistory),
-  current: () => mockPromisify(mockHistory),
-  hasNext: () => false,
-  isLast: () => true,
-};
+type MockChannels = Partial<Types.Channels<MockChannel>>;
 
-const mockEmitter = {
-  any: [],
-  events: {},
-  anyOnce: [],
-  eventsOnce: {},
-};
+const mockChannels: MockChannels = {
+	get: () => mockChannel,
+	release: () => mockNotImplemented<void>('release'),
+}
 
-const mockChannel = {
-  presence: mockPresence,
-  history: () => mockHistory,
-  subscribe: () => {},
-  publish: () => {},
-  subscriptions: mockEmitter,
-};
+type MockConnection = Partial<Types.ConnectionPromise>;
 
-class MockRealtime {
-  public channels: {
-    get: () => typeof mockChannel;
-  };
-  public auth: {
-    clientId: string;
-  };
-  public connection: {
-    id?: string;
-  };
+const mockConnection: MockConnection = {
+	whenState: () => mockPromiseErrorNotImplemented<Types.ConnectionStateChange>('whenState')
+}
 
-  constructor() {
-    this.channels = {
-      get: () => mockChannel,
-    };
-    this.auth = {
-      clientId: MOCK_CLIENT_ID,
-    };
-    this.connection = {
-      id: '1',
-    };
-  }
+class MockRealtime {	
+	public channels = mockChannels;
+	public connection = mockConnection;
 }
 
 export { MockRealtime as Realtime };

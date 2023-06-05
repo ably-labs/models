@@ -1,21 +1,44 @@
+import { Actions } from './protocol';
+import { baseProtocolMessage } from './messages';
+
 const authAction = (override) => {
   return {
-    action: 4,
-    connectionId: 'CONNDESC',
-    connectionKey: 'CONNECTIONKEY',
-    connectionSerial: -1,
-    connectionDetails: {
-      clientId: 'RND-CLIENTID',
-      connectionKey: 'randomKey',
-      maxMessageSize: 131000,
-      maxInboundRate: 1000,
-      maxOutboundRate: 1000,
-      maxFrameSize: 262144,
-      connectionStateTtl: 120000,
-      maxIdleInterval: 15000,
-    },
+    ...baseProtocolMessage,
+    action: Actions.CONNECTED,
     ...override,
   };
 };
 
-export { authAction };
+const attachedAction = (override) => {
+  return {
+    ...baseProtocolMessage,
+    action: Actions.ATTACHED,
+    ...override,
+  };
+};
+
+const detachedAction = (override) => {
+  return {
+    ...baseProtocolMessage,
+    action: Actions.DETACHED,
+    ...override,
+  };
+};
+
+const ackAction = (override) => {
+  return {
+    ...baseProtocolMessage,
+    action: Actions.ACK,
+    ...override,
+  };
+};
+
+const messageAction = (override) => {
+  return {
+    ...baseProtocolMessage,
+    action: Actions.MESSAGE,
+    ...override,
+  };
+};
+
+export { authAction, attachedAction, detachedAction, ackAction, messageAction };

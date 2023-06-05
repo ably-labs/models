@@ -1,19 +1,19 @@
 import { Types, Realtime } from 'ably';
 import ModelOptions from './options/ModelOptions';
 import Model from './Model';
-import EventStreamOptions from './options/EventStreamOptions';
-import EventStream from './EventStream';
+import StreamOptions from './options/StreamOptions';
+import Stream from './Stream';
 
 class Models {
   private models: Record<string, Model<any>>;
-  private eventStreams: Record<string, EventStream<any>>;
+  private streams: Record<string, Stream<any>>;
   ably: Types.RealtimePromise;
 
   readonly version = '0.0.1';
 
   constructor(optionsOrAbly: Types.RealtimePromise | Types.ClientOptions | string) {
     this.models = {};
-    this.eventStreams = {};
+    this.streams = {};
     if (optionsOrAbly['options']) {
       this.ably = optionsOrAbly as Types.RealtimePromise;
       this.addAgent(this.ably['options'], false);
@@ -48,21 +48,21 @@ class Models {
     return model;
   };
 
-  EventStream = <T>(name: string, options?: EventStreamOptions) => {
+  Stream = <T>(name: string, options?: StreamOptions) => {
     if (typeof name !== 'string' || name.length === 0) {
-      throw new Error('EventStream must have a non-empty name');
+      throw new Error('Stream must have a non-empty name');
     }
 
-    if (this.eventStreams[name]) return this.eventStreams[name];
+    if (this.streams[name]) return this.streams[name];
 
     if (!options) {
-      throw new Error('EventStream cannot be instantiated without options');
+      throw new Error('Stream cannot be instantiated without options');
     }
 
-    const eventStream = new EventStream<T>(name, this.ably, options);
-    this.eventStreams[name] = eventStream;
+    const stream = new Stream<T>(name, this.ably, options);
+    this.streams[name] = stream;
 
-    return eventStream;
+    return stream;
   };
 }
 

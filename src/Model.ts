@@ -1,5 +1,5 @@
 import { Types } from 'ably';
-import EventStream from './EventStream';
+import Stream from './Stream';
 import ModelOptions from './options/ModelOptions';
 import EventEmitter from './utilities/EventEmitter';
 
@@ -16,7 +16,7 @@ enum ModelState {
 
 class Model<T> extends EventEmitter<any> {
   private state: ModelState = ModelState.INITIALIZED;
-  private streams: Record<string, EventStream<any>> = {};
+  private streams: Record<string, Stream<any>> = {};
   private data: T;
 
   constructor(readonly name: string, readonly client: Types.RealtimePromise, options?: ModelOptions) {
@@ -28,7 +28,7 @@ class Model<T> extends EventEmitter<any> {
     }
   }
 
-  stream(name: string): EventStream<any> {
+  stream(name: string): Stream<any> {
     if (!this.streams[name]) {
       throw new Error(`stream with name '${name}' not registered on model '${this.name}'`);
     }
