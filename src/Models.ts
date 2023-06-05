@@ -1,5 +1,5 @@
 import { Types, Realtime } from 'ably';
-import Model, { ModelOptions, Versionable } from './Model';
+import Model, { ModelOptions } from './Model';
 import Stream, { StreamOptions } from './Stream';
 
 class Models {
@@ -33,14 +33,14 @@ class Models {
     }
   }
 
-  Model = <T extends Versionable>(name: string, options?: ModelOptions) => {
+  Model = <T>(name: string, options: ModelOptions<T>) => {
     if (typeof name !== 'string' || name.length === 0) {
       throw new Error('Model must have a non-empty name');
     }
 
     if (this.models[name]) return this.models[name];
 
-    const model = new Model<T>(name, this.ably, options);
+    const model = new Model<T>(name, options);
     this.models[name] = model;
 
     return model;

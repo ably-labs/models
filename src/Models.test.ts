@@ -66,18 +66,18 @@ describe('Models', () => {
     ]);
   });
 
-  it<ModelsTestContext>('creates a model that inherits the root class ably client', () => {
+  it<ModelsTestContext>('creates a stream that inherits the root class ably client', () => {
     const models = new Models({ ...defaultClientConfig });
-    const model = models.Model('test');
-    expect(model.name).toEqual('test');
-    expect(model.client['options']).toContain(defaultClientConfig);
+    const stream = models.Stream('test', { channel: 'foobar' });
+    expect(stream.name).toEqual('test');
+    expect(stream.ably['options']).toContain(defaultClientConfig);
   });
 
   it<ModelsTestContext>('getting a model with the same name returns the same instance', () => {
     const models = new Models({ ...defaultClientConfig });
-    const model1 = models.Model('test');
+    const model1 = models.Model<string>('test', { streams: [], sync: async () => ({ version: 1, data: 'foobar' }) });
     expect(model1.name).toEqual('test');
-    const model2 = models.Model('test');
+    const model2 = models.Model('test', { streams: [], sync: async () => ({ version: 1, data: 'foobar' }) });
     expect(model2.name).toEqual('test');
     expect(model1).toEqual(model2);
   });
