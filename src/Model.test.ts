@@ -227,5 +227,33 @@ describe('Model', () => {
     });
   });
 
+  it<ModelTestContext>('executes a registered mutation', async ({ streams }) => {
+    streams.s1.subscribe = vi.fn();
+    streams.s2.subscribe = vi.fn();
+    const model = new Model<string>('test', { streams, sync: async () => ({ version: 1, data: 'foobar' }) });
+    await modelStatePromise(model, ModelState.READY);
+
+    const mutation = vi.fn();
+    model.registerMutation('foo', mutation);
+    expect(mutation).toHaveBeenCalledTimes(0);
+    await model.mutate<[string, number], void>('foo', 'bar', 123);
+    expect(mutation).toHaveBeenCalledTimes(1);
+    expect(mutation).toHaveBeenCalledWith('bar', 123);
+  });
+
+  it<ModelTestContext>('fails to register a duplicate mutation', async ({ streams }) => {
+    streams.s1.subscribe = vi.fn();
+    streams.s2.subscribe = vi.fn();
+    const model = new Model<string>('test', { streams, sync: async () => ({ version: 1, data: 'foobar' }) });
+    await modelStatePromise(model, ModelState.READY);
+
+    const mutation = vi.fn();
+    model.registerMutation('foo', mutation);
+    expect(mutation).toHaveBeenCalledTimes(0);
+    expect(() => model.registerMutation('foo', mutation)).toThrowError(
+      `mutation with name 'foo' already registered on model 'test'`,
+    );
+  });
+
   // TODO disposes of the model on stream failed
 });
