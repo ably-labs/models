@@ -3,7 +3,7 @@ import Model, { ModelOptions } from './Model';
 import Stream, { StreamOptions } from './Stream';
 
 class Models {
-  private models: Record<string, Model<any, any>>;
+  private models: Record<string, Model<any>>;
   private streams: Record<string, Stream>;
   ably: Types.RealtimePromise;
 
@@ -33,14 +33,14 @@ class Models {
     }
   }
 
-  Model = <T, S extends Record<string, Stream>>(name: string, options: ModelOptions<T, S>) => {
+  Model = <T>(name: string, options: ModelOptions<T>) => {
     if (typeof name !== 'string' || name.length === 0) {
       throw new Error('Model must have a non-empty name');
     }
 
     if (this.models[name]) return this.models[name];
 
-    const model = new Model<T, S>(name, options);
+    const model = new Model<T>(name, options);
     this.models[name] = model;
 
     return model;

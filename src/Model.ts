@@ -31,14 +31,14 @@ export enum ModelState {
   DISPOSED = 'disposed',
 }
 
-type SyncFunc<T> = () => Promise<Versioned<T>>;
-type UpdateFunc<T> = (state: T, event: Types.Message) => Promise<T>;
+export type SyncFunc<T> = () => Promise<Versioned<T>>;
+export type UpdateFunc<T> = (state: T, event: Types.Message) => Promise<T>;
 
-type Streams = {
+export type Streams = {
   [name: string]: Stream;
 };
 
-type UpdateFuncs<T> = {
+export type UpdateFuncs<T> = {
   [streamName: string]: {
     [eventName: string]: UpdateFunc<T>[];
   };
@@ -79,6 +79,7 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
       this.streams = options.streams;
       this.sync = options.sync;
     }
+    this.init();
   }
 
   public get state() {
@@ -96,14 +97,7 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     return this.streams[name];
   }
 
-  public start() {
-    this.init();
-  }
-
   public registerUpdate(stream: string, event: string, update: UpdateFunc<Versioned<T>>) {
-    if (this.currentState !== ModelState.INITIALIZED) {
-      throw new Error(`model is not in initialized state (state = ${this.currentState})`);
-    }
     if (!this.streams[stream]) {
       throw new Error(`stream with name '${stream}' not registered on model '${this.name}'`);
     }
@@ -162,7 +156,7 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     this.subscriptions.next(data.data);
   }
 
-  private async onMessage(stream: string, err: Error | null | undefined, event: Types.Message | undefined) {
+  private async onStreamEvent(stream: string, err: Error | null | undefined, event: Types.Message | undefined) {
     if (err) {
       this.onError(err);
       return;
@@ -189,10 +183,10 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
 
   private async init() {
     this.setState(ModelState.PREPARING);
-    for (let streamName in this.updateFuncs) {
+    for (let streamName in this.streams) {
       const stream = this.streams[streamName];
       const callback = (err: Error | null | undefined, event: Types.Message | undefined) =>
-        this.onMessage(streamName, err, event);
+        this.onStreamEvent(streamName, err, event);
       stream.subscribe(callback);
       this.streamSubscriptionsMap.set(stream, callback);
     }
