@@ -32,3 +32,12 @@ export const baseMessage: Types.Message = {
   extras: {},
   timestamp: 1,
 };
+
+export function createMessage(i: number): Types.Message {
+  return {
+    ...baseMessage,
+    id: `id_${i}`,
+    name: `name_${i}`,
+    data: `data_${i}`,
+  };
+}
