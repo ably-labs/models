@@ -21,7 +21,7 @@ vi.mock('./Stream', async () => {
   };
 });
 
-const modelStatePromise = <T, S extends Record<string, Stream>>(model: Model<T, S>, state: ModelState) =>
+const modelStatePromise = <T>(model: Model<T>, state: ModelState) =>
   new Promise((resolve) => model.whenState(state, model.state, resolve));
 
 describe('Model', () => {
@@ -31,7 +31,7 @@ describe('Model', () => {
 
   it<ModelTestContext>('expects model to be instantiated with the provided event streams', () => {
     const client = new Realtime({});
-    const model = new Model<string, { s1: Stream; s2: Stream }>('test', {
+    const model = new Model<string>('test', {
       streams: {
         s1: new Stream('s1', client, { channel: 's1' }),
         s2: new Stream('s2', client, { channel: 's2' }),
@@ -71,7 +71,7 @@ describe('Model', () => {
       return data;
     });
 
-    const model = new Model<TestData, {}>('test', { streams: [], sync: () => sync() });
+    const model = new Model<TestData>('test', { streams: {}, sync: () => sync() });
     await modelStatePromise(model, ModelState.INITIALIZED);
 
     model.start();
@@ -92,7 +92,7 @@ describe('Model', () => {
     const sync = vi.fn(async () => data);
     const s1 = new Stream('s1', client, { channel: 's1' });
     const s2 = new Stream('s2', client, { channel: 's2' });
-    const model = new Model<string, { s1: Stream; s2: Stream }>('test', {
+    const model = new Model<string>('test', {
       streams: { s1, s2 },
       sync,
     });

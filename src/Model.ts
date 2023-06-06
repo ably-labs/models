@@ -31,8 +31,10 @@ export enum ModelState {
   DISPOSED = 'disposed',
 }
 
-export type ModelOptions<T, S> = {
-  streams: S;
+type Streams = Record<string, Stream>;
+
+export type ModelOptions<T> = {
+  streams: Streams;
   sync: SyncFunc<T>;
 };
 
@@ -50,16 +52,16 @@ export type Versioned<T> = {
 type SyncFunc<T> = () => Promise<Versioned<T>>;
 type UpdateFunc<T> = (state: T, event: Types.Message) => Promise<T>;
 
-class Model<T, S extends Record<string, Stream>> extends EventEmitter<Record<ModelState, ModelStateChange>> {
+class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   private currentState: ModelState = ModelState.INITIALIZED;
-  private streams: S;
+  private streams: Streams;
   private sync: SyncFunc<T>;
   private currentData: Versioned<T>;
   private updators: Record<string, Record<string, Array<UpdateFunc<Versioned<T>>>>> = {}; // stream name -> event name -> update funcs
   private subscriptions = new EventEmitter<SubscriptionEvent<T>>();
   private subscriptionMap: Map<StandardCallback<T>, ListenerPair<T>> = new Map();
 
-  constructor(readonly name: string, options: ModelOptions<T, S>) {
+  constructor(readonly name: string, options: ModelOptions<T>) {
     super();
     if (options) {
       this.streams = options.streams;
