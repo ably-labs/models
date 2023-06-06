@@ -1,5 +1,6 @@
 import { Types } from 'ably';
-import EventEmitter, { EventListener } from './utilities/EventEmitter';
+import EventEmitter from './utilities/EventEmitter';
+import { ListenerPair, SubscriptionEvent } from './utilities/Subscriptions';
 import { StandardCallback } from './types/callbacks';
 
 const STREAM_OPTIONS_DEFAULTS = {};
@@ -40,29 +41,12 @@ export type StreamStateChange = {
   reason?: Types.ErrorInfo | string;
 };
 
-type SubscriptionMessageEvent = {
-  message: Types.Message;
-  error?: never;
-};
-
-type SubscriptionErrorEvent = {
-  message?: never;
-  error: Types.ErrorInfo;
-};
-
-type SubscriptionEvent = SubscriptionMessageEvent | SubscriptionErrorEvent;
-
-type ListenerPair = {
-  message: EventListener<Types.Message | undefined>;
-  error: EventListener<Types.ErrorInfo | undefined>;
-};
-
-class Stream<T> extends EventEmitter<Record<StreamState, StreamStateChange>> {
+class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> {
   private options: StreamOptions;
   private currentState: StreamState = StreamState.INITIALIZED;
   private ablyChannel: Types.RealtimeChannelPromise;
-  private subscriptions = new EventEmitter<SubscriptionEvent>();
-  private subscriptionMap: Map<StandardCallback<T>, ListenerPair> = new Map();
+  private subscriptions = new EventEmitter<SubscriptionEvent<Types.Message>>();
+  private subscriptionMap: Map<StandardCallback<Types.Message>, ListenerPair<Types.Message>> = new Map();
 
   constructor(readonly name: string, readonly ably: Types.RealtimePromise, options: StreamOptions) {
     super();
@@ -108,13 +92,13 @@ class Stream<T> extends EventEmitter<Record<StreamState, StreamStateChange>> {
     this.setState(StreamState.READY);
   }
 
-  subscribe(callback: StandardCallback<T>) {
+  subscribe(callback: StandardCallback<Types.Message>) {
     if (this.currentState !== StreamState.READY) {
       callback(new Error(`stream is not in ready state (state = ${this.currentState})`));
       return;
     }
-    const listenerPair: ListenerPair = {
-      message: (message) => callback(null, message as T),
+    const listenerPair: ListenerPair<Types.Message> = {
+      message: (message) => callback(null, message),
       error: callback,
     };
     this.subscriptions.on('message', listenerPair.message);
@@ -122,7 +106,7 @@ class Stream<T> extends EventEmitter<Record<StreamState, StreamStateChange>> {
     this.subscriptionMap.set(callback, listenerPair);
   }
 
-  unsubscribe(callback: StandardCallback<T>) {
+  unsubscribe(callback: StandardCallback<Types.Message>) {
     const listeners = this.subscriptionMap.get(callback);
     if (listeners) {
       this.subscriptions.off('message', listeners.message);

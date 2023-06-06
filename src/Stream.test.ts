@@ -2,7 +2,7 @@ import { it, describe, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Realtime, Types } from 'ably/promises';
 import { Subject } from 'rxjs';
 
-import { baseMessage } from './utilities/test/messages';
+import { createMessage } from './utilities/test/messages';
 import Stream, { StreamState } from './Stream';
 
 vi.mock('ably/promises');
@@ -12,19 +12,8 @@ interface StreamTestContext {
   channel: Types.RealtimeChannelPromise;
 }
 
-interface TestEvent {}
-
-const streamStatePromise = <T>(stream: Stream<T>, state: StreamState) =>
+const streamStatePromise = (stream: Stream, state: StreamState) =>
   new Promise((resolve) => stream.whenState(state, stream.state, resolve));
-
-function createMessage(i: number): Types.Message {
-  return {
-    ...baseMessage,
-    id: `id_${i}`,
-    name: `name_${i}`,
-    data: `data_${i}`,
-  };
-}
 
 describe('Stream', () => {
   beforeEach<StreamTestContext>((context) => {
@@ -55,11 +44,11 @@ describe('Stream', () => {
       await attachment;
     });
 
-    const stream = new Stream<TestEvent>('test', client, { channel: 'foobar' });
+    const stream = new Stream('test', client, { channel: 'foobar' });
 
-    await streamStatePromise<TestEvent>(stream, StreamState.PREPARING);
+    await streamStatePromise(stream, StreamState.PREPARING);
     attach();
-    await streamStatePromise<TestEvent>(stream, StreamState.READY);
+    await streamStatePromise(stream, StreamState.READY);
     expect(channel.subscribe).toHaveBeenCalledOnce();
   });
 
@@ -67,13 +56,13 @@ describe('Stream', () => {
     channel.subscribe = vi.fn<any, any>();
     channel.detach = vi.fn();
 
-    const stream = new Stream<TestEvent>('test', client, { channel: channel.name });
+    const stream = new Stream('test', client, { channel: channel.name });
 
-    await streamStatePromise<TestEvent>(stream, StreamState.READY);
+    await streamStatePromise(stream, StreamState.READY);
     expect(channel.subscribe).toHaveBeenCalledOnce();
 
     stream.pause();
-    await streamStatePromise<TestEvent>(stream, StreamState.PAUSED);
+    await streamStatePromise(stream, StreamState.PAUSED);
     expect(channel.detach).toHaveBeenCalledOnce();
   });
 
@@ -82,30 +71,30 @@ describe('Stream', () => {
     channel.detach = vi.fn<any, any>();
     channel.attach = vi.fn();
 
-    const stream = new Stream<TestEvent>('test', client, { channel: channel.name });
+    const stream = new Stream('test', client, { channel: channel.name });
 
-    await streamStatePromise<TestEvent>(stream, StreamState.READY);
+    await streamStatePromise(stream, StreamState.READY);
     expect(channel.subscribe).toHaveBeenCalledOnce();
 
     stream.pause();
-    await streamStatePromise<TestEvent>(stream, StreamState.PAUSED);
+    await streamStatePromise(stream, StreamState.PAUSED);
     expect(channel.detach).toHaveBeenCalledOnce();
 
     stream.resume();
-    await streamStatePromise<TestEvent>(stream, StreamState.READY);
+    await streamStatePromise(stream, StreamState.READY);
     expect(channel.attach).toHaveBeenCalledOnce();
   });
 
   it<StreamTestContext>('disposes of the stream', async ({ client, channel }) => {
     client.channels.release = vi.fn();
 
-    const stream = new Stream<TestEvent>('test', client, { channel: channel.name });
+    const stream = new Stream('test', client, { channel: channel.name });
 
-    await streamStatePromise<TestEvent>(stream, StreamState.READY);
+    await streamStatePromise(stream, StreamState.READY);
     expect(channel.subscribe).toHaveBeenCalledOnce();
 
     stream.dispose();
-    await streamStatePromise<TestEvent>(stream, StreamState.DISPOSED);
+    await streamStatePromise(stream, StreamState.DISPOSED);
     expect(client.channels.release).toHaveBeenCalledOnce();
   });
 
@@ -119,13 +108,13 @@ describe('Stream', () => {
 
     client.channels.release = vi.fn();
 
-    const stream = new Stream<TestEvent>('test', client, { channel: channel.name });
+    const stream = new Stream('test', client, { channel: channel.name });
 
-    await streamStatePromise<TestEvent>(stream, StreamState.READY);
+    await streamStatePromise(stream, StreamState.READY);
     expect(channel.subscribe).toHaveBeenCalledOnce();
 
     fail({ reason: 'test' });
-    await streamStatePromise<TestEvent>(stream, StreamState.DISPOSED);
+    await streamStatePromise(stream, StreamState.DISPOSED);
     expect(client.channels.release).toHaveBeenCalledOnce();
   });
 
@@ -135,8 +124,8 @@ describe('Stream', () => {
       messages.subscribe((message) => callback(message));
     });
 
-    const stream = new Stream<TestEvent>('test', client, { channel: channel.name });
-    await streamStatePromise<TestEvent>(stream, StreamState.READY);
+    const stream = new Stream('test', client, { channel: channel.name });
+    await streamStatePromise(stream, StreamState.READY);
 
     const subscriptionSpy = vi.fn();
     stream.subscribe(subscriptionSpy);
@@ -159,8 +148,8 @@ describe('Stream', () => {
       messages.subscribe((message) => callback(message));
     });
 
-    const stream = new Stream<TestEvent>('test', client, { channel: channel.name });
-    await streamStatePromise<TestEvent>(stream, StreamState.READY);
+    const stream = new Stream('test', client, { channel: channel.name });
+    await streamStatePromise(stream, StreamState.READY);
 
     const subscriptionSpy1 = vi.fn();
     stream.subscribe(subscriptionSpy1);
@@ -188,8 +177,8 @@ describe('Stream', () => {
       messages.subscribe((message) => callback(message));
     });
 
-    const stream = new Stream<TestEvent>('test', client, { channel: channel.name });
-    await streamStatePromise<TestEvent>(stream, StreamState.READY);
+    const stream = new Stream('test', client, { channel: channel.name });
+    await streamStatePromise(stream, StreamState.READY);
 
     const subscriptionSpy = vi.fn();
     stream.subscribe(subscriptionSpy);
@@ -215,8 +204,8 @@ describe('Stream', () => {
       messages.subscribe((message) => callback(message));
     });
 
-    const stream = new Stream<TestEvent>('test', client, { channel: channel.name });
-    await streamStatePromise<TestEvent>(stream, StreamState.READY);
+    const stream = new Stream('test', client, { channel: channel.name });
+    await streamStatePromise(stream, StreamState.READY);
 
     const subscriptionSpy1 = vi.fn();
     stream.subscribe(subscriptionSpy1);

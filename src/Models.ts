@@ -3,8 +3,8 @@ import Model, { ModelOptions } from './Model';
 import Stream, { StreamOptions } from './Stream';
 
 class Models {
-  private models: Record<string, Model<any>>;
-  private streams: Record<string, Stream<any>>;
+  private models: Record<string, Model<any, any>>;
+  private streams: Record<string, Stream>;
   ably: Types.RealtimePromise;
 
   readonly version = '0.0.1';
@@ -33,20 +33,20 @@ class Models {
     }
   }
 
-  Model = <T>(name: string, options: ModelOptions<T>) => {
+  Model = <T, S extends Record<string, Stream>>(name: string, options: ModelOptions<T, S>) => {
     if (typeof name !== 'string' || name.length === 0) {
       throw new Error('Model must have a non-empty name');
     }
 
     if (this.models[name]) return this.models[name];
 
-    const model = new Model<T>(name, options);
+    const model = new Model<T, S>(name, options);
     this.models[name] = model;
 
     return model;
   };
 
-  Stream = <T>(name: string, options?: StreamOptions) => {
+  Stream = (name: string, options?: StreamOptions) => {
     if (typeof name !== 'string' || name.length === 0) {
       throw new Error('Stream must have a non-empty name');
     }
@@ -57,7 +57,7 @@ class Models {
       throw new Error('Stream cannot be instantiated without options');
     }
 
-    const stream = new Stream<T>(name, this.ably, options);
+    const stream = new Stream(name, this.ably, options);
     this.streams[name] = stream;
 
     return stream;
