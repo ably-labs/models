@@ -1,7 +1,7 @@
 import { Types } from 'ably';
 import EventEmitter from './utilities/EventEmitter';
-import { ListenerPair, SubscriptionEvent } from './utilities/Subscriptions';
 import { StandardCallback } from './types/callbacks';
+import { Subject, Subscription } from 'rxjs';
 
 const STREAM_OPTIONS_DEFAULTS = {};
 
@@ -45,8 +45,8 @@ class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> {
   private options: StreamOptions;
   private currentState: StreamState = StreamState.INITIALIZED;
   private ablyChannel: Types.RealtimeChannelPromise;
-  private subscriptions = new EventEmitter<SubscriptionEvent<Types.Message>>();
-  private subscriptionMap: Map<StandardCallback<Types.Message>, ListenerPair<Types.Message>> = new Map();
+  private subscriptions = new Subject<Types.Message>();
+  private subscriptionMap: Map<StandardCallback<Types.Message>, Subscription> = new Map();
 
   constructor(readonly name: string, readonly ably: Types.RealtimePromise, options: StreamOptions) {
     super();
@@ -97,33 +97,31 @@ class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> {
       callback(new Error(`stream is not in ready state (state = ${this.currentState})`));
       return;
     }
-    const listenerPair: ListenerPair<Types.Message> = {
-      message: (message) => callback(null, message),
-      error: callback,
-    };
-    this.subscriptions.on('message', listenerPair.message);
-    this.subscriptions.on('error', listenerPair.error);
-    this.subscriptionMap.set(callback, listenerPair);
+    const subscription = this.subscriptions.subscribe({
+      next: (message) => callback(null, message),
+      error: (err) => callback(err),
+      complete: () => this.unsubscribe(callback),
+    });
+    this.subscriptionMap.set(callback, subscription);
   }
 
   unsubscribe(callback: StandardCallback<Types.Message>) {
-    const listeners = this.subscriptionMap.get(callback);
-    if (listeners) {
-      this.subscriptions.off('message', listeners.message);
-      this.subscriptions.off('error', listeners.error);
+    const subscription = this.subscriptionMap.get(callback);
+    if (subscription) {
+      subscription.unsubscribe();
       this.subscriptionMap.delete(callback);
     }
   }
 
   dispose(reason?: Types.ErrorInfo | string) {
     this.setState(StreamState.DISPOSED, reason);
-    this.subscriptions.off('message');
-    this.subscriptions.off('error');
+    this.subscriptions.unsubscribe();
+    this.subscriptionMap.clear();
     this.ably.channels.release(this.ablyChannel.name);
   }
 
   onMessage(message: Types.Message) {
-    this.subscriptions.emit('message', message);
+    this.subscriptions.next(message);
   }
 }
 

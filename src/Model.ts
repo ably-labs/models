@@ -1,8 +1,8 @@
 import { Types } from 'ably';
 import Stream from './Stream';
 import EventEmitter from './utilities/EventEmitter';
-import { ListenerPair, SubscriptionEvent } from './utilities/Subscriptions';
 import { StandardCallback } from './types/callbacks';
+import { Subject, Subscription } from 'rxjs';
 
 export enum ModelState {
   /**
@@ -58,8 +58,8 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   private sync: SyncFunc<T>;
   private currentData: Versioned<T>;
   private updators: Record<string, Record<string, Array<UpdateFunc<Versioned<T>>>>> = {}; // stream name -> event name -> update funcs
-  private subscriptions = new EventEmitter<SubscriptionEvent<T>>();
-  private subscriptionMap: Map<StandardCallback<T>, ListenerPair<T>> = new Map();
+  private subscriptions = new Subject<T>();
+  private subscriptionMap: Map<StandardCallback<T>, Subscription> = new Map();
 
   constructor(readonly name: string, options: ModelOptions<T>) {
     super();
@@ -116,24 +116,22 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
 
   private setData(data: Versioned<T>) {
     this.currentData = data;
-    this.subscriptions.emit('message', data.data);
+    this.subscriptions.next(data.data);
   }
 
   subscribe(callback: StandardCallback<T>) {
-    const listenerPair: ListenerPair<T> = {
-      message: (message) => callback(null, message),
-      error: callback,
-    };
-    this.subscriptions.on('message', listenerPair.message);
-    this.subscriptions.on('error', listenerPair.error);
-    this.subscriptionMap.set(callback, listenerPair);
+    const subscription = this.subscriptions.subscribe({
+      next: (message) => callback(null, message),
+      error: (err) => callback(err),
+      complete: () => this.unsubscribe(callback),
+    });
+    this.subscriptionMap.set(callback, subscription);
   }
 
   unsubscribe(callback: StandardCallback<T>) {
-    const listeners = this.subscriptionMap.get(callback);
-    if (listeners) {
-      this.subscriptions.off('message', listeners.message);
-      this.subscriptions.off('error', listeners.error);
+    const subscription = this.subscriptionMap.get(callback);
+    if (subscription) {
+      subscription.unsubscribe();
       this.subscriptionMap.delete(callback);
     }
   }
