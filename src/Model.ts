@@ -31,14 +31,25 @@ export enum ModelState {
   DISPOSED = 'disposed',
 }
 
-type Streams = Record<string, Stream>;
+type SyncFunc<T> = () => Promise<Versioned<T>>;
+type UpdateFunc<T> = (state: T, event: Types.Message) => Promise<T>;
+
+type Streams = {
+  [name: string]: Stream;
+};
+
+type UpdateFuncs<T> = {
+  [streamName: string]: {
+    [eventName: string]: UpdateFunc<T>[];
+  };
+};
 
 export type ModelOptions<T> = {
   streams: Streams;
   sync: SyncFunc<T>;
 };
 
-type ModelStateChange = {
+export type ModelStateChange = {
   current: ModelState;
   previous: ModelState;
   reason?: Types.ErrorInfo | string;
@@ -49,17 +60,18 @@ export type Versioned<T> = {
   data: T;
 };
 
-type SyncFunc<T> = () => Promise<Versioned<T>>;
-type UpdateFunc<T> = (state: T, event: Types.Message) => Promise<T>;
-
 class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   private currentState: ModelState = ModelState.INITIALIZED;
-  private streams: Streams;
-  private sync: SyncFunc<T>;
   private currentData: Versioned<T>;
-  private updators: Record<string, Record<string, Array<UpdateFunc<Versioned<T>>>>> = {}; // stream name -> event name -> update funcs
+
+  private sync: SyncFunc<T>;
+  private streams: Streams;
+  private updateFuncs: UpdateFuncs<Versioned<T>> = {};
+
   private subscriptions = new Subject<T>();
   private subscriptionMap: Map<StandardCallback<T>, Subscription> = new Map();
+
+  private streamSubscriptionsMap: Map<Stream, StandardCallback<Types.Message>> = new Map();
 
   constructor(readonly name: string, options: ModelOptions<T>) {
     super();
@@ -69,11 +81,11 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     }
   }
 
-  get state() {
+  public get state() {
     return this.currentState;
   }
 
-  get data() {
+  public get data() {
     return this.currentData;
   }
 
@@ -88,20 +100,51 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     this.init();
   }
 
-  registerUpdate(stream: string, event: string, update: UpdateFunc<Versioned<T>>) {
+  public registerUpdate(stream: string, event: string, update: UpdateFunc<Versioned<T>>) {
     if (this.currentState !== ModelState.INITIALIZED) {
       throw new Error(`model is not in initialized state (state = ${this.currentState})`);
     }
     if (!this.streams[stream]) {
       throw new Error(`stream with name '${stream}' not registered on model '${this.name}'`);
     }
-    if (!this.updators[stream]) {
-      this.updators[stream] = {};
+    if (!this.updateFuncs[stream]) {
+      this.updateFuncs[stream] = {};
     }
-    if (!this.updators[stream][event]) {
-      this.updators[stream][event] = [];
+    if (!this.updateFuncs[stream][event]) {
+      this.updateFuncs[stream][event] = [];
     }
-    this.updators[stream][event].push(update);
+    this.updateFuncs[stream][event].push(update);
+  }
+
+  public subscribe(callback: StandardCallback<T>) {
+    const subscription = this.subscriptions.subscribe({
+      next: (message) => callback(null, message),
+      error: (err) => callback(err),
+      complete: () => this.unsubscribe(callback),
+    });
+    this.subscriptionMap.set(callback, subscription);
+  }
+
+  public unsubscribe(callback: StandardCallback<T>) {
+    const subscription = this.subscriptionMap.get(callback);
+    if (subscription) {
+      subscription.unsubscribe();
+      this.subscriptionMap.delete(callback);
+    }
+  }
+
+  public dispose(reason?: Types.ErrorInfo | string) {
+    this.setState(ModelState.DISPOSED, reason);
+    this.subscriptions.unsubscribe();
+    for (const streamName in this.streams) {
+      const stream = this.streams[streamName];
+      const callback = this.streamSubscriptionsMap.get(stream);
+      if (callback) {
+        stream.unsubscribe(callback);
+      }
+    }
+    this.subscriptionMap.clear();
+    this.streamSubscriptionsMap.clear();
   }
 
   private setState(state: ModelState, reason?: Types.ErrorInfo | string) {
@@ -119,47 +162,39 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     this.subscriptions.next(data.data);
   }
 
-  subscribe(callback: StandardCallback<T>) {
-    const subscription = this.subscriptions.subscribe({
-      next: (message) => callback(null, message),
-      error: (err) => callback(err),
-      complete: () => this.unsubscribe(callback),
-    });
-    this.subscriptionMap.set(callback, subscription);
-  }
-
-  unsubscribe(callback: StandardCallback<T>) {
-    const subscription = this.subscriptionMap.get(callback);
-    if (subscription) {
-      subscription.unsubscribe();
-      this.subscriptionMap.delete(callback);
-    }
-  }
-
   private async onMessage(stream: string, err: Error | null | undefined, event: Types.Message | undefined) {
     if (err) {
-      // TODO handle error
+      this.onError(err);
+      return;
     }
     if (!this.streams[stream]) {
-      throw new Error(`stream with name '${stream}' not registered on model '${this.name}'`);
+      this.onError(new Error(`stream with name '${stream}' not registered on model '${this.name}'`));
+      return;
     }
-    if (this.updators[stream]) {
-      for (let eventName in this.updators[stream]) {
-        if (event?.name === eventName) {
-          for (let updator of this.updators[stream][eventName]) {
-            this.setData(await updator(this.currentData, event));
-          }
+    if (!this.updateFuncs[stream]) {
+      return;
+    }
+    for (let eventName in this.updateFuncs[stream]) {
+      if (event?.name === eventName) {
+        for (let updator of this.updateFuncs[stream][eventName]) {
+          this.setData(await updator(this.currentData, event));
         }
       }
     }
   }
 
+  private async onError(err) {
+    throw new Error(`onError not implemented: err = ${err}`);
+  }
+
   private async init() {
     this.setState(ModelState.PREPARING);
-    for (let streamName in this.updators) {
+    for (let streamName in this.updateFuncs) {
       const stream = this.streams[streamName];
-      stream.subscribe((err, event) => this.onMessage(streamName, err, event));
-      // TODO unregister
+      const callback = (err: Error | null | undefined, event: Types.Message | undefined) =>
+        this.onMessage(streamName, err, event);
+      stream.subscribe(callback);
+      this.streamSubscriptionsMap.set(stream, callback);
     }
     this.currentData = await this.sync();
     this.setState(ModelState.READY);
