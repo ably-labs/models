@@ -56,43 +56,26 @@ class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> {
     this.init();
   }
 
-  get state() {
+  public get state() {
     return this.currentState;
   }
 
-  get channel() {
+  public get channel() {
     return this.options.channel;
   }
 
-  setState(state: StreamState, reason?: Types.ErrorInfo | string) {
-    const previous = this.currentState;
-    this.currentState = state;
-    this.emit(state, {
-      current: this.currentState,
-      previous,
-      reason,
-    } as StreamStateChange);
-  }
-
-  async init() {
-    this.setState(StreamState.PREPARING);
-    await this.ably.connection.whenState('connected');
-    await this.ablyChannel.subscribe(this.onMessage.bind(this));
-    this.setState(StreamState.READY);
-  }
-
-  async pause() {
+  public async pause() {
     this.setState(StreamState.PAUSED);
     await this.ablyChannel.detach();
   }
 
-  async resume() {
+  public async resume() {
     await this.ably.connection.whenState('connected');
     await this.ablyChannel.attach();
     this.setState(StreamState.READY);
   }
 
-  subscribe(callback: StandardCallback<Types.Message>) {
+  public subscribe(callback: StandardCallback<Types.Message>) {
     if (this.currentState !== StreamState.READY) {
       callback(new Error(`stream is not in ready state (state = ${this.currentState})`));
       return;
@@ -105,7 +88,7 @@ class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> {
     this.subscriptionMap.set(callback, subscription);
   }
 
-  unsubscribe(callback: StandardCallback<Types.Message>) {
+  public unsubscribe(callback: StandardCallback<Types.Message>) {
     const subscription = this.subscriptionMap.get(callback);
     if (subscription) {
       subscription.unsubscribe();
@@ -113,14 +96,31 @@ class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> {
     }
   }
 
-  dispose(reason?: Types.ErrorInfo | string) {
+  public dispose(reason?: Types.ErrorInfo | string) {
     this.setState(StreamState.DISPOSED, reason);
     this.subscriptions.unsubscribe();
     this.subscriptionMap.clear();
     this.ably.channels.release(this.ablyChannel.name);
   }
 
-  onMessage(message: Types.Message) {
+  private setState(state: StreamState, reason?: Types.ErrorInfo | string) {
+    const previous = this.currentState;
+    this.currentState = state;
+    this.emit(state, {
+      current: this.currentState,
+      previous,
+      reason,
+    } as StreamStateChange);
+  }
+
+  private async init() {
+    this.setState(StreamState.PREPARING);
+    await this.ably.connection.whenState('connected');
+    await this.ablyChannel.subscribe(this.onMessage.bind(this));
+    this.setState(StreamState.READY);
+  }
+
+  private onMessage(message: Types.Message) {
     this.subscriptions.next(message);
   }
 }
