@@ -75,13 +75,13 @@ describe('Models', () => {
 
   it<ModelsTestContext>('getting a model with the same name returns the same instance', () => {
     const models = new Models({ ...defaultClientConfig });
-    const model1 = models.Model<string, {}>('test', {
-      streams: [],
+    const model1 = models.Model<string>('test', {
+      streams: {},
       sync: async () => ({ version: 1, data: 'foobar' }),
     });
     expect(model1.name).toEqual('test');
-    const model2 = models.Model<string, {}>('test', {
-      streams: [],
+    const model2 = models.Model<string>('test', {
+      streams: {},
       sync: async () => ({ version: 1, data: 'foobar' }),
     });
     expect(model2.name).toEqual('test');
