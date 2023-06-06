@@ -32,7 +32,14 @@ export enum ModelState {
 }
 
 export type SyncFunc<T> = () => Promise<Versioned<T>>;
+
 export type UpdateFunc<T> = (state: T, event: Types.Message) => Promise<T>;
+
+export type MutationResult<R> = {
+  result: R;
+  expected: Partial<Types.Message>;
+};
+export type MutationFunc<T extends any[] = any[], R = any> = (...args: T) => Promise<MutationResult<R>>;
 
 export type Streams = {
   [name: string]: Stream;
@@ -65,8 +72,11 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   private currentData: Versioned<T>;
 
   private sync: SyncFunc<T>;
+
   private streams: Streams;
   private updateFuncs: UpdateFuncs<Versioned<T>> = {};
+
+  private mutations: Record<string, MutationFunc> = {};
 
   private subscriptions = new Subject<T>();
   private subscriptionMap: Map<StandardCallback<T>, Subscription> = new Map();
@@ -122,6 +132,25 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
       this.updateFuncs[stream][event] = [];
     }
     this.updateFuncs[stream][event].push(update);
+  }
+
+  public registerMutation(name: string, mutation: MutationFunc) {
+    if (this.mutations[name]) {
+      throw new Error(`mutation with name '${name}' already registered on model '${this.name}'`);
+    }
+    this.mutations[name] = mutation;
+  }
+
+  public async mutate<TArgs extends any[], R>(name: string, ...args: TArgs): Promise<MutationResult<R>> {
+    const mutation = this.mutations[name];
+    if (!mutation) {
+      throw new Error(`mutation with name '${name}' not registered on model '${this.name}'`);
+    }
+    const result = await mutation(...args);
+
+    // TODO: process the expected result optimistically
+
+    return result;
   }
 
   public subscribe(callback: StandardCallback<T>) {
