@@ -52,21 +52,7 @@ describe('Stream', () => {
     expect(channel.subscribe).toHaveBeenCalledOnce();
   });
 
-  it<StreamTestContext>('pauses the stream', async ({ client, channel }) => {
-    channel.subscribe = vi.fn<any, any>();
-    channel.detach = vi.fn();
-
-    const stream = new Stream('test', client, { channel: channel.name });
-
-    await streamStatePromise(stream, StreamState.READY);
-    expect(channel.subscribe).toHaveBeenCalledOnce();
-
-    stream.pause();
-    await streamStatePromise(stream, StreamState.PAUSED);
-    expect(channel.detach).toHaveBeenCalledOnce();
-  });
-
-  it<StreamTestContext>('resumes the stream', async ({ client, channel }) => {
+  it<StreamTestContext>('pauses and resumes the stream', async ({ client, channel }) => {
     channel.subscribe = vi.fn<any, any>();
     channel.detach = vi.fn<any, any>();
     channel.attach = vi.fn();

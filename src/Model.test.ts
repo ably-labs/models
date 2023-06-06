@@ -95,6 +95,32 @@ describe('Model', () => {
     expect(model.data).toEqual(data);
   });
 
+  it<ModelTestContext>('pauses and resumes the model', async ({ streams }) => {
+    streams.s1.subscribe = vi.fn();
+    streams.s2.subscribe = vi.fn();
+    streams.s1.pause = vi.fn();
+    streams.s2.pause = vi.fn();
+    streams.s1.resume = vi.fn();
+    streams.s2.resume = vi.fn();
+    const sync = vi.fn();
+
+    const model = new Model<TestData>('test', { streams, sync });
+
+    await modelStatePromise(model, ModelState.READY);
+    expect(streams.s1.subscribe).toHaveBeenCalledOnce();
+    expect(streams.s2.subscribe).toHaveBeenCalledOnce();
+
+    model.pause();
+    await modelStatePromise(model, ModelState.PAUSED);
+    expect(streams.s1.pause).toHaveBeenCalledOnce();
+    expect(streams.s2.pause).toHaveBeenCalledOnce();
+
+    model.resume();
+    await modelStatePromise(model, ModelState.READY);
+    expect(streams.s1.resume).toHaveBeenCalledOnce();
+    expect(streams.s2.resume).toHaveBeenCalledOnce();
+  });
+
   it<ModelTestContext>('disposes of the model', async ({ streams }) => {
     streams.s1.subscribe = vi.fn();
     streams.s2.subscribe = vi.fn();
