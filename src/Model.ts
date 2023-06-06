@@ -90,6 +90,20 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     return this.currentData;
   }
 
+  public async pause() {
+    this.setState(ModelState.PAUSED);
+    for (const streamName in this.streams) {
+      await this.streams[streamName].pause();
+    }
+  }
+
+  public async resume() {
+    for (const streamName in this.streams) {
+      await this.streams[streamName].resume();
+    }
+    this.setState(ModelState.READY);
+  }
+
   public stream(name: string): Stream {
     if (!this.streams[name]) {
       throw new Error(`stream with name '${name}' not registered on model '${this.name}'`);
