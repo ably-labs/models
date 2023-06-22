@@ -41,3 +41,7 @@ export function createMessage(i: number): Types.Message {
     data: `data_${i}`,
   };
 }
+
+export function customMessage(id: string, name: string, data: string): Types.Message {
+  return { ...baseMessage, id, name, data };
+}

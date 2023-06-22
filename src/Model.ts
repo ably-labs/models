@@ -3,6 +3,7 @@ import Stream from './Stream';
 import EventEmitter from './utilities/EventEmitter';
 import { StandardCallback } from './types/callbacks';
 import { Subject, Subscription } from 'rxjs';
+import _ from 'lodash';
 
 export enum ModelState {
   /**
@@ -31,15 +32,30 @@ export enum ModelState {
   DISPOSED = 'disposed',
 }
 
+export type Event = {
+  stream: string;
+  name: string;
+  data?: any;
+};
+
+type Confirmation = {
+  confirmed: boolean;
+};
+
 export type SyncFunc<T> = () => Promise<Versioned<T>>;
 
-export type UpdateFunc<T> = (state: T, event: Types.Message) => Promise<T>;
+export type UpdateFunc<T> = (state: T, event: Event) => Promise<T>;
 
 export type MutationResult<R> = {
   result: R;
-  expected: Partial<Types.Message>;
+  events: Event[];
 };
+
 export type MutationFunc<T extends any[] = any[], R = any> = (...args: T) => Promise<MutationResult<R>>;
+
+export type Mutation<T extends any[] = any[], R = any> = {
+  mutate: MutationFunc<T, R>;
+};
 
 export type Streams = {
   [name: string]: Stream;
@@ -67,20 +83,28 @@ export type Versioned<T> = {
   data: T;
 };
 
+function eventsAreEqual(e1: Event, e2: Event): boolean {
+  return e1.stream === e2.stream && e1.name === e2.name && _.isEqual(e1.data, e2.data);
+}
+
+type SubscriptionOptions = {
+  optimistic: boolean;
+};
+
 class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   private currentState: ModelState = ModelState.INITIALIZED;
-  private currentData: Versioned<T>;
+  private optimisticData: T;
+  private confirmedData: T;
 
   private sync: SyncFunc<T>;
-
   private streams: Streams;
-  private updateFuncs: UpdateFuncs<Versioned<T>> = {};
+  private updateFuncs: UpdateFuncs<T> = {};
+  private mutations: Record<string, Mutation> = {};
 
-  private mutations: Record<string, MutationFunc> = {};
+  private optimisticEvents: Event[] = [];
 
-  private subscriptions = new Subject<T>();
+  private subscriptions = new Subject<{ confirmed: boolean; data: T }>();
   private subscriptionMap: Map<StandardCallback<T>, Subscription> = new Map();
-
   private streamSubscriptionsMap: Map<Stream, StandardCallback<Types.Message>> = new Map();
 
   constructor(readonly name: string, options: ModelOptions<T>) {
@@ -96,8 +120,12 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     return this.currentState;
   }
 
-  public get data() {
-    return this.currentData;
+  public get optimistic() {
+    return this.optimisticData;
+  }
+
+  public get confirmed() {
+    return this.confirmedData;
   }
 
   public async pause() {
@@ -121,7 +149,7 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     return this.streams[name];
   }
 
-  public registerUpdate(stream: string, event: string, update: UpdateFunc<Versioned<T>>) {
+  public registerUpdate(stream: string, event: string, update: UpdateFunc<T>) {
     if (!this.streams[stream]) {
       throw new Error(`stream with name '${stream}' not registered on model '${this.name}'`);
     }
@@ -134,28 +162,39 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     this.updateFuncs[stream][event].push(update);
   }
 
-  public registerMutation(name: string, mutation: MutationFunc) {
+  public registerMutation(name: string, mutation: Mutation) {
     if (this.mutations[name]) {
       throw new Error(`mutation with name '${name}' already registered on model '${this.name}'`);
     }
     this.mutations[name] = mutation;
   }
 
-  public async mutate<TArgs extends any[], R>(name: string, ...args: TArgs): Promise<MutationResult<R>> {
-    const mutation = this.mutations[name];
+  public async mutate<TArgs extends any[], R>(name: string, ...args: TArgs): Promise<R> {
+    const mutation: Mutation<TArgs, R> = this.mutations[name];
     if (!mutation) {
       throw new Error(`mutation with name '${name}' not registered on model '${this.name}'`);
     }
-    const result = await mutation(...args);
+    const { result, events } = await mutation.mutate(...args);
 
-    // TODO: process the expected result optimistically
+    for (const event of events) {
+      await this.onStreamEvent(null, { ...event, confirmed: false });
+    }
 
     return result;
   }
 
-  public subscribe(callback: StandardCallback<T>) {
+  public subscribe(callback: StandardCallback<T>, options: SubscriptionOptions = { optimistic: true }) {
     const subscription = this.subscriptions.subscribe({
-      next: (message) => callback(null, message),
+      next: (value) => {
+        if (options.optimistic && !value.confirmed) {
+          callback(null, value.data);
+          return;
+        }
+        if (!options.optimistic && value.confirmed) {
+          callback(null, value.data);
+          return;
+        }
+      },
       error: (err) => callback(err),
       complete: () => this.unsubscribe(callback),
     });
@@ -194,29 +233,75 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     } as ModelStateChange);
   }
 
-  private setData(data: Versioned<T>) {
-    this.currentData = data;
-    this.subscriptions.next(data.data);
+  private setOptimisticData(data: T) {
+    this.optimisticData = data;
+    this.subscriptions.next({ confirmed: false, data });
   }
 
-  private async onStreamEvent(stream: string, err: Error | null | undefined, event: Types.Message | undefined) {
-    if (err) {
-      this.onError(err);
-      return;
-    }
-    if (!this.streams[stream]) {
-      this.onError(new Error(`stream with name '${stream}' not registered on model '${this.name}'`));
-      return;
-    }
-    if (!this.updateFuncs[stream]) {
-      return;
-    }
-    for (let eventName in this.updateFuncs[stream]) {
-      if (event?.name === eventName) {
-        for (let updator of this.updateFuncs[stream][eventName]) {
-          this.setData(await updator(this.currentData, event));
+  private setConfirmedData(data: T) {
+    this.confirmedData = data;
+    this.subscriptions.next({ confirmed: true, data });
+  }
+
+  private async applyUpdates(initialData: T, event: Event): Promise<T> {
+    let data = initialData;
+    for (let eventName in this.updateFuncs[event.stream]) {
+      if (event.name === eventName) {
+        for (let updator of this.updateFuncs[event.stream][eventName]) {
+          data = await updator(data, event);
         }
       }
+    }
+    return data;
+  }
+
+  private async onStreamEvent(err: Error | null | undefined, event?: Event & Confirmation) {
+    if (err) {
+      await this.onError(err);
+      return;
+    }
+    if (!event) {
+      await this.onError('received empty event');
+      return;
+    }
+    if (!this.streams[event.stream]) {
+      await this.onError(new Error(`stream with name '${event.stream}' not registered on model '${this.name}'`));
+      return;
+    }
+    if (!this.updateFuncs[event.stream]) {
+      return;
+    }
+
+    // eagerly apply optimistic updates
+    if (!event.confirmed) {
+      this.optimisticEvents.push(event);
+      this.setOptimisticData(await this.applyUpdates(this.optimisticData, event));
+      return;
+    }
+
+    // if the incoming confirmed event confirms the next expected optimistic event for the stream, it is
+    // discarded without applying it to the speculative state because its effect has already been optimistically applied
+    let unexpectedEvent = true;
+    for (let i = 0; i < this.optimisticEvents.length; i++) {
+      let e = this.optimisticEvents[i];
+      if (eventsAreEqual(e, event)) {
+        this.optimisticEvents.splice(i, 1);
+        this.setConfirmedData(await this.applyUpdates(this.confirmedData, event));
+        unexpectedEvent = false;
+        break;
+      }
+    }
+
+    // if the incoming confirmed event doesn't match any optimistic event,
+    // we need to roll back to the last-confirmed state, apply the incoming event,
+    // and rebase the optimistic updates on top
+    if (unexpectedEvent) {
+      let nextData = await this.applyUpdates(this.confirmedData, event);
+      this.setConfirmedData(nextData);
+      for (const e of this.optimisticEvents) {
+        nextData = await this.applyUpdates(nextData, e);
+      }
+      this.setOptimisticData(nextData);
     }
   }
 
@@ -228,12 +313,19 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     this.setState(ModelState.PREPARING);
     for (let streamName in this.streams) {
       const stream = this.streams[streamName];
-      const callback = (err: Error | null | undefined, event: Types.Message | undefined) =>
-        this.onStreamEvent(streamName, err, event);
+      const callback: StandardCallback<Types.Message> = (err, event) => {
+        if (err) {
+          this.onStreamEvent(err);
+          return;
+        }
+        this.onStreamEvent(null, { ...event!, stream: streamName, confirmed: true });
+      };
       stream.subscribe(callback);
       this.streamSubscriptionsMap.set(stream, callback);
     }
-    this.currentData = await this.sync();
+    const { data } = await this.sync();
+    this.setOptimisticData(data);
+    this.setConfirmedData(data);
     this.setState(ModelState.READY);
   }
 }
