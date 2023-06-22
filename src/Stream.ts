@@ -33,6 +33,7 @@ export enum StreamState {
 
 export type StreamOptions = {
   channel: string;
+  filter?: string;
 };
 
 export type StreamStateChange = {
@@ -51,7 +52,11 @@ class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> {
   constructor(readonly name: string, readonly ably: Types.RealtimePromise, options: StreamOptions) {
     super();
     this.options = { ...STREAM_OPTIONS_DEFAULTS, ...options };
-    this.ablyChannel = this.ably.channels.get(this.options.channel);
+    if (this.options.filter) {
+      this.ablyChannel = this.ably.channels.getDerived(this.options.channel, { filter: this.options.filter });
+    } else {
+      this.ablyChannel = this.ably.channels.get(this.options.channel);
+    }
     this.ablyChannel.on('failed', (change) => this.dispose(change.reason));
     this.init();
   }

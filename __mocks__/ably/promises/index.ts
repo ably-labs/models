@@ -16,6 +16,7 @@ type MockChannels = Partial<Types.Channels<MockChannel>>;
 
 const mockChannels: MockChannels = {
 	get: () => mockChannel,
+	getDerived: () => mockChannel,
 	release: () => mockNotImplemented<void>('release'),
 }
 
