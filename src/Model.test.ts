@@ -366,6 +366,81 @@ describe('Model', () => {
     expect(model.confirmed).toEqual('data_1');
   });
 
+  it<ModelTestContext>('confirms optimistic events out of order', async ({ streams }) => {
+    streams.s1.subscribe = vi.fn();
+    streams.s2.subscribe = vi.fn();
+
+    const events = { e1: new Subject<Types.Message>() };
+    streams.s1.subscribe = vi.fn((callback) => {
+      events.e1.subscribe((message) => callback(null, message));
+    });
+
+    const model = new Model<string>('test', { streams, sync: async () => ({ version: 1, data: '0' }) });
+    await modelStatePromise(model, ModelState.READY);
+
+    const update1 = vi.fn(async (state, event) => state + event.data);
+    model.registerUpdate('s1', 'testEvent', update1);
+
+    const mutation: Mutation = {
+      mutate: vi.fn(async (stream: string, data: string) => ({
+        result: 'test',
+        events: [{ stream, name: 'testEvent', data }],
+      })),
+    };
+    model.registerMutation('foo', mutation);
+
+    let optimisticSubscription = new Subject<void>();
+    const optimisticSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() => {
+      optimisticSubscription.next();
+    });
+    model.subscribe(optimisticSubscriptionSpy);
+    const optimisticSubscriptionCall = getEventPromises(optimisticSubscription, 3);
+
+    let confirmedSubscription = new Subject<void>();
+    const confirmedSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() => {
+      confirmedSubscription.next();
+    });
+    model.subscribe(confirmedSubscriptionSpy, { optimistic: false });
+    const confirmedSubscriptionCalls = getEventPromises(confirmedSubscription, 3);
+
+    await model.mutate<[string, string], void>('foo', 's1', '1');
+    await model.mutate<[string, string], void>('foo', 's1', '2');
+
+    // optimistic updates are applied in the order the mutations were called
+    await optimisticSubscriptionCall[0];
+    await optimisticSubscriptionCall[1];
+    expect(model.optimistic).toEqual('012');
+    expect(model.confirmed).toEqual('0');
+    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(2);
+    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(1, null, '01');
+    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(2, null, '012');
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(0);
+
+    // You would typically expect the confirmation events to be sent (and arrive) in the
+    // same order as their corresponding mutations were applied.
+    // However, if this is not the case, we still accept the confirmation, but the
+    // optimistic and confirmed states may differ (assuming non-commutative update functions)
+    // since the updates were applied in different order.
+
+    // confirm the second expected event
+    events.e1.next(customMessage('id_1', 'testEvent', '2'));
+    await confirmedSubscriptionCalls[0];
+    expect(model.optimistic).toEqual('012');
+    expect(model.confirmed).toEqual('02');
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(1);
+    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(1, null, '02');
+    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(2);
+
+    // confirm the first expected event
+    events.e1.next(customMessage('id_1', 'testEvent', '1'));
+    await confirmedSubscriptionCalls[1];
+    expect(model.optimistic).toEqual('012');
+    expect(model.confirmed).toEqual('021');
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(2);
+    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(2, null, '021');
+    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(2);
+  });
+
   it<ModelTestContext>('confirms optimistic events from multiple streams', async ({ streams }) => {
     streams.s1.subscribe = vi.fn();
     streams.s2.subscribe = vi.fn();
