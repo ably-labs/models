@@ -1,5 +1,5 @@
-import { Actions } from './protocol';
-import { baseProtocolMessage } from './messages';
+import { Actions } from './protocol.js';
+import { baseProtocolMessage } from './messages.js';
 
 const authAction = (override) => {
   return {

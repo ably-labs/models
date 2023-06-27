@@ -3,9 +3,9 @@ import { Realtime, Types } from 'ably/promises';
 import { Subject, lastValueFrom } from 'rxjs';
 import { take } from 'rxjs/operators';
 
-import { createMessage, customMessage } from './utilities/test/messages';
-import Model, { ModelState, Versioned, Streams, Mutation } from './Model';
-import Stream from './Stream';
+import { createMessage, customMessage } from './utilities/test/messages.js';
+import Model, { ModelState, Versioned, Streams, Mutation } from './Model.js';
+import Stream from './Stream.js';
 
 vi.mock('ably/promises');
 

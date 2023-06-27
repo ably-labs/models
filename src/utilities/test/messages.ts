@@ -1,5 +1,5 @@
 import { Types } from 'ably/promises';
-import { Flags } from './protocol';
+import { Flags } from './protocol.js';
 
 export const baseProtocolMessage = {
   flags: Flags.PRESENCE | Flags.PUBLISH | Flags.SUBSCRIBE | Flags.PRESENCE_SUBSCRIBE,
