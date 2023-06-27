@@ -1,4 +1,5 @@
-import { Types, Realtime } from 'ably';
+import * as Ably from 'ably';
+import { Types } from 'ably';
 import Model, { ModelOptions } from './Model';
 import Stream, { StreamOptions } from './Stream';
 
@@ -18,7 +19,7 @@ class Models {
     } else {
       let options: Types.ClientOptions = typeof optionsOrAbly === 'string' ? { key: optionsOrAbly } : optionsOrAbly;
       this.addAgent(options, true);
-      this.ably = new Realtime.Promise(options);
+      this.ably = new Ably.Realtime.Promise(options);
     }
     this.ably.time();
   }
