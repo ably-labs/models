@@ -46,12 +46,7 @@ export type SyncFunc<T> = () => Promise<Versioned<T>>;
 
 export type UpdateFunc<T> = (state: T, event: Event) => Promise<T>;
 
-export type MutationResult<R> = {
-  result: R;
-  events: Event[];
-};
-
-export type MutationFunc<T extends any[] = any[], R = any> = (...args: T) => Promise<MutationResult<R>>;
+export type MutationFunc<T extends any[] = any[], R = any> = (...args: T) => Promise<R>;
 
 export type Mutation<T extends any[] = any[], R = any> = {
   mutate: MutationFunc<T, R>;
@@ -169,18 +164,20 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     this.mutations[name] = mutation;
   }
 
-  public async mutate<TArgs extends any[], R>(name: string, ...args: TArgs): Promise<R> {
+  public async mutate<TArgs extends any[], R>(name: string, opts?: { events?: Event[]; args?: TArgs }): Promise<R> {
     const mutation: Mutation<TArgs, R> = this.mutations[name];
     if (!mutation) {
       throw new Error(`mutation with name '${name}' not registered on model '${this.name}'`);
     }
-    const { result, events } = await mutation.mutate(...args);
 
-    for (const event of events) {
-      await this.onStreamEvent(null, { ...event, confirmed: false });
+    if (opts?.events) {
+      for (const event of opts.events) {
+        await this.onStreamEvent(null, { ...event, confirmed: false });
+      }
     }
 
-    return result;
+    const args = opts?.args || ([] as TArgs);
+    return await mutation.mutate(...args);
   }
 
   public subscribe(callback: StandardCallback<T>, options: SubscriptionOptions = { optimistic: true }) {
