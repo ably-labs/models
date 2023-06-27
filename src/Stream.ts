@@ -1,7 +1,7 @@
-import { Types } from 'ably';
-import EventEmitter from './utilities/EventEmitter';
-import { StandardCallback } from './types/callbacks';
 import { Subject, Subscription } from 'rxjs';
+import { Types } from 'ably';
+import EventEmitter from './utilities/EventEmitter.js';
+import type { StandardCallback } from './types/callbacks';
 
 const STREAM_OPTIONS_DEFAULTS = {};
 

@@ -2,8 +2,8 @@ import { it, describe, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Realtime, Types } from 'ably/promises';
 import { Subject } from 'rxjs';
 
-import { createMessage } from './utilities/test/messages';
-import Stream, { StreamState } from './Stream';
+import { createMessage } from './utilities/test/messages.js';
+import Stream, { StreamState } from './Stream.js';
 
 vi.mock('ably/promises');
 

@@ -1,9 +1,9 @@
-import { Types } from 'ably';
-import Stream from './Stream';
-import EventEmitter from './utilities/EventEmitter';
-import { StandardCallback } from './types/callbacks';
-import { Subject, Subscription } from 'rxjs';
 import _ from 'lodash';
+import { Subject, Subscription } from 'rxjs';
+import { Types } from 'ably';
+import Stream from './Stream.js';
+import EventEmitter from './utilities/EventEmitter.js';
+import type { StandardCallback } from './types/callbacks';
 
 export enum ModelState {
   /**

@@ -2,7 +2,7 @@ import { it, describe, expect, expectTypeOf, beforeEach, afterEach } from 'vites
 import { Realtime, Types } from 'ably/promises';
 import { WebSocket } from 'mock-socket';
 
-import Models from './Models';
+import Models from './Models.js';
 
 import Server from './utilities/test/mock-server.js';
 import defaultClientConfig from './utilities/test/default-client-config.js';
