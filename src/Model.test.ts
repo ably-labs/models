@@ -530,4 +530,46 @@ describe('Model', () => {
     expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(3, null, '0132');
     expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(3);
   });
+
+  it<ModelTestContext>('revert optimistic events if mutate fails', async ({ streams }) => {
+    streams.s1.subscribe = vi.fn();
+    streams.s2.subscribe = vi.fn();
+
+    const model = new Model<string>('test', { streams, sync: async () => ({ version: 1, data: '0' }) });
+    await modelStatePromise(model, ModelState.READY);
+
+    const update1 = vi.fn(async (state, event) => state + event.data);
+    model.registerUpdate('s1', 'testEvent', update1);
+
+    const mutation1: Mutation = {
+      mutate: vi.fn(async () => 'test'),
+    };
+    model.registerMutation('mutation1', mutation1);
+
+    const mutation2: Mutation = {
+      mutate: vi.fn(async () => {
+        throw new Error('test');
+      }),
+    };
+    model.registerMutation('mutation2', mutation2);
+
+    await model.mutate<[], void>('mutation1', {
+      events: [
+        { stream: 's1', name: 'testEvent', data: '1' },
+        { stream: 's1', name: 'testEvent', data: '2' },
+        { stream: 's1', name: 'testEvent', data: '3' },
+      ],
+    });
+    await expect(
+      model.mutate<[], void>('mutation2', {
+        events: [
+          { stream: 's1', name: 'testEvent', data: '4' },
+          { stream: 's1', name: 'testEvent', data: '5' },
+          { stream: 's1', name: 'testEvent', data: '6' },
+        ],
+      }),
+    ).rejects.toThrow('test');
+    // The failed mutation should have been reverted.
+    expect(model.optimistic).toEqual('0123');
+  });
 });

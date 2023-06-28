@@ -177,7 +177,14 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     }
 
     const args = opts?.args || ([] as TArgs);
-    return await mutation.mutate(...args);
+    try {
+      return await mutation.mutate(...args);
+    } catch (e) {
+      if (opts?.events) {
+        await this.revertOptimisticEvents(opts?.events);
+      }
+      throw e;
+    }
   }
 
   public subscribe(callback: StandardCallback<T>, options: SubscriptionOptions = { optimistic: true }) {
@@ -324,6 +331,24 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     this.setOptimisticData(data);
     this.setConfirmedData(data);
     this.setState(ModelState.READY);
+  }
+
+  private async revertOptimisticEvents(events: Event[]) {
+    // Remove any events from optimisticEvents and re-apply any unconfirmed
+    // optimistic events.
+    for (let event of events) {
+      for (let i = 0; i < this.optimisticEvents.length; i++) {
+        let e = this.optimisticEvents[i];
+        if (eventsAreEqual(e, event)) {
+          this.optimisticEvents.splice(i, 1);
+        }
+      }
+    }
+    let nextData = this.confirmedData;
+    for (const e of this.optimisticEvents) {
+      nextData = await this.applyUpdates(nextData, e);
+    }
+    this.setOptimisticData(nextData);
   }
 }
 
