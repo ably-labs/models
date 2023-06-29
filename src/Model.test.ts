@@ -378,10 +378,7 @@ describe('Model', () => {
     model.registerUpdate('s1', 'testEvent', update1);
 
     const mutation: Mutation = {
-      mutate: vi.fn(async (stream: string, data: string) => ({
-        result: 'test',
-        events: [{ stream, name: 'testEvent', data }],
-      })),
+      mutate: vi.fn(async () => 'test'),
     };
     model.registerMutation('foo', mutation);
 
@@ -399,8 +396,8 @@ describe('Model', () => {
     model.subscribe(confirmedSubscriptionSpy, { optimistic: false });
     const confirmedSubscriptionCalls = getEventPromises(confirmedSubscription, 3);
 
-    await model.mutate<[string, string], void>('foo', 's1', '1');
-    await model.mutate<[string, string], void>('foo', 's1', '2');
+    await model.mutate<[string, string], void>('foo', { events: [{ stream: 's1', name: 'testEvent', data: '1' }] });
+    await model.mutate<[string, string], void>('foo', { events: [{ stream: 's1', name: 'testEvent', data: '2' }] });
 
     // optimistic updates are applied in the order the mutations were called
     await optimisticSubscriptionCall[0];
