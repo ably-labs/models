@@ -70,7 +70,7 @@ export type ModelOptions<T> = {
 export type ModelStateChange = {
   current: ModelState;
   previous: ModelState;
-  reason?: Types.ErrorInfo | string;
+  reason?: any;
 };
 
 export type Versioned<T> = {
@@ -170,16 +170,18 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
       throw new Error(`mutation with name '${name}' not registered on model '${this.name}'`);
     }
 
-    if (opts?.events) {
-      for (const event of opts.events) {
-        await this.onStreamEvent(null, { ...event, confirmed: false });
-      }
-    }
-
-    const args = opts?.args || ([] as TArgs);
     try {
+      if (opts?.events) {
+        for (const event of opts.events) {
+          await this.onStreamEvent(null, { ...event, confirmed: false });
+        }
+      }
+
+      const args = opts?.args || ([] as TArgs);
       return await mutation.mutate(...args);
     } catch (e) {
+      // If an error occurs either applying the optimistic events, or requesting
+      // the mutation, revert the events.
       if (opts?.events) {
         await this.revertOptimisticEvents(opts?.events);
       }
@@ -213,7 +215,7 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     }
   }
 
-  public dispose(reason?: Types.ErrorInfo | string) {
+  public dispose(reason?: any) {
     this.setState(ModelState.DISPOSED, reason);
     this.subscriptions.unsubscribe();
     for (const streamName in this.streams) {
@@ -227,7 +229,7 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     this.streamSubscriptionsMap.clear();
   }
 
-  private setState(state: ModelState, reason?: Types.ErrorInfo | string) {
+  private setState(state: ModelState, reason?: any) {
     const previous = this.currentState;
     this.currentState = state;
     this.emit(state, {
@@ -313,16 +315,31 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     throw new Error(`onError not implemented: err = ${err}`);
   }
 
-  private async init() {
-    this.setState(ModelState.PREPARING);
+  private async init(reason?: any) {
+    this.setState(ModelState.PREPARING, reason);
+
+    // Remove any existing stream subscriptions.
+    for (const streamName in this.streams) {
+      const stream = this.streams[streamName];
+      const callback = this.streamSubscriptionsMap.get(stream);
+      if (callback) {
+        stream.unsubscribe(callback);
+      }
+    }
+    this.streamSubscriptionsMap.clear();
+
     for (let streamName in this.streams) {
       const stream = this.streams[streamName];
-      const callback: StandardCallback<Types.Message> = (err, event) => {
+      const callback: StandardCallback<Types.Message> = async (err, event) => {
         if (err) {
-          this.onStreamEvent(err);
+          await this.onError(err);
           return;
         }
-        this.onStreamEvent(null, { ...event!, stream: streamName, confirmed: true });
+        try {
+          await this.onStreamEvent(null, { ...event!, stream: streamName, confirmed: true });
+        } catch (e) {
+          this.init(e);
+        }
       };
       stream.subscribe(callback);
       this.streamSubscriptionsMap.set(stream, callback);

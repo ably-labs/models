@@ -4,7 +4,7 @@ import { Subject, lastValueFrom } from 'rxjs';
 import { take } from 'rxjs/operators';
 
 import { createMessage, customMessage } from './utilities/test/messages.js';
-import Model, { ModelState, Versioned, Streams, Mutation } from './Model.js';
+import Model, { ModelState, ModelStateChange, Versioned, Streams, Mutation } from './Model.js';
 import Stream from './Stream.js';
 
 vi.mock('ably/promises');
@@ -634,6 +634,111 @@ describe('Model', () => {
     });
     await expect(
       model.mutate<[], void>('mutation2', {
+        events: [
+          { stream: 's1', name: 'testEvent', data: '4' },
+          { stream: 's1', name: 'testEvent', data: '5' },
+          { stream: 's1', name: 'testEvent', data: '6' },
+        ],
+      }),
+    ).rejects.toThrow('test');
+    // The failed mutation should have been reverted.
+    expect(model.optimistic).toEqual('0123');
+  });
+
+  // Tests if applying a received stream update throws an excection, the
+  // model reverts to the PREPARING state and re-syncs.
+  it<ModelTestContext>('resync if stream apply update fails', async ({ streams }) => {
+    streams.s1.subscribe = vi.fn();
+    streams.s2.subscribe = vi.fn();
+
+    // event subjects used to invoke the stream subscription callbacks
+    // registered by the model, to simulate stream data
+    const events = {
+      e1: new Subject<Types.Message>(),
+      e2: new Subject<Types.Message>(),
+    };
+    streams.s1.subscribe = vi.fn((callback) => {
+      events.e1.subscribe((message) => callback(null, message));
+    });
+    streams.s1.unsubscribe = vi.fn();
+    streams.s2.subscribe = vi.fn((callback) => {
+      events.e2.subscribe((message) => callback(null, message));
+    });
+    streams.s2.unsubscribe = vi.fn();
+
+    let counter = 0;
+
+    const sync = vi.fn(async () => ({ version: counter + 1, data: String(counter) }));
+    const model = new Model<string>('test', { streams, sync });
+    await modelStatePromise(model, ModelState.READY);
+    expect(sync).toHaveBeenCalledOnce();
+
+    const update1 = vi.fn(async (state, event) => {
+      if (event.data === '3') {
+        throw new Error('test');
+      }
+      return event.data;
+    });
+    model.registerUpdate('s1', 'testEvent', update1);
+
+    let subscription = new Subject<void>();
+    const subscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() => {
+      subscription.next();
+    });
+    model.subscribe(subscriptionSpy);
+
+    const subscriptionCalls = getEventPromises(subscription, 4);
+
+    events.e1.next(customMessage('id_1', 'testEvent', String(++counter)));
+    await subscriptionCalls[0];
+    expect(subscriptionSpy).toHaveBeenNthCalledWith(1, null, '1');
+
+    events.e1.next(customMessage('id_2', 'testEvent', String(++counter)));
+    await subscriptionCalls[1];
+    expect(subscriptionSpy).toHaveBeenNthCalledWith(2, null, '2');
+
+    // The 3rd event throws an exection running apply update, which should
+    // trigger a resync and get the latest counter value.
+    const preparingPromise = modelStatePromise(model, ModelState.PREPARING);
+    events.e1.next(customMessage('id_3', 'testEvent', String(++counter)));
+    const { reason } = (await preparingPromise) as ModelStateChange;
+    expect(reason.message).toEqual('test');
+    await subscriptionCalls[2];
+    expect(subscriptionSpy).toHaveBeenNthCalledWith(3, null, '3');
+    expect(model.state).toEqual(ModelState.READY);
+  });
+
+  // Tests if applying optimistic events throws an exception, mutate fails
+  // the the optimistic events are reverted.
+  it<ModelTestContext>('revert optimistic events if apply update fails', async ({ streams }) => {
+    streams.s1.subscribe = vi.fn();
+    streams.s2.subscribe = vi.fn();
+
+    const model = new Model<string>('test', { streams, sync: async () => ({ version: 1, data: '0' }) });
+    await modelStatePromise(model, ModelState.READY);
+
+    const update1 = vi.fn(async (state, event) => {
+      if (event.data === '6') {
+        throw new Error('test');
+      }
+      return state + event.data;
+    });
+    model.registerUpdate('s1', 'testEvent', update1);
+
+    const mutation: Mutation = {
+      mutate: vi.fn(async () => 'test'),
+    };
+    model.registerMutation('mutation', mutation);
+
+    await model.mutate<[], void>('mutation', {
+      events: [
+        { stream: 's1', name: 'testEvent', data: '1' },
+        { stream: 's1', name: 'testEvent', data: '2' },
+        { stream: 's1', name: 'testEvent', data: '3' },
+      ],
+    });
+    await expect(
+      model.mutate<[], void>('mutation', {
         events: [
           { stream: 's1', name: 'testEvent', data: '4' },
           { stream: 's1', name: 'testEvent', data: '5' },
