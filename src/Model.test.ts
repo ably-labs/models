@@ -749,4 +749,77 @@ describe('Model', () => {
     // The failed mutation should have been reverted.
     expect(model.optimistic).toEqual('0123');
   });
+
+  it<ModelTestContext>('optimistic event confirmation confirmed before timeout', async ({ streams }) => {
+    streams.s1.subscribe = vi.fn();
+    streams.s2.subscribe = vi.fn();
+
+    const events = { e1: new Subject<Types.Message>() };
+    streams.s1.subscribe = vi.fn((callback) => {
+      events.e1.subscribe((message) => callback(null, message));
+    });
+
+    const model = new Model<string>('test', { streams, sync: async () => ({ version: 1, data: '0' }) });
+    await modelStatePromise(model, ModelState.READY);
+
+    const update1 = vi.fn(async (state, event) => state + event.data);
+    model.registerUpdate('s1', 'testEvent', update1);
+
+    const mutation: Mutation = {
+      mutate: vi.fn(async () => 'test'),
+      confirmationTimeout: 1,
+    };
+    model.registerMutation('foo', mutation);
+
+    const [, confirmationPromise] = await model.mutate<[], void>('foo', {
+      events: [
+        { stream: 's1', name: 'testEvent', data: '1' },
+        { stream: 's1', name: 'testEvent', data: '2' },
+        { stream: 's1', name: 'testEvent', data: '3' },
+      ],
+    });
+    expect(model.optimistic).toEqual('0123');
+    // Confirm the event.
+    events.e1.next(customMessage('id_1', 'testEvent', '1'));
+    events.e1.next(customMessage('id_1', 'testEvent', '2'));
+    events.e1.next(customMessage('id_1', 'testEvent', '3'));
+    await confirmationPromise;
+
+    expect(model.optimistic).toEqual('0123');
+  });
+
+  it<ModelTestContext>('optimistic event confirmation timeout', async ({ streams }) => {
+    streams.s1.subscribe = vi.fn();
+    streams.s2.subscribe = vi.fn();
+
+    const events = { e1: new Subject<Types.Message>() };
+    streams.s1.subscribe = vi.fn((callback) => {
+      events.e1.subscribe((message) => callback(null, message));
+    });
+
+    const model = new Model<string>('test', { streams, sync: async () => ({ version: 1, data: '0' }) });
+    await modelStatePromise(model, ModelState.READY);
+
+    const update1 = vi.fn(async (state, event) => state + event.data);
+    model.registerUpdate('s1', 'testEvent', update1);
+
+    const mutation: Mutation = {
+      mutate: vi.fn(async () => 'test'),
+      confirmationTimeout: 1,
+    };
+    model.registerMutation('foo', mutation);
+
+    // Mutate and check the returned promise is rejected with a timeout.
+    const [, confirmationPromise] = await model.mutate<[], void>('foo', {
+      events: [
+        { stream: 's1', name: 'testEvent', data: '1' },
+        { stream: 's1', name: 'testEvent', data: '2' },
+        { stream: 's1', name: 'testEvent', data: '3' },
+      ],
+    });
+    expect(model.optimistic).toEqual('0123');
+    await expect(confirmationPromise).rejects.toThrow('timed out waiting for event confirmation');
+    // Check the optimistic event is reverted.
+    expect(model.optimistic).toEqual('0');
+  });
 });

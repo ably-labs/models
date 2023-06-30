@@ -50,6 +50,12 @@ export type MutationFunc<T extends any[] = any[], R = any> = (...args: T) => Pro
 
 export type Mutation<T extends any[] = any[], R = any> = {
   mutate: MutationFunc<T, R>;
+  // The timeout to receive a confirmation for optimistic mutation events in
+  // milliseconds. If the timeout is reached without being confirmed the
+  // optimistic events are rolled back.
+  //
+  // If unset there is no timeout (which is the default).
+  confirmationTimeout?: number;
 };
 
 export type Streams = {
@@ -86,6 +92,12 @@ type SubscriptionOptions = {
   optimistic: boolean;
 };
 
+type PendingConfirmation = {
+  unconfirmedEvents: Event[];
+  timeout: ReturnType<typeof setTimeout>;
+  resolve: () => void;
+};
+
 class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   private currentState: ModelState = ModelState.INITIALIZED;
   private optimisticData: T;
@@ -97,6 +109,7 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   private mutations: Record<string, Mutation> = {};
 
   private optimisticEvents: Event[] = [];
+  private pendingConfirmations: PendingConfirmation[] = [];
 
   private subscriptions = new Subject<{ confirmed: boolean; data: T }>();
   private subscriptionMap: Map<StandardCallback<T>, Subscription> = new Map();
@@ -164,21 +177,30 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     this.mutations[name] = mutation;
   }
 
-  public async mutate<TArgs extends any[], R>(name: string, opts?: { events?: Event[]; args?: TArgs }): Promise<R> {
+  public async mutate<TArgs extends any[], R>(
+    name: string,
+    opts?: { events?: Event[]; args?: TArgs },
+  ): Promise<[R, Promise<void>]> {
     const mutation: Mutation<TArgs, R> = this.mutations[name];
     if (!mutation) {
       throw new Error(`mutation with name '${name}' not registered on model '${this.name}'`);
     }
 
     try {
+      let confirmationPromise = Promise.resolve();
       if (opts?.events) {
         for (const event of opts.events) {
           await this.onStreamEvent({ ...event, confirmed: false });
         }
+
+        if (mutation.confirmationTimeout) {
+          confirmationPromise = this.addPendingConfirmation(opts.events, mutation.confirmationTimeout);
+        }
       }
 
       const args = opts?.args || ([] as TArgs);
-      return await mutation.mutate(...args);
+      const result = await mutation.mutate(...args);
+      return [result, confirmationPromise];
     } catch (e) {
       // If an error occurs either applying the optimistic events, or requesting
       // the mutation, revert the events.
@@ -279,6 +301,8 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
       return;
     }
 
+    this.confirmPendingEvents(event);
+
     // if the incoming confirmed event confirms the next expected optimistic event for the stream, it is
     // discarded without applying it to the speculative state because its effect has already been optimistically applied
     let unexpectedEvent = true;
@@ -341,6 +365,43 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     this.setOptimisticData(data);
     this.setConfirmedData(data);
     this.setState(ModelState.READY);
+  }
+
+  private addPendingConfirmation(events: Event[], timeout: number): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      let pendingConfirmation = {
+        unconfirmedEvents: [...events],
+        resolve: resolve,
+      } as PendingConfirmation;
+      this.pendingConfirmations.push(pendingConfirmation);
+
+      pendingConfirmation.timeout = setTimeout(() => {
+        this.revertOptimisticEvents(pendingConfirmation.unconfirmedEvents);
+        // Remove the pending confirmation.
+        this.pendingConfirmations = this.pendingConfirmations.filter((p) => p !== pendingConfirmation);
+        reject(new Error('timed out waiting for event confirmation'));
+      }, timeout);
+    });
+  }
+
+  private confirmPendingEvents(event: Event) {
+    for (let pendingConfirmation of this.pendingConfirmations) {
+      // Remove any unconfirmed events that have now been confirmed.
+      pendingConfirmation.unconfirmedEvents = pendingConfirmation.unconfirmedEvents.filter(
+        (e) => !eventsAreEqual(e, event),
+      );
+
+      // If the pending confirmation no longer has any pending optimistic events
+      // it can be resolved.
+      if (pendingConfirmation.unconfirmedEvents.length === 0) {
+        clearTimeout(pendingConfirmation.timeout);
+        pendingConfirmation.resolve();
+      }
+    }
+
+    // If the pending confirmation no longer has any pending optimistic
+    // events it can be removed.
+    this.pendingConfirmations = this.pendingConfirmations.filter((p) => p.unconfirmedEvents.length !== 0);
   }
 
   private async revertOptimisticEvents(events: Event[]) {
