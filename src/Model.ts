@@ -173,7 +173,7 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     try {
       if (opts?.events) {
         for (const event of opts.events) {
-          await this.onStreamEvent(null, { ...event, confirmed: false });
+          await this.onStreamEvent({ ...event, confirmed: false });
         }
       }
 
@@ -261,18 +261,12 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     return data;
   }
 
-  private async onStreamEvent(err: Error | null | undefined, event?: Event & Confirmation) {
-    if (err) {
-      await this.onError(err);
-      return;
-    }
+  private async onStreamEvent(event?: Event & Confirmation) {
     if (!event) {
-      await this.onError('received empty event');
       return;
     }
     if (!this.streams[event.stream]) {
-      await this.onError(new Error(`stream with name '${event.stream}' not registered on model '${this.name}'`));
-      return;
+      throw new Error(`stream with name '${event.stream}' not registered on model '${this.name}'`);
     }
     if (!this.updateFuncs[event.stream]) {
       return;
@@ -331,12 +325,11 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     for (let streamName in this.streams) {
       const stream = this.streams[streamName];
       const callback: StandardCallback<Types.Message> = async (err, event) => {
-        if (err) {
-          await this.onError(err);
-          return;
-        }
         try {
-          await this.onStreamEvent(null, { ...event!, stream: streamName, confirmed: true });
+          if (err) {
+            throw err;
+          }
+          await this.onStreamEvent({ ...event!, stream: streamName, confirmed: true });
         } catch (e) {
           this.init(e);
         }
