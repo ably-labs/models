@@ -354,12 +354,7 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     // Remove any events from optimisticEvents and re-apply any unconfirmed
     // optimistic events.
     for (let event of events) {
-      for (let i = 0; i < this.optimisticEvents.length; i++) {
-        let e = this.optimisticEvents[i];
-        if (eventsAreEqual(e, event)) {
-          this.optimisticEvents.splice(i, 1);
-        }
-      }
+      this.optimisticEvents = this.optimisticEvents.filter((e) => !eventsAreEqual(e, event));
     }
     let nextData = this.confirmedData;
     for (const e of this.optimisticEvents) {
