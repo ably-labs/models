@@ -1,7 +1,9 @@
 import * as Ably from 'ably';
 import { Types } from 'ably';
-import Model, { ModelOptions } from './Model.js';
-import Stream, { StreamOptions } from './Stream.js';
+import Model from './Model.js';
+import Stream from './Stream.js';
+import type { ModelOptions } from './Model.js';
+import type { StreamOptions } from './Stream.js';
 
 class Models {
   private models: Record<string, Model<any>>;
