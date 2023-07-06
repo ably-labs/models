@@ -88,7 +88,7 @@ function eventsAreEqual(e1: Event, e2: Event): boolean {
   return e1.stream === e2.stream && e1.name === e2.name && _.isEqual(e1.data, e2.data);
 }
 
-type SubscriptionOptions = {
+export type SubscriptionOptions = {
   optimistic: boolean;
 };
 
@@ -198,8 +198,8 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
         }
       }
 
-      const args = opts?.args || ([] as TArgs);
-      const result = await mutation.mutate(...args);
+      const args = opts?.args || [];
+      const result = await mutation.mutate(...(args as TArgs));
       return [result, confirmationPromise];
     } catch (e) {
       // If an error occurs either applying the optimistic events, or requesting
