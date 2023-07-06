@@ -69,7 +69,7 @@ describe('Models', () => {
   it<ModelsTestContext>('creates a stream that inherits the root class ably client', () => {
     const models = new Models({ ...defaultClientConfig });
     const stream = models.Stream('test', { channel: 'foobar' });
-    expect(stream.name).toEqual('test');
+    expect(models.Stream('test')).toEqual(stream);
     expect(stream.ably['options']).toContain(defaultClientConfig);
   });
 
@@ -88,13 +88,6 @@ describe('Models', () => {
     expect(model1).toEqual(model2);
   });
 
-  it<ModelsTestContext>('creates a stream that inherits the root class ably client', () => {
-    const models = new Models({ ...defaultClientConfig });
-    const stream = models.Stream('test', { channel: 'foobar' });
-    expect(stream.name).toEqual('test');
-    expect(stream.ably['options']).toContain(defaultClientConfig);
-  });
-
   it<ModelsTestContext>('getting a stream without options throws', () => {
     const models = new Models({ ...defaultClientConfig });
     expect(() => models.Stream('test')).toThrow('Stream cannot be instantiated without options');
@@ -103,12 +96,9 @@ describe('Models', () => {
   it<ModelsTestContext>('getting an event stream with the same name returns the same instance', () => {
     const models = new Models({ ...defaultClientConfig });
     const stream1 = models.Stream('test', { channel: 'foobar' }); // first call requires options to instantiate
-    expect(stream1.name).toEqual('test');
-    const stream2 = models.Stream('test'); // subsequent calls do not require options
-    expect(stream2.name).toEqual('test');
-    expect(stream1).toEqual(stream2);
-    const stream3 = models.Stream('test', { channel: 'barbaz' }); // providing options to subsequent calls is allowed but ignored
-    expect(stream3.name).toEqual('test');
-    expect(stream1).toEqual(stream3);
+    expect(models.Stream('test')).toEqual(stream1);
+    const stream2 = models.Stream('test', { channel: 'barbaz' }); // providing options to subsequent calls is allowed but ignored
+    expect(models.Stream('test')).toEqual(stream2);
+    expect(stream2.options).toEqual({ channel: 'foobar' });
   });
 });

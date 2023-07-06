@@ -1,9 +1,7 @@
 import * as Ably from 'ably';
 import { Types } from 'ably';
-import Model from './Model.js';
-import Stream from './Stream.js';
-import type { ModelOptions } from './Model.js';
-import type { StreamOptions } from './Stream.js';
+import Model, { ModelOptions } from './Model.js';
+import Stream, { StreamOptions } from './Stream.js';
 
 class Models {
   private models: Record<string, Model<any>>;
@@ -60,7 +58,7 @@ class Models {
       throw new Error('Stream cannot be instantiated without options');
     }
 
-    const stream = new Stream(name, this.ably, options);
+    const stream = new Stream(this.ably, options);
     this.streams[name] = stream;
 
     return stream;

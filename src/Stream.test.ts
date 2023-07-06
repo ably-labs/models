@@ -44,7 +44,7 @@ describe('Stream', () => {
       await attachment;
     });
 
-    const stream = new Stream('test', client, { channel: 'foobar' });
+    const stream = new Stream(client, { channel: 'foobar' });
 
     await streamStatePromise(stream, StreamState.PREPARING);
     attach();
@@ -57,7 +57,7 @@ describe('Stream', () => {
     channel.detach = vi.fn<any, any>();
     channel.attach = vi.fn();
 
-    const stream = new Stream('test', client, { channel: channel.name });
+    const stream = new Stream(client, { channel: channel.name });
 
     await streamStatePromise(stream, StreamState.READY);
     expect(channel.subscribe).toHaveBeenCalledOnce();
@@ -74,7 +74,7 @@ describe('Stream', () => {
   it<StreamTestContext>('disposes of the stream', async ({ client, channel }) => {
     client.channels.release = vi.fn();
 
-    const stream = new Stream('test', client, { channel: channel.name });
+    const stream = new Stream(client, { channel: channel.name });
 
     await streamStatePromise(stream, StreamState.READY);
     expect(channel.subscribe).toHaveBeenCalledOnce();
@@ -94,7 +94,7 @@ describe('Stream', () => {
 
     client.channels.release = vi.fn();
 
-    const stream = new Stream('test', client, { channel: channel.name });
+    const stream = new Stream(client, { channel: channel.name });
 
     await streamStatePromise(stream, StreamState.READY);
     expect(channel.subscribe).toHaveBeenCalledOnce();
@@ -110,7 +110,7 @@ describe('Stream', () => {
       messages.subscribe((message) => callback(message));
     });
 
-    const stream = new Stream('test', client, { channel: channel.name });
+    const stream = new Stream(client, { channel: channel.name });
     await streamStatePromise(stream, StreamState.READY);
 
     const subscriptionSpy = vi.fn();
@@ -134,7 +134,7 @@ describe('Stream', () => {
       messages.subscribe((message) => callback(message));
     });
 
-    const stream = new Stream('test', client, { channel: channel.name });
+    const stream = new Stream(client, { channel: channel.name });
     await streamStatePromise(stream, StreamState.READY);
 
     const subscriptionSpy1 = vi.fn();
@@ -163,7 +163,7 @@ describe('Stream', () => {
       messages.subscribe((message) => callback(message));
     });
 
-    const stream = new Stream('test', client, { channel: channel.name });
+    const stream = new Stream(client, { channel: channel.name });
     await streamStatePromise(stream, StreamState.READY);
 
     const subscriptionSpy = vi.fn();
@@ -190,7 +190,7 @@ describe('Stream', () => {
       messages.subscribe((message) => callback(message));
     });
 
-    const stream = new Stream('test', client, { channel: channel.name });
+    const stream = new Stream(client, { channel: channel.name });
     await streamStatePromise(stream, StreamState.READY);
 
     const subscriptionSpy1 = vi.fn();
