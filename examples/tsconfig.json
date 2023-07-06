@@ -1,0 +1,20 @@
+{
+  "include": ["./examples/**/*.ts"],
+  "compilerOptions": {
+    "target": "es6",
+    "rootDir": "./examples",
+    "outDir": "dist",
+    "module": "CommonJS",
+    "sourceMap": true,
+    "strict": false,
+    "esModuleInterop": true,
+    "declaration": true,
+    "moduleResolution": "node",
+    "skipLibCheck": true,
+    "allowJs": true,
+    "types": ["node"],
+    "paths": {
+      "@ably-labs/models": ["./node_modules/@ably-labs/models/src"],
+    }
+  }
+}
