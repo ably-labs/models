@@ -80,10 +80,6 @@ class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> {
   }
 
   public subscribe(callback: StandardCallback<Types.Message>) {
-    if (this.currentState !== StreamState.READY) {
-      callback(new Error(`stream is not in ready state (state = ${this.currentState})`));
-      return;
-    }
     const subscription = this.subscriptions.subscribe({
       next: (message) => callback(null, message),
       error: (err) => callback(err),
