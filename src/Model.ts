@@ -1,7 +1,7 @@
 import _ from 'lodash';
 import { Subject, Subscription } from 'rxjs';
 import { Types } from 'ably';
-import Stream, { StreamState } from './Stream.js';
+import Stream from './Stream.js';
 import EventEmitter from './utilities/EventEmitter.js';
 import type { StandardCallback } from './types/callbacks';
 
@@ -358,7 +358,6 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
           this.init(e);
         }
       };
-      await new Promise((resolve) => stream.once(StreamState.READY, resolve));
       stream.subscribe(callback);
       this.streamSubscriptionsMap.set(stream, callback);
     }
