@@ -43,13 +43,12 @@ export type StreamStateChange = {
 };
 
 class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> {
-  private options: StreamOptions;
   private currentState: StreamState = StreamState.INITIALIZED;
   private ablyChannel: Types.RealtimeChannelPromise;
   private subscriptions = new Subject<Types.Message>();
   private subscriptionMap: Map<StandardCallback<Types.Message>, Subscription> = new Map();
 
-  constructor(readonly name: string, readonly ably: Types.RealtimePromise, options: StreamOptions) {
+  constructor(readonly ably: Types.RealtimePromise, readonly options: StreamOptions) {
     super();
     this.options = { ...STREAM_OPTIONS_DEFAULTS, ...options };
     if (this.options.filter) {

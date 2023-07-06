@@ -5,15 +5,20 @@ import { take } from 'rxjs/operators';
 
 import { createMessage, customMessage } from './utilities/test/messages.js';
 import Model, { ModelState, ModelStateChange, Versioned, Streams, Mutation } from './Model.js';
-import Stream from './Stream.js';
+import Stream, { StreamState } from './Stream.js';
 
 vi.mock('ably/promises');
 
 vi.mock('./Stream', async () => {
+  const { StreamState } = await vi.importActual<{ StreamState: StreamState }>('./Stream');
   class MockStream {
-    constructor(readonly name: string) {}
+    constructor() {}
+    once(event: string, callback: () => void) {
+      callback();
+    }
   }
   return {
+    StreamState,
     default: MockStream,
   };
 });
@@ -57,8 +62,8 @@ describe('Model', () => {
     const client = new Realtime({});
 
     const streams: Streams = {
-      s1: new Stream('s1', client, { channel: 's1' }),
-      s2: new Stream('s2', client, { channel: 's2' }),
+      s1: new Stream(client, { channel: 's1' }),
+      s2: new Stream(client, { channel: 's2' }),
     };
 
     context.streams = streams;
@@ -74,9 +79,9 @@ describe('Model', () => {
     const model = new Model<string>('test', { streams, sync: async () => ({ version: 1, data: 'foobar' }) });
     expect(model.name).toEqual('test');
     expect(model.stream('s1')).toBeTruthy();
-    expect(model.stream('s1').name).toEqual('s1');
+    expect(model.stream('s1')).toEqual(streams.s1);
     expect(model.stream('s2')).toBeTruthy();
-    expect(model.stream('s2').name).toEqual('s2');
+    expect(model.stream('s2')).toEqual(streams.s2);
     expect(() => model.stream('s3')).toThrowError("stream with name 's3' not registered on model 'test'");
   });
 
