@@ -1,8 +1,10 @@
 import _ from 'lodash';
+import pino, { Logger, LevelWithSilent } from 'pino';
 import { Subject, Subscription } from 'rxjs';
 import { Types } from 'ably';
 import Stream from './Stream.js';
 import EventEmitter from './utilities/EventEmitter.js';
+import type { LogContext } from './utilities/logger.js';
 import type { StandardCallback } from './types/callbacks';
 
 export enum ModelState {
@@ -69,8 +71,13 @@ export type UpdateFuncs<T> = {
 };
 
 export type ModelOptions<T> = {
+  logLevel?: LevelWithSilent;
   streams: Streams;
   sync: SyncFunc<T>;
+};
+
+const MODEL_OPTIONS_DEFAULTS: Partial<ModelOptions<any>> = {
+  logLevel: 'silent',
 };
 
 export type ModelStateChange = {
@@ -115,12 +122,16 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   private subscriptionMap: Map<StandardCallback<T>, Subscription> = new Map();
   private streamSubscriptionsMap: Map<Stream, StandardCallback<Types.Message>> = new Map();
 
+  private logger: Logger;
+  private baseLogContext: Partial<LogContext>;
+
   constructor(readonly name: string, options: ModelOptions<T>) {
     super();
-    if (options) {
-      this.streams = options.streams;
-      this.sync = options.sync;
-    }
+    options = { ...MODEL_OPTIONS_DEFAULTS, ...options };
+    this.streams = options.streams;
+    this.sync = options.sync;
+    this.baseLogContext = { scope: `Model:${name}` };
+    this.logger = pino({ level: options.logLevel });
     this.init();
   }
 
@@ -137,6 +148,7 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   }
 
   public async pause() {
+    this.logger.trace({ ...this.baseLogContext, action: 'pause()' });
     this.setState(ModelState.PAUSED);
     for (const streamName in this.streams) {
       await this.streams[streamName].pause();
@@ -144,6 +156,7 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   }
 
   public async resume() {
+    this.logger.trace({ ...this.baseLogContext, action: 'resume()' });
     for (const streamName in this.streams) {
       await this.streams[streamName].resume();
     }
@@ -158,6 +171,7 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   }
 
   public registerUpdate(stream: string, event: string, update: UpdateFunc<T>) {
+    this.logger.trace({ ...this.baseLogContext, action: 'registerUpdate()', stream, event });
     if (!this.streams[stream]) {
       throw new Error(`stream with name '${stream}' not registered on model '${this.name}'`);
     }
@@ -171,6 +185,12 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   }
 
   public registerMutation(name: string, mutation: Mutation) {
+    this.logger.trace({
+      ...this.baseLogContext,
+      action: 'registerMutation()',
+      name,
+      confirmationTimeout: mutation.confirmationTimeout,
+    });
     if (this.mutations[name]) {
       throw new Error(`mutation with name '${name}' already registered on model '${this.name}'`);
     }
@@ -179,8 +199,9 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
 
   public async mutate<TArgs extends any[], R>(
     name: string,
-    opts?: { events?: Event[]; args?: TArgs },
+    options?: { events?: Event[]; args?: TArgs },
   ): Promise<[R, Promise<void>]> {
+    this.logger.trace({ ...this.baseLogContext, action: 'mutate()', name, opts: options });
     const mutation: Mutation<TArgs, R> = this.mutations[name];
     if (!mutation) {
       throw new Error(`mutation with name '${name}' not registered on model '${this.name}'`);
@@ -188,32 +209,34 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
 
     try {
       let confirmationPromise = Promise.resolve();
-      if (opts?.events) {
-        for (const event of opts.events) {
+      if (options?.events) {
+        for (const event of options.events) {
           await this.onStreamEvent({ ...event, confirmed: false });
         }
 
         if (mutation.confirmationTimeout) {
-          confirmationPromise = this.addPendingConfirmation(opts.events, mutation.confirmationTimeout);
+          confirmationPromise = this.addPendingConfirmation(options.events, mutation.confirmationTimeout);
         }
       }
 
-      const args = opts?.args || [];
+      const args = options?.args || [];
       const result = await mutation.mutate(...(args as TArgs));
       return [result, confirmationPromise];
     } catch (e) {
       // If an error occurs either applying the optimistic events, or requesting
       // the mutation, revert the events.
-      if (opts?.events) {
-        await this.revertOptimisticEvents(opts?.events);
+      if (options?.events) {
+        await this.revertOptimisticEvents(options?.events);
       }
       throw e;
     }
   }
 
   public subscribe(callback: StandardCallback<T>, options: SubscriptionOptions = { optimistic: true }) {
+    this.logger.trace({ ...this.baseLogContext, action: 'subscribe()', options });
     const subscription = this.subscriptions.subscribe({
       next: (value) => {
+        this.logger.trace({ ...this.baseLogContext, action: 'next()', value });
         if (options.optimistic && !value.confirmed) {
           callback(null, value.data);
           return;
@@ -223,13 +246,20 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
           return;
         }
       },
-      error: (err) => callback(err),
-      complete: () => this.unsubscribe(callback),
+      error: (err) => {
+        this.logger.trace({ ...this.baseLogContext, action: 'error()', err });
+        callback(err);
+      },
+      complete: () => {
+        this.logger.trace({ ...this.baseLogContext, action: 'complete()' });
+        this.unsubscribe(callback);
+      },
     });
     this.subscriptionMap.set(callback, subscription);
   }
 
   public unsubscribe(callback: StandardCallback<T>) {
+    this.logger.trace({ ...this.baseLogContext, action: 'unsubscribe()' });
     const subscription = this.subscriptionMap.get(callback);
     if (subscription) {
       subscription.unsubscribe();
@@ -237,7 +267,8 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     }
   }
 
-  public dispose(reason?: any) {
+  public dispose(reason?: Error) {
+    this.logger.trace({ ...this.baseLogContext, action: 'dispose()', reason });
     this.setState(ModelState.DISPOSED, reason);
     this.subscriptions.unsubscribe();
     for (const streamName in this.streams) {
@@ -251,7 +282,8 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     this.streamSubscriptionsMap.clear();
   }
 
-  private setState(state: ModelState, reason?: any) {
+  private setState(state: ModelState, reason?: Error) {
+    this.logger.trace({ ...this.baseLogContext, action: 'setState()', state, reason });
     const previous = this.currentState;
     this.currentState = state;
     this.emit(state, {
@@ -262,16 +294,19 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   }
 
   private setOptimisticData(data: T) {
+    this.logger.trace({ ...this.baseLogContext, action: 'setOptimisticData()', data });
     this.optimisticData = data;
     this.subscriptions.next({ confirmed: false, data });
   }
 
   private setConfirmedData(data: T) {
+    this.logger.trace({ ...this.baseLogContext, action: 'setConfirmedData()', data });
     this.confirmedData = data;
     this.subscriptions.next({ confirmed: true, data });
   }
 
   private async applyUpdates(initialData: T, event: Event): Promise<T> {
+    this.logger.trace({ ...this.baseLogContext, action: 'applyUpdates()', initialData, event });
     let data = initialData;
     for (let eventName in this.updateFuncs[event.stream]) {
       if (event.name === eventName) {
@@ -284,6 +319,7 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   }
 
   private async onStreamEvent(event?: Event & Confirmation) {
+    this.logger.trace({ ...this.baseLogContext, action: 'onStreamEvent()', event });
     if (!event) {
       return;
     }
@@ -333,7 +369,8 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     throw new Error(`onError not implemented: err = ${err}`);
   }
 
-  private async init(reason?: any) {
+  private async init(reason?: Error) {
+    this.logger.trace({ ...this.baseLogContext, action: 'init()', reason });
     this.setState(ModelState.PREPARING, reason);
 
     // Remove any existing stream subscriptions.
@@ -369,6 +406,7 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
 
   private addPendingConfirmation(events: Event[], timeout: number): Promise<void> {
     return new Promise<void>((resolve, reject) => {
+      this.logger.trace({ ...this.baseLogContext, action: 'addPendingConfirmation()', events, timeout });
       let pendingConfirmation = {
         unconfirmedEvents: [...events],
         resolve: resolve,
@@ -385,6 +423,7 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   }
 
   private confirmPendingEvents(event: Event) {
+    this.logger.trace({ ...this.baseLogContext, action: 'confirmPendingEvents()', event });
     for (let pendingConfirmation of this.pendingConfirmations) {
       // Remove any unconfirmed events that have now been confirmed.
       pendingConfirmation.unconfirmedEvents = pendingConfirmation.unconfirmedEvents.filter(
@@ -405,6 +444,7 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   }
 
   private async revertOptimisticEvents(events: Event[]) {
+    this.logger.trace({ ...this.baseLogContext, action: 'revertOptimisticEvents()', events });
     // Remove any events from optimisticEvents and re-apply any unconfirmed
     // optimistic events.
     for (let event of events) {

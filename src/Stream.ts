@@ -1,9 +1,9 @@
 import { Subject, Subscription } from 'rxjs';
 import { Types } from 'ably';
+import pino, { Logger, LevelWithSilent } from 'pino';
 import EventEmitter from './utilities/EventEmitter.js';
+import type { LogContext } from './utilities/logger.js';
 import type { StandardCallback } from './types/callbacks';
-
-const STREAM_OPTIONS_DEFAULTS = {};
 
 export enum StreamState {
   /**
@@ -32,8 +32,13 @@ export enum StreamState {
 }
 
 export type StreamOptions = {
+  logLevel?: LevelWithSilent;
   channel: string;
   filter?: string;
+};
+
+const STREAM_OPTIONS_DEFAULTS: Partial<StreamOptions> = {
+  logLevel: 'silent',
 };
 
 export type StreamStateChange = {
@@ -48,6 +53,9 @@ class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> {
   private subscriptions = new Subject<Types.Message>();
   private subscriptionMap: Map<StandardCallback<Types.Message>, Subscription> = new Map();
 
+  private baseLogContext: Partial<LogContext>;
+  private logger: Logger;
+
   constructor(readonly ably: Types.RealtimePromise, readonly options: StreamOptions) {
     super();
     this.options = { ...STREAM_OPTIONS_DEFAULTS, ...options };
@@ -57,6 +65,8 @@ class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> {
       this.ablyChannel = this.ably.channels.get(this.options.channel);
     }
     this.ablyChannel.on('failed', (change) => this.dispose(change.reason));
+    this.baseLogContext = { scope: 'Stream', ...this.options };
+    this.logger = pino({ level: this.options.logLevel });
     this.init();
   }
 
@@ -80,15 +90,26 @@ class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> {
   }
 
   public subscribe(callback: StandardCallback<Types.Message>) {
+    this.logger.trace({ ...this.baseLogContext, action: 'subscribe()' });
     const subscription = this.subscriptions.subscribe({
-      next: (message) => callback(null, message),
-      error: (err) => callback(err),
-      complete: () => this.unsubscribe(callback),
+      next: (message) => {
+        this.logger.trace({ ...this.baseLogContext, action: 'next()' });
+        callback(null, message);
+      },
+      error: (err) => {
+        this.logger.trace({ ...this.baseLogContext, action: 'error()' });
+        callback(err);
+      },
+      complete: () => {
+        this.logger.trace({ ...this.baseLogContext, action: 'complete()' });
+        this.unsubscribe(callback);
+      },
     });
     this.subscriptionMap.set(callback, subscription);
   }
 
   public unsubscribe(callback: StandardCallback<Types.Message>) {
+    this.logger.trace({ ...this.baseLogContext, action: 'unsubscribe()' });
     const subscription = this.subscriptionMap.get(callback);
     if (subscription) {
       subscription.unsubscribe();
@@ -97,6 +118,7 @@ class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> {
   }
 
   public dispose(reason?: Types.ErrorInfo | string) {
+    this.logger.trace({ ...this.baseLogContext, action: 'dispose()', reason });
     this.setState(StreamState.DISPOSED, reason);
     this.subscriptions.unsubscribe();
     this.subscriptionMap.clear();
@@ -104,6 +126,7 @@ class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> {
   }
 
   private setState(state: StreamState, reason?: Types.ErrorInfo | string) {
+    this.logger.trace({ ...this.baseLogContext, action: 'setState()', state, reason });
     const previous = this.currentState;
     this.currentState = state;
     this.emit(state, {
@@ -114,6 +137,7 @@ class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> {
   }
 
   private async init() {
+    this.logger.trace({ ...this.baseLogContext, action: 'init()' });
     this.setState(StreamState.PREPARING);
     await this.ably.connection.whenState('connected');
     await this.ablyChannel.subscribe(this.onMessage.bind(this));
@@ -121,6 +145,7 @@ class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> {
   }
 
   private onMessage(message: Types.Message) {
+    this.logger.trace({ ...this.baseLogContext, action: 'onMessage()', message });
     this.subscriptions.next(message);
   }
 }

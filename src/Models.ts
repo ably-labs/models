@@ -1,16 +1,25 @@
-import * as Ably from 'ably';
-import { Types } from 'ably';
+import Ably, { Types } from 'ably';
+import type { LevelWithSilent } from 'pino';
 import Model, { ModelOptions } from './Model.js';
 import Stream, { StreamOptions } from './Stream.js';
 
+export type ModelsOptions = {
+  logLevel?: LevelWithSilent;
+};
+
+const MODELS_OPTIONS_DEFAULTS: ModelsOptions = {
+  logLevel: 'silent',
+};
+
 class Models {
+  public ably: Types.RealtimePromise;
   private models: Record<string, Model<any>>;
   private streams: Record<string, Stream>;
-  ably: Types.RealtimePromise;
+  private options: ModelsOptions;
 
   readonly version = '0.0.1';
 
-  constructor(optionsOrAbly: Types.RealtimePromise | Types.ClientOptions | string) {
+  constructor(optionsOrAbly: Types.RealtimePromise | Types.ClientOptions | string, options?: ModelsOptions) {
     this.models = {};
     this.streams = {};
     if (optionsOrAbly['options']) {
@@ -22,6 +31,7 @@ class Models {
       this.ably = new Ably.Realtime.Promise(options);
     }
     this.ably.time();
+    this.options = { ...MODELS_OPTIONS_DEFAULTS, ...options };
   }
 
   private addAgent(options: any, isDefault: boolean) {
@@ -41,7 +51,7 @@ class Models {
 
     if (this.models[name]) return this.models[name];
 
-    const model = new Model<T>(name, options);
+    const model = new Model<T>(name, { logLevel: this.options.logLevel, ...options });
     this.models[name] = model;
 
     return model;
@@ -58,7 +68,7 @@ class Models {
       throw new Error('Stream cannot be instantiated without options');
     }
 
-    const stream = new Stream(this.ably, options);
+    const stream = new Stream(this.ably, { logLevel: this.options.logLevel, ...options });
     this.streams[name] = stream;
 
     return stream;
