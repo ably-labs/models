@@ -103,6 +103,7 @@ type PendingConfirmation = {
   unconfirmedEvents: Event[];
   timeout: ReturnType<typeof setTimeout>;
   resolve: () => void;
+  reject: (err?: Error) => void;
 };
 
 class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
@@ -278,6 +279,14 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
         stream.unsubscribe(callback);
       }
     }
+    for (const pendingConfirmation of this.pendingConfirmations) {
+      if (pendingConfirmation.timeout) {
+        clearTimeout(pendingConfirmation.timeout);
+      }
+      if (pendingConfirmation.reject) {
+        pendingConfirmation.reject(reason);
+      }
+    }
     this.subscriptionMap.clear();
     this.streamSubscriptionsMap.clear();
   }
@@ -410,6 +419,7 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
       let pendingConfirmation = {
         unconfirmedEvents: [...events],
         resolve: resolve,
+        reject: reject,
       } as PendingConfirmation;
       this.pendingConfirmations.push(pendingConfirmation);
 
