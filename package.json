@@ -15,7 +15,6 @@
     "build": "npm run build:cjs && npm run build:mjs",
     "build:mjs": "tsc --project tsconfig.mjs.json && cp res/package.mjs.json dist/mjs/package.json",
     "build:cjs": "tsc --project tsconfig.cjs.json && cp res/package.cjs.json dist/cjs/package.json",
-    "build:examples": "npm run --prefix ./examples build",
     "prepare": "husky install"
   },
   "exports": {

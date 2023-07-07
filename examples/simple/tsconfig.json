@@ -1,8 +1,8 @@
 {
-  "include": ["./examples/**/*.ts"],
+  "include": ["./**/*.ts", "index.ts"],
   "compilerOptions": {
     "target": "es6",
-    "rootDir": "./examples",
+    "rootDir": ".",
     "outDir": "dist",
     "module": "CommonJS",
     "sourceMap": true,
