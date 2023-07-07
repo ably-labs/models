@@ -117,11 +117,12 @@ class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> {
     }
   }
 
-  public dispose(reason?: Types.ErrorInfo | string) {
+  public async dispose(reason?: Types.ErrorInfo | string) {
     this.logger.trace({ ...this.baseLogContext, action: 'dispose()', reason });
     this.setState(StreamState.DISPOSED, reason);
     this.subscriptions.unsubscribe();
     this.subscriptionMap.clear();
+    await this.ablyChannel.detach();
     this.ably.channels.release(this.ablyChannel.name);
   }
 

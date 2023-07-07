@@ -14,7 +14,7 @@ type Post = {
 const ably = new Ably.Realtime({
 	key: process.env.ABLY_API_KEY,
 });
-const models = new Models(ably, { logLevel: 'trace' });
+const models = new Models(ably, { logLevel: 'silent' });
 
 class Example {
 	model: Model<Post>;
@@ -128,12 +128,18 @@ class Example {
 				name: 'add',
 				data: text,
 				extras: {
-				headers: {
-					post_id: 123,
+					headers: {
+						post_id: 123,
 					},
 				},
 			});
 		}
+	}
+
+	async teardown() {
+		this.model.dispose();
+		await models.Stream('post').dispose();
+		await models.Stream('comment').dispose();
 	}
 }
 
@@ -151,5 +157,8 @@ function wait(ms: number) {
 		example.addComment('first comment')();
 		await wait(1000);
 		example.addComment('second comment')();
+		await wait(1000);
+		await example.teardown();
+		logger.info('goodbye');
 	});
 })()
