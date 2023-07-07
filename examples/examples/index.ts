@@ -25,7 +25,7 @@ class Example {
 		});
 		const commentStream = models.Stream('comment', {
 			channel: 'comments',
-			filter: "post_id == `123`",
+			filter: 'name == `"add"` && headers.post_id == `123`',
 		});
 
 		this.model = models.Model<Post>('post', {
@@ -127,8 +127,10 @@ class Example {
 			ably.channels.get('comments').publish({
 				name: 'add',
 				data: text,
+				extras: {
 				headers: {
 					post_id: 123,
+					},
 				},
 			});
 		}
