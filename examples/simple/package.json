@@ -2,16 +2,16 @@
   "name": "examples",
   "version": "1.0.0",
   "description": "",
-  "main": "examples/index.js",
+  "main": "dist/index.js",
   "scripts": {
-    "start": "npx ts-node examples/index.ts | pino-pretty",
-    "build": "npm install ../ && tsc --project tsconfig.json",
+    "start": "npx ts-node index.ts | pino-pretty",
+    "build": "npm install ../../ && tsc --project tsconfig.json",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@ably-labs/models": "file:..",
+    "@ably-labs/models": "file:../..",
     "ably": "^1.2.41",
     "pino": "^8.14.1",
     "tsconfig-paths": "^4.2.0"
