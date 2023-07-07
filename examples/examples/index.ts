@@ -1,6 +1,9 @@
 import Ably from 'ably/promises';
 import Models from '@ably-labs/models';
 import { Model, ModelState, Event } from '@ably-labs/models';
+import pino from 'pino';
+
+const logger = pino();
 
 type Post = {
 	id: number,
@@ -11,7 +14,7 @@ type Post = {
 const ably = new Ably.Realtime({
 	key: process.env.ABLY_API_KEY,
 });
-const models = new Models(ably);
+const models = new Models(ably, { logLevel: 'trace' });
 
 class Example {
 	model: Model<Post>;
@@ -31,7 +34,7 @@ class Example {
 				comment: commentStream,
 			},
 			sync: async () => {
-				console.log('sync');
+				logger.info('sync');
 				return {
 					version: 1,
 					data: {
@@ -44,14 +47,14 @@ class Example {
 		});
 
 		this.model.registerUpdate('post', 'update', async (state: Post, event: Event) => {
-			console.log('apply update: updatePost:', state, event);
+			logger.info({ state, event }, 'apply update: updatePost');
 			return {
 				...state,
 				text: event.data,
 			};
 		});
 		this.model.registerUpdate('comment', 'add', async (state: Post, event: Event) => {
-			console.log('apply update: addComment:', state, event);
+			logger.info({ state, event }, 'apply update: addComment');
 			return {
 				...state,
 				comments: state.comments.concat([event.data]),
@@ -60,26 +63,26 @@ class Example {
 
 		this.model.registerMutation('updatePost', {
 			mutate: async (...args: any[]) => {
-				console.log('mutation: updatePost:', ...args);
+				logger.info({ args }, 'mutation: updatePost');
 				await new Promise(resolve => setTimeout(resolve, 1000));
 			},
 			confirmationTimeout: 5000,
 		});
 		this.model.registerMutation('addComment', {
 			mutate: async (...args: any[]) => {
-				console.log('mutation: addComment:', ...args);
+				logger.info({ args }, 'mutation: addComment');
 				await new Promise(resolve => setTimeout(resolve, 1000));
 			},
 			confirmationTimeout: 5000,
 		});
 
-		this.model.on(event => console.log('model state update: ', event));
+		this.model.on(event => logger.info({ event }, 'model state update'));
 
 		this.model.subscribe((err, post) => {
 			if (err) {
 				throw err;
 			}
-			console.log('subscribe (non-optimistic):', post);
+			logger.info({ post }, 'subscribe (non-optimistic)');
 		}, {
 			optimistic: false,
 		});
@@ -87,14 +90,14 @@ class Example {
 			if (err) {
 				throw err;
 			}
-			console.log('subscribe (optimistic):', post);
+			logger.info({ post }, 'subscribe (optimistic)');
 		}, {
 			optimistic: true,
 		});
 	}
 
 	updatePost(text: string) {
-		console.log('updatePost:', text);
+		logger.info({ text }, 'updatePost');
 		this.model.mutate('updatePost', {
 			args: [text],
 			events: [{
@@ -104,13 +107,13 @@ class Example {
 			}],
 		});
 		return () => {
-			console.log('confirm: updatePost:', text);
+			logger.info({ text }, 'confirm: updatePost');
 			ably.channels.get('posts:123').publish('update', text);
 		};
 	}
 
 	addComment(text: string) {
-		console.log('addComment:', text);
+		logger.info({ text }, 'addComment');
 		this.model.mutate('addComment', {
 			args: [text],
 			events: [{
@@ -120,7 +123,7 @@ class Example {
 			}],
 		});
 		return () => {
-			console.log('confirm: addComment:', text);
+			logger.info({ text }, 'confirm: addComment');
 			ably.channels.get('comments').publish({
 				name: 'add',
 				data: text,

@@ -99,6 +99,6 @@ describe('Models', () => {
     expect(models.Stream('test')).toEqual(stream1);
     const stream2 = models.Stream('test', { channel: 'barbaz' }); // providing options to subsequent calls is allowed but ignored
     expect(models.Stream('test')).toEqual(stream2);
-    expect(stream2.options).toEqual({ channel: 'foobar' });
+    expect(stream2.options).toEqual(expect.objectContaining({ channel: 'foobar' }));
   });
 });
