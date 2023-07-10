@@ -1,0 +1,37 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["jsonProtocol"]
+}
+
+datasource db {
+  provider          = "postgresql"
+  url               = env("POSTGRES_PRISMA_URL") // uses connection pooling
+  directUrl         = env("POSTGRES_URL_NON_POOLING") // uses a direct connection
+  shadowDatabaseUrl = env("POSTGRES_URL_NON_POOLING") // used for migrations
+}
+
+model User {
+  id       Int       @id @default(autoincrement())
+  username String    @unique
+  image    String
+  comments Comment[]
+}
+
+model Post {
+  id       Int       @id @default(autoincrement())
+  title    String
+  content  String
+  comments Comment[]
+}
+
+model Comment {
+  id       Int    @id @default(autoincrement())
+  content  String
+  postId   Int
+  post     Post   @relation(fields: [postId], references: [id])
+  authorId Int
+  author   User   @relation(fields: [authorId], references: [id])
+}
