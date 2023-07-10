@@ -1,5 +1,6 @@
 import Comment from './comment';
 import { getPost } from '@/lib/prisma/api';
+import NewComment from '@/components/new-comment';
 
 export default async function Post({ postId }: { postId: number }) {
   const id = Number(postId);
@@ -15,6 +16,7 @@ export default async function Post({ postId }: { postId: number }) {
       <div className="divide-y divide-gray-900/5">
         {post.comments.map((comment) => <Comment comment={comment} />)}
       </div>
+      <NewComment />
     </main>
   )
 }
