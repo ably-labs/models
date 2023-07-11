@@ -9,7 +9,7 @@ export default function NewComment({ postId }: { postId: number }) {
 	const [comment, setComment] = useState('');
 	const user = useContext(UserContext);
 
-	async function handleSubmit(e: FormEvent) {
+	async function addComment(e: FormEvent) {
 		e.preventDefault();
 	
 		const response = await fetch('/api/comments', {
@@ -34,7 +34,7 @@ export default function NewComment({ postId }: { postId: number }) {
 	}
 
 	return (
-		<form className="max-w-xl mx-auto w-full" onSubmit={handleSubmit}>
+		<form className="max-w-xl mx-auto w-full" onSubmit={addComment}>
 			<div className="w-full shadow-xl rounded-lg bg-gray-50">
 				<div className="px-4 py-2 bg-white rounded-t-lg">
 					<div className="flex items-center py-3">
@@ -56,7 +56,7 @@ export default function NewComment({ postId }: { postId: number }) {
 					></textarea>
 				</div>
 				<div className="flex items-center justify-between px-3 py-2 border-t">
-					<button type="submit" className="inline-flex items-center py-2.5 px-4 text-xs font-medium text-center text-white bg-blue-700 rounded-lg focus:ring-1 focus:ring-blue-200 hover:bg-blue-800">
+					<button type="submit" className="inline-flex items-center py-2.5 px-4 text-xs font-medium text-center text-white bg-blue-700 rounded-lg focus:bg-blue-900 hover:bg-blue-800">
 						Post comment
 					</button>
 				</div>
