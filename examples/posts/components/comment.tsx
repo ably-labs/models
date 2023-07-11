@@ -16,10 +16,10 @@ export default function Comment({ comment }: { comment: postWithComments['commen
 	const [editedComment, setEditedComment] = useState(comment.content);
 
 	async function deleteComment() {
-		const response = await fetch(`/api/comments?id=${comment.id}`, { method: 'DELETE' });
+		const response = await fetch(`/api/comments/${comment.id}`, { method: 'DELETE' });
 
 		if (!response.ok) {
-			throw new Error(`DELETE /api/comments: ${response.status} ${JSON.stringify(await response.json())}`);
+			throw new Error(`DELETE /api/comments/:id: ${response.status} ${JSON.stringify(await response.json())}`);
 		}
 
 		const data = await response.json();
