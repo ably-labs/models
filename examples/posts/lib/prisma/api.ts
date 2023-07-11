@@ -20,3 +20,10 @@ export async function getPost(id: number) {
     },
   });
 }
+
+export async function getRandomUser() {
+  const count = await prisma.user.count();
+  return await prisma.user.findFirstOrThrow({
+    skip: Math.floor(Math.random() * count),
+  });
+}

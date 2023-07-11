@@ -1,24 +1,18 @@
-import Image from 'next/image'
+import Image from 'next/image';
 import { getPost } from '@/lib/prisma/api';
 import type { Prisma } from '@prisma/client';
+import { DEFAULT_AVATAR_URL } from '@/lib/image';
 
 type postWithComments = Prisma.PromiseReturnType<typeof getPost>;
 
 export default function Comment({ comment }: { comment: postWithComments['comments'][number] }) {
 	return (
-		<div
-			key={comment.id}
-			className="bg-white/30 px-4 pb-4 mb-2 shadow-xl ring-1 ring-gray-900/5 rounded-lg backdrop-blur-lg max-w-xl mx-auto w-full"
-		>
-			<div
-				className="flex flex-col"
-			>
-				<div
-					className="flex items-center py-3"
-				>
+		<div className="bg-white/30 px-4 pb-4 mb-2 shadow-xl ring-1 ring-gray-900/5 rounded-lg backdrop-blur-lg max-w-xl mx-auto w-full">
+			<div className="flex flex-col">
+				<div className="flex items-center py-3">
 					<div className="flex flex-col space-x-4 pr-3">
 						<Image
-							src="https://picsum.photos/100"
+							src={comment.author.image || DEFAULT_AVATAR_URL}
 							alt={comment.author.username}
 							width={36}
 							height={36}
