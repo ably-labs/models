@@ -1,9 +1,9 @@
 'use client';
 
-import { useContext } from 'react';
+import { useContext, useState, FormEvent } from 'react';
 import Image from 'next/image';
 import type { Prisma } from '@prisma/client';
-import { TrashIcon } from '@heroicons/react/24/solid';
+import { TrashIcon, PencilIcon } from '@heroicons/react/24/solid';
 import { getPost } from '@/lib/prisma/api';
 import { DEFAULT_AVATAR_URL } from '@/lib/image';
 import { UserContext } from '@/context/user';
@@ -12,16 +12,41 @@ type postWithComments = Prisma.PromiseReturnType<typeof getPost>;
 
 export default function Comment({ comment }: { comment: postWithComments['comments'][number] }) {
 	const user = useContext(UserContext);
+	const [isEditMode, setIsEditMode] = useState(false);
+	const [editedComment, setEditedComment] = useState(comment.content);
 
 	async function deleteComment() {
 		const response = await fetch(`/api/comments?id=${comment.id}`, { method: 'DELETE' });
-	
+
 		if (!response.ok) {
 			throw new Error(`DELETE /api/comments: ${response.status} ${JSON.stringify(await response.json())}`);
 		}
 
 		const data = await response.json();
 		console.log(data);
+	}
+
+	async function editComment(e: FormEvent) {
+		e.preventDefault();
+		setIsEditMode(false);
+	
+		const response = await fetch(`/api/comments/${comment.id}`, {
+			method: 'PUT',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify({
+				content: editedComment,
+			}),
+		});
+	
+		if (!response.ok) {
+			throw new Error(`PUT /api/comments/:id: ${response.status} ${JSON.stringify(await response.json())}`);
+		}
+
+		const data = await response.json();
+		console.log(data);
+		// TODO update parent onChange
 	}
 
 	return (
@@ -39,11 +64,30 @@ export default function Comment({ comment }: { comment: postWithComments['commen
 					</div>
 					<p className="text-sm font-semibold">{comment.author.username}</p>
 					<p className="ml-auto text-sm text-gray-500">TODO date</p>
-					{comment.authorId === user?.id && <TrashIcon className="ml-4 h-6 w-6 text-red-300 hover:text-red-500 hover:cursor-pointer" onClick={() => deleteComment()} />}
+					{comment.authorId === user?.id && <>
+						<PencilIcon className="ml-4 h-6 w-6 text-blue-300 hover:text-blue-500 hover:cursor-pointer" onClick={() => setIsEditMode(!isEditMode)} />
+						<TrashIcon className="ml-4 h-6 w-6 text-red-300 hover:text-red-500 hover:cursor-pointer" onClick={() => deleteComment()} />
+					</>}
 				</div>
-				<div className="space-y-1">
+				{isEditMode ? <form className="space-y-1" onSubmit={editComment} onReset={e => {
+					e.preventDefault();
+					setIsEditMode(false);
+					setEditedComment(comment.content);
+				}}>
+					<textarea
+						className="w-full px-0 text-sm text-gray-900 bg-white outline-none rounded-lg ring-0 border border-gray-300 focus:border-gray-500"
+						value={editedComment}
+						onChange={e => setEditedComment(e.target.value)}
+					></textarea>
+					<button type="reset" className="inline-flex items-center py-2.5 px-4 mr-2 text-xs font-normal text-center text-gray-500 border rounded-lg focus:bg-gray-200 hover:text-gray-700">
+						Cancel
+					</button>
+					<button type="submit" className="inline-flex items-center py-2.5 px-4 text-xs font-medium text-center text-white bg-blue-700 rounded-lg focus:bg-blue-900 hover:bg-blue-800">
+						Save
+					</button>
+				</form> : <div className="space-y-1">
 					<p className="font-normal leading-none">{comment.content}</p>
-				</div>
+				</div>}
 			</div>
 		</div>
 	)
