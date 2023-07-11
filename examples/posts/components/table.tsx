@@ -1,6 +1,5 @@
-import Image from 'next/image'
-import Link from 'next/link'
-import RefreshButton from './refresh-button'
+import Link from 'next/link';
+import RefreshButton from './refresh-button';
 import { getPosts } from '@/lib/prisma/api';
 
 export default async function Table() {
@@ -21,9 +20,9 @@ export default async function Table() {
         <RefreshButton />
       </div>
       <div className="divide-y divide-gray-900/5">
-        {posts.map((post) => (
+        {posts.map((post, i) => (
           <Link
-            key={post.title}
+            key={i}
             href={`/post/${post.id}`}
             className="font-medium underline underline-offset-4 hover:text-black transition-colors"
           >
@@ -31,13 +30,6 @@ export default async function Table() {
               className="flex items-center justify-between py-3"
             >
               <div className="flex items-center space-x-4">
-                <Image
-                  src="https://picsum.photos/100"
-                  alt={post.title}
-                  width={48}
-                  height={48}
-                  className="rounded-full ring-1 ring-gray-900/5"
-                />
                 <div className="space-y-1">
                   <p className="font-medium leading-none">{post.title}</p>
                 </div>
