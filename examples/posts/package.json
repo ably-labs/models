@@ -14,6 +14,7 @@
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
   },
   "dependencies": {
+    "@heroicons/react": "^2.0.18",
     "@prisma/client": "4.13.0",
     "@types/node": "18.15.11",
     "@types/react": "18.0.37",
