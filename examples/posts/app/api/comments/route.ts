@@ -5,6 +5,7 @@ import prisma from '@/lib/prisma';
 async function addComment(req: AddCommentRequest): Promise<Comment> {
 	const comment = await prisma.comment.create({
 		data: req,
+		include: { author: true },
 	});
 	return comment;
 }

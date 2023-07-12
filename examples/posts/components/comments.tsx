@@ -1,18 +1,15 @@
 'use client';
 
 import { useContext } from 'react';
-import type { Prisma } from '@prisma/client';
-import { getPost } from '@/lib/prisma/api';
 import { UserContext } from '@/context/user';
 import NewComment from '@/components/new-comment';
 import Comment from '@/components/comment';
-
-type postWithComments = Prisma.PromiseReturnType<typeof getPost>;
+import type { CommentsWithAuthor, CommentWithAuthor } from '@/lib/prisma/api';
 
 type CommentsProps = {
 	postId: number,
-	comments: postWithComments['comments'],
-	onChange: (cs: postWithComments['comments']) => void,
+	comments: CommentsWithAuthor,
+	onChange: (cs: CommentsWithAuthor) => void,
 };
 
 export default function Comments({ postId, comments, onChange }: CommentsProps) {
@@ -35,8 +32,9 @@ export default function Comments({ postId, comments, onChange }: CommentsProps) 
 			throw new Error(`POST /api/comments: ${response.status} ${JSON.stringify(await response.json())}`);
 		}
 
-		const data = await response.json();
+		const { data } = await response.json() as ({ data: CommentWithAuthor });
 		console.log(data);
+		onChange(comments.concat([data]));
 	}
 
 	async function editComment(id: number, content: string) {
@@ -54,9 +52,9 @@ export default function Comments({ postId, comments, onChange }: CommentsProps) 
 			throw new Error(`PUT /api/comments/:id: ${response.status} ${JSON.stringify(await response.json())}`);
 		}
 
-		const data = await response.json();
+		const data = await response.json() as ({ data: CommentWithAuthor });
 		console.log(data);
-		// TODO update parent onChange
+		onChange(comments.map(comment => comment.id === id ? { ...comment, content } : comment));
 	}
 
 	async function deleteComment(id: number) {
@@ -68,6 +66,7 @@ export default function Comments({ postId, comments, onChange }: CommentsProps) 
 
 		const data = await response.json();
 		console.log(data);
+		onChange(comments.filter(comment => comment.id !== id));
 	}
 
 	return (

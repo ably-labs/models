@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import prisma from ".";
 
 export async function getPosts() {
@@ -7,6 +8,10 @@ export async function getPosts() {
     },
   });
 }
+
+export type PostWithComments = Prisma.PromiseReturnType<typeof getPost>;
+export type CommentsWithAuthor = Prisma.PromiseReturnType<typeof getPost>['comments'];
+export type CommentWithAuthor = PostWithComments['comments'][number];
 
 export async function getPost(id: number) {
   return await prisma.post.findUniqueOrThrow({
