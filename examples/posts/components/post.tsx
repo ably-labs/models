@@ -1,13 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Prisma } from '@prisma/client';
 import { UserProvider } from '@/context/user';
-import type { getPost } from '@/lib/prisma/api';
 import Comments from './comments';
+import type { PostWithComments } from '@/lib/prisma/api';
 
-export default async function Post({ post }: { post: Prisma.PromiseReturnType<typeof getPost> }) {
+export default function Post({ post }: { post: PostWithComments }) {
   const [comments, setComments] = useState(post.comments);
+
   return (
     <UserProvider>
       <main className="relative flex min-h-screen flex-col items-center justify-center">
@@ -17,7 +17,7 @@ export default async function Post({ post }: { post: Prisma.PromiseReturnType<ty
         <div className="space-y-1 mb-8">
           <p className="font-normal text-gray-500 leading-none">{post.content}</p>
         </div>
-        <Comments postId={post.id} comments={comments} onChange={(cs: typeof comments) => setComments(cs)}></Comments>
+        <Comments postId={post.id} comments={comments} onChange={setComments}></Comments>
       </main>
     </UserProvider>
   )
