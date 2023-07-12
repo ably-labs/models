@@ -7,6 +7,7 @@ async function updateComment(id: number, content: string): Promise<Comment> {
 	const comment = await prisma.comment.update({
 		where: { id },
 		data: { content },
+		include: { author: true },
 	});
 	return comment;
 }

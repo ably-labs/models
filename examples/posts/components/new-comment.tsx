@@ -12,6 +12,7 @@ export default function NewComment({ addComment }: { addComment: (content: strin
 	function onSubmit(e: FormEvent) {
 		e.preventDefault();
 		addComment(comment);
+		setComment('');
 	}
 
 	return (
