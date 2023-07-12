@@ -5,36 +5,17 @@ import Image from 'next/image';
 import { UserContext } from '@/context/user';
 import { DEFAULT_AVATAR_URL } from '@/lib/image';
 
-export default function NewComment({ postId }: { postId: number }) {
-	const [comment, setComment] = useState('');
+export default function NewComment({ addComment }: { addComment: (content: string) => void }) {
 	const user = useContext(UserContext);
+	const [comment, setComment] = useState('');
 
-	async function addComment(e: FormEvent) {
+	function onSubmit(e: FormEvent) {
 		e.preventDefault();
-	
-		const response = await fetch('/api/comments', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify({
-				authorId: user?.id,
-				postId,
-				content: comment
-			}),
-		});
-	
-		if (!response.ok) {
-			throw new Error(`POST /api/comments: ${response.status} ${JSON.stringify(await response.json())}`);
-		}
-
-		const data = await response.json();
-		console.log(data);
-		setComment('');
+		addComment(comment);
 	}
 
 	return (
-		<form className="max-w-xl mx-auto w-full" onSubmit={addComment}>
+		<form className="max-w-xl mx-auto w-full" onSubmit={onSubmit}>
 			<div className="w-full shadow-xl rounded-lg bg-gray-50">
 				<div className="px-4 py-2 bg-white rounded-t-lg">
 					<div className="flex items-center py-3">
