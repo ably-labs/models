@@ -1,14 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import type { Post } from '@prisma/client';
-import prisma from '@/lib/prisma';
-
-async function getPost(id: number): Promise<Post> {
-	const post = await prisma.post.findUniqueOrThrow({
-		where: { id },
-		include: { comments: { include: { author: true } } },
-	});
-	return post;
-}
+import { getPost } from '@/lib/prisma/api';
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
 	try {

@@ -1,23 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import type { Comment } from '@prisma/client';
-import prisma from '@/lib/prisma';
-
-async function updateComment(id: number, content: string): Promise<Comment> {
-  await prisma.comment.findUniqueOrThrow({ where: { id } });
-  const comment = await prisma.comment.update({
-    where: { id },
-    data: { content },
-    include: { author: true },
-  });
-  return comment;
-}
-
-async function deleteComment(id: number): Promise<Comment> {
-  const comment = await prisma.comment.delete({
-    where: { id },
-  });
-  return comment;
-}
+import { NextRequest, NextResponse } from 'next/server'
+import { updateComment, deleteComment } from '@/lib/prisma/api';
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
 	try {
