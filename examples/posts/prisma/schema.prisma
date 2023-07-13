@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["jsonProtocol"]
@@ -8,30 +5,22 @@ generator client {
 
 datasource db {
   provider          = "postgresql"
-  url               = env("POSTGRES_PRISMA_URL") // uses connection pooling
-  directUrl         = env("POSTGRES_URL_NON_POOLING") // uses a direct connection
-  shadowDatabaseUrl = env("POSTGRES_URL_NON_POOLING") // used for migrations
+  url               = env("POSTGRES_PRISMA_URL")
+  directUrl         = env("POSTGRES_URL_NON_POOLING")
+  shadowDatabaseUrl = env("POSTGRES_URL_NON_POOLING")
 }
 
-model User {
-  id       Int       @id @default(autoincrement())
-  username String    @unique
-  image    String
-  comments Comment[]
+model nodes {
+  id     String   @id
+  expiry DateTime @db.Timestamp(6)
 }
 
-model Post {
-  id       Int       @id @default(autoincrement())
-  title    String
-  content  String
-  comments Comment[]
-}
-
-model Comment {
-  id       Int    @id @default(autoincrement())
-  content  String
-  postId   Int
-  post     Post   @relation(fields: [postId], references: [id])
-  authorId Int
-  author   User   @relation(fields: [authorId], references: [id])
+model outbox {
+  id          Int       @id @default(autoincrement())
+  channel     String
+  name        String
+  data        Json?
+  headers     Json?
+  locked_by   String?
+  lock_expiry DateTime? @db.Timestamp(6)
 }
