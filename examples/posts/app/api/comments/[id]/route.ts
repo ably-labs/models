@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { updateComment, deleteComment } from '@/lib/prisma/api';
+import { withOutboxWrite, editComment, deleteComment } from '@/lib/prisma/api';
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
 	try {
@@ -11,7 +11,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 		} catch (error) {
 			return NextResponse.json({ message: 'failed to read json request body', error }, { status: 400 });
 		}
-		const data = await updateComment(id, comment.content);
+		const data = await withOutboxWrite(editComment, id, comment.content);
 		return NextResponse.json({ data });
 	} catch (error) {
 		console.error('failed to update comment', error);
@@ -27,7 +27,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 		} catch (error) {
 			return NextResponse.json({ message: 'failed to read :id url parameter', error }, { status: 400 });
 		}
-		const data = await deleteComment(id);
+		const data = await withOutboxWrite(deleteComment, id);
 		return NextResponse.json({ data });
 	} catch (error) {
 		console.error('failed to delete comment', error);
