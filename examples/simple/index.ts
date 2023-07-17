@@ -1,155 +1,124 @@
 import Ably from 'ably/promises';
 import Models from '@ably-labs/models';
-import { Model, ModelState, Event } from '@ably-labs/models';
 import pino from 'pino';
 
 const logger = pino();
 
 type Post = {
-	id: number,
-	text: string;
-	comments: string[];
-}
+  id: number;
+  text: string;
+  comments: string[];
+};
 
-console.log(process.env.ABLY_API_KEY);
+type Mutations = {
+  updatePost: (text: string) => Promise<{ status: number }>;
+  addComment: (text: string) => Promise<{ status: number }>;
+};
+
 const ably = new Ably.Realtime.Promise({
-	key: process.env.ABLY_API_KEY,
+  key: process.env.ABLY_API_KEY,
 });
 const models = new Models({ ably, logLevel: 'silent' });
 
-class Example {
-	model: Model<Post>;
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-	constructor() {
-		this.model = models.Model<Post>('post', {
-			sync: async () => {
-				logger.info('sync');
-				return {
-					version: 1,
-					data: {
-						id: 123,
-						text: 'initial state',
-						comments: [],
-					}
-				}
-			},
-		});
+(async function main() {
+  const model = models.Model<Post, Mutations>('post');
 
-		this.model.$register({
-			$update: {
-				'posts:123': {
-					update: async (state: Post, event: Event) => {
-						logger.info({ state, event }, 'apply update: updatePost');
-						return {
-							...state,
-							text: event.data,
-						};
-					},
-				},
-				'posts:123:comments': {
-					add: async (state: Post, event: Event) => {
-						logger.info({ state, event }, 'apply update: addComment');
-						return {
-							...state,
-							comments: state.comments.concat([event.data]),
-						};
-					}
-				}
-			},
-			$mutate: {
-				updatePost: {
-					mutate: async (...args: any[]) => {
-						logger.info({ args }, 'mutation: updatePost');
-						await new Promise(resolve => setTimeout(resolve, 1000));
-					},
-					confirmationTimeout: 5000,
-				},
-				addComment: {
-					mutate: async (...args: any[]) => {
-						logger.info({ args }, 'mutation: addComment');
-						await new Promise(resolve => setTimeout(resolve, 1000));
-					},
-					confirmationTimeout: 5000,
-				},
-			}
-		});
+  async function sync() {
+    return {
+      version: 1,
+      data: {
+        id: 123,
+        text: 'initial state',
+        comments: [],
+      },
+    };
+  }
 
-		this.model.on(event => logger.info({ event }, 'model state update'));
+  await model.$register({
+    $sync: sync,
+    $update: {
+      'posts:123': {
+        update: async (state, event) => ({
+          ...state,
+          text: event.data,
+        }),
+      },
+      'posts:123:comments': {
+        add: async (state, event) => ({
+          ...state,
+          comments: state.comments.concat([event.data]),
+        }),
+      },
+    },
+    $mutate: {
+      updatePost: async () => ({ status: 200 }),
+      addComment: async () => ({ status: 200 }),
+    },
+  });
 
-		this.model.subscribe((err, post) => {
-			if (err) {
-				throw err;
-			}
-			logger.info({ post }, 'subscribe (non-optimistic)');
-		}, {
-			optimistic: false,
-		});
-		this.model.subscribe((err, post) => {
-			if (err) {
-				throw err;
-			}
-			logger.info({ post }, 'subscribe (optimistic)');
-		}, {
-			optimistic: true,
-		});
-	}
+  model.on((event) => logger.info({ event }, 'model state update'));
 
-	updatePost(text: string) {
-		logger.info({ text }, 'updatePost');
-		this.model.mutate('updatePost', {
-			args: [text],
-			events: [{
-				channel: 'posts:123',
-				name: 'update',
-				data: text,
-			}],
-		});
-		return () => {
-			logger.info({ text }, 'confirm: updatePost');
-			ably.channels.get('posts:123').publish('update', text);
-		};
-	}
+  model.subscribe(
+    (err, post) => {
+      if (err) {
+        throw err;
+      }
+      logger.info({ post }, 'subscribe (non-optimistic)');
+    },
+    { optimistic: false },
+  );
 
-	addComment(text: string) {
-		logger.info({ text }, 'addComment');
-		this.model.mutate('addComment', {
-			args: [text],
-			events: [{
-				channel: 'posts:123:comments',
-				name: 'add',
-				data: text,
-			}],
-		});
-		return () => {
-			logger.info({ text }, 'confirm: addComment');
-			ably.channels.get('posts:123:comments').publish({
-				name: 'add',
-				data: text,
-			});
-		}
-	}
+  model.subscribe(
+    (err, post) => {
+      if (err) {
+        throw err;
+      }
+      logger.info({ post }, 'subscribe (optimistic)');
+    },
+    { optimistic: true },
+  );
 
-	async teardown() {
-		this.model.dispose();
-	}
-}
+  const postText = 'update post';
+  const [postResult, postUpdate, postConfirmation] = await model.mutations.updatePost.$expect([
+    {
+      channel: 'posts:123',
+      name: 'update',
+      data: postText,
+    },
+  ])(postText);
+  logger.info(postResult, 'mutation: updatePost');
+  await postUpdate;
+  logger.info('mutation: updatePost: optimistically applied');
+  setTimeout(() => ably.channels.get('posts:123').publish('update', postText), 5000);
+  logger.info('mutation: updatePost: awaiting confirmation...');
+  await postConfirmation;
+  logger.info('mutation: updatePost: confirmed');
 
-function wait(ms: number) {
-	return new Promise(resolve => setTimeout(resolve, ms));
-}
+  const commentText = 'add comment';
+  const [commentResult, commentUpdate, commentConfirmation] = await model.mutations.addComment.$expect([
+    {
+      channel: 'posts:123:comments',
+      name: 'add',
+      data: commentText,
+    },
+  ])(commentText);
+  logger.info(commentResult, 'mutation: addComment');
+  await commentUpdate;
+  logger.info('mutation: addComment: optimistically applied');
+  setTimeout(
+    () =>
+      ably.channels.get('posts:123:comments').publish({
+        name: 'add',
+        data: commentText,
+      }),
+    5000,
+  );
+  logger.info('mutation: addComment: awaiting confirmation...');
+  await commentConfirmation;
+  logger.info('mutation: addComment: confirmed');
 
-(async function () {
-	const example = new Example();
-	example.model.once(ModelState.READY, async () => {
-		example.updatePost('first update')();
-		await wait(1000);
-		example.updatePost('second update')();
-		await wait(1000);
-		example.addComment('first comment')();
-		await wait(1000);
-		example.addComment('second comment')();
-		await wait(1000);
-		await example.teardown();
-		logger.info('goodbye');
-	});
-})()
+  await wait(1000);
+  await model.$dispose();
+})();

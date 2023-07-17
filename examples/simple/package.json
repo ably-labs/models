@@ -6,6 +6,8 @@
   "scripts": {
     "start": "npx ts-node index.ts | pino-pretty",
     "build": "npm install ../../ && tsc --project tsconfig.json",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",

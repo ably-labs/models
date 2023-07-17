@@ -4,14 +4,18 @@ import { useState, useContext, FormEvent } from 'react';
 import Image from 'next/image';
 import { UserContext } from '@/context/user';
 import { DEFAULT_AVATAR_URL } from '@/lib/image';
+import { User } from '@prisma/client';
 
-export default function NewComment({ addComment }: { addComment: (content: string) => void }) {
+export default function NewComment({ onAdd }: { onAdd: (author: User, content: string) => void }) {
   const user = useContext(UserContext);
   const [comment, setComment] = useState('');
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
-    addComment(comment);
+    if (!user) {
+      throw new Error('user is not set');
+    }
+    onAdd(user, comment);
     setComment('');
   }
 

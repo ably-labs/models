@@ -14,7 +14,7 @@
     "allowJs": true,
     "types": ["node"],
     "paths": {
-      "@ably-labs/models": ["./node_modules/@ably-labs/models/src"],
+      "@ably-labs/models": ["./node_modules/@ably-labs/models/src"]
     }
   }
 }

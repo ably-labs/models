@@ -1,67 +1,39 @@
 'use client';
 
-import { Suspense, useContext } from 'react';
-import { UserContext } from '@/context/user';
+import { Suspense } from 'react';
+import { User } from '@prisma/client';
 import NewComment from '@/components/new-comment';
 import Comment from '@/components/comment';
 import CommentPlaceholder from '@/components/comment-placeholder';
-import type { CommentsWithAuthor, CommentWithAuthor } from '@/lib/prisma/api';
+import type { CommentsWithAuthor } from '@/lib/prisma/api';
 
 type CommentsProps = {
   postId: number;
   comments: CommentsWithAuthor;
-  onChange: (cs: CommentsWithAuthor) => void;
+  onAdd: (author: User, postId: number, content: string) => void;
+  onEdit: (id: number, content: string) => void;
+  onDelete: (id: number) => void;
 };
 
-export default function Comments({ postId, comments, onChange }: CommentsProps) {
-  const user = useContext(UserContext);
-
-  async function addComment(content: string) {
-    const response = await fetch('/api/comments', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        authorId: user?.id,
-        postId,
-        content,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`POST /api/comments: ${response.status} ${JSON.stringify(await response.json())}`);
-    }
-
-    const { data } = (await response.json()) as { data: CommentWithAuthor };
-    onChange(comments.concat([data]));
-  }
-
-  function editComment(id: number, content: string) {
-    onChange(comments.map((comment) => (comment.id === id ? { ...comment, content } : comment)));
-  }
-
-  function deleteComment(id: number) {
-    onChange(comments.filter((comment) => comment.id !== id));
-  }
-
+export default function Comments({ postId, comments, onAdd, onEdit, onDelete }: CommentsProps) {
   return (
     <>
       <div className="divide-y divide-gray-900/5">
-        {comments.map((comment, i) => (
+        {/* TODO: comment.id is undefined when optimistic */}
+        {comments.map((comment) => (
           <Suspense
             key={comment.id}
             fallback={<CommentPlaceholder />}
           >
             <Comment
               comment={comment}
-              onEdit={(content) => editComment(comment.id, content)}
-              onDelete={() => deleteComment(comment.id)}
+              onEdit={(content) => onEdit(comment.id, content)}
+              onDelete={() => onDelete(comment.id)}
             />
           </Suspense>
         ))}
       </div>
-      <NewComment addComment={addComment} />
+      <NewComment onAdd={(author, content) => onAdd(author, postId, content)} />
     </>
   );
 }

@@ -1,6 +1,6 @@
 import * as runtime from '@prisma/client/runtime/library';
-import { Prisma, Comment, PrismaClient } from "@prisma/client";
-import prisma from "@/lib/prisma";
+import { Prisma, PrismaClient } from '@prisma/client';
+import prisma from '@/lib/prisma';
 
 export async function getPosts() {
   return await prisma.post.findMany({
@@ -35,7 +35,12 @@ export async function getRandomUser() {
   });
 }
 
-export async function addComment(tx: TxClient, postId: number, authorId: number, content: string): Promise<Prisma.OutboxCreateInput> {
+export async function addComment(
+  tx: TxClient,
+  postId: number,
+  authorId: number,
+  content: string,
+): Promise<Prisma.outboxCreateInput> {
   const comment = await tx.comment.create({
     data: { postId, authorId, content },
     include: { author: true },
@@ -43,7 +48,7 @@ export async function addComment(tx: TxClient, postId: number, authorId: number,
   return { channel: 'comments', name: 'add', data: comment, headers: { postId: comment.postId } };
 }
 
-export async function editComment(tx: TxClient, id: number, content: string): Promise<Prisma.OutboxCreateInput> {
+export async function editComment(tx: TxClient, id: number, content: string): Promise<Prisma.outboxCreateInput> {
   await tx.comment.findUniqueOrThrow({ where: { id } });
   const comment = await tx.comment.update({
     where: { id },
@@ -53,14 +58,17 @@ export async function editComment(tx: TxClient, id: number, content: string): Pr
   return { channel: 'comments', name: 'edit', data: comment, headers: { postId: comment.postId } };
 }
 
-export async function deleteComment(tx: TxClient, id: number): Promise<Prisma.OutboxCreateInput> {
+export async function deleteComment(tx: TxClient, id: number): Promise<Prisma.outboxCreateInput> {
   const comment = await tx.comment.delete({
     where: { id },
   });
   return { channel: 'comments', name: 'delete', data: { id }, headers: { postId: comment.postId } };
 }
 
-export async function withOutboxWrite(op: (tx: TxClient, ...args: any[]) => Promise<Prisma.OutboxCreateInput>, ...args: any[]) {
+export async function withOutboxWrite(
+  op: (tx: TxClient, ...args: any[]) => Promise<Prisma.outboxCreateInput>,
+  ...args: any[]
+) {
   return await prisma.$transaction(async (tx) => {
     const { channel, name, data, headers } = await op(tx, ...args);
     await tx.outbox.create({

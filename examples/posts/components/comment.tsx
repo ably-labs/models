@@ -22,39 +22,16 @@ export default function Comment({ comment, onEdit, onDelete }: CommentProps) {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editedComment, setEditedComment] = useState(comment.content);
 
-  async function editComment(e: FormEvent) {
+  function onSubmit(e: FormEvent) {
     e.preventDefault();
     setIsEditMode(false);
-
-    const response = await fetch(`/api/comments/${comment.id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        content: editedComment,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`PUT /api/comments/:id: ${response.status} ${JSON.stringify(await response.json())}`);
-    }
-
-    const data = (await response.json()) as { data: CommentWithAuthor };
     onEdit(editedComment);
   }
 
-  async function deleteComment(e: FormEvent) {
+  function onReset(e: FormEvent) {
     e.preventDefault();
-
-    const response = await fetch(`/api/comments/${comment.id}`, { method: 'DELETE' });
-
-    if (!response.ok) {
-      throw new Error(`DELETE /api/comments/:id: ${response.status} ${JSON.stringify(await response.json())}`);
-    }
-
-    const data = await response.json();
-    onDelete();
+    setIsEditMode(false);
+    setEditedComment(comment.content);
   }
 
   return (
@@ -80,7 +57,7 @@ export default function Comment({ comment, onEdit, onDelete }: CommentProps) {
               />
               <TrashIcon
                 className="ml-4 h-6 w-6 text-red-300 hover:text-red-500 hover:cursor-pointer"
-                onClick={deleteComment}
+                onClick={onDelete}
               />
             </>
           )}
@@ -88,12 +65,8 @@ export default function Comment({ comment, onEdit, onDelete }: CommentProps) {
         {isEditMode ? (
           <form
             className="space-y-1"
-            onSubmit={editComment}
-            onReset={(e) => {
-              e.preventDefault();
-              setIsEditMode(false);
-              setEditedComment(comment.content);
-            }}
+            onSubmit={onSubmit}
+            onReset={onReset}
           >
             <textarea
               className="w-full px-0 text-sm text-gray-900 bg-white outline-none rounded-lg ring-0 border border-gray-300 focus:border-gray-500"
