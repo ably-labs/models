@@ -336,23 +336,23 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
   private setOptimisticData(data: T) {
     this.logger.trace({ ...this.baseLogContext, action: 'setOptimisticData()', data });
     this.optimisticData = data;
-    setImmediate(() => {
+    setTimeout(() => {
       // allow other updates to finish before invoking subscription callback
       if (this.state !== ModelState.DISPOSED) {
         this.subscriptions.next({ confirmed: false, data });
       }
-    });
+    }, 0);
   }
 
   private setConfirmedData(data: T) {
     this.logger.trace({ ...this.baseLogContext, action: 'setConfirmedData()', data });
     this.confirmedData = data;
-    setImmediate(() => {
+    setTimeout(() => {
       // allow other updates to finish before invoking subscription callback
       if (this.state !== ModelState.DISPOSED) {
         this.subscriptions.next({ confirmed: true, data });
       }
-    });
+    }, 0);
   }
 
   private async applyUpdates(initialData: T, event: Event): Promise<T> {
