@@ -1,10 +1,10 @@
 import _ from 'lodash';
-import pino, { Logger, LevelWithSilent } from 'pino';
+import type { Logger } from 'pino';
+import type { Types as AblyTypes } from 'ably/promises.js';
 import { Subject, Subscription } from 'rxjs';
-import { Types } from 'ably';
-import Stream from './Stream.js';
+import Stream, { IStream } from './Stream.js';
+import StreamProvider from './StreamProvider.js';
 import EventEmitter from './utilities/EventEmitter.js';
-import type { LogContext } from './utilities/logger.js';
 import type { StandardCallback } from './types/callbacks';
 
 export enum ModelState {
@@ -35,7 +35,7 @@ export enum ModelState {
 }
 
 export type Event = {
-  stream: string;
+  channel: string;
   name: string;
   data?: any;
 };
@@ -65,19 +65,20 @@ export type Streams = {
 };
 
 export type UpdateFuncs<T> = {
-  [streamName: string]: {
-    [eventName: string]: UpdateFunc<T>[];
+  [channel: string]: {
+    [event: string]: UpdateFunc<T>[];
   };
 };
 
-export type ModelOptions<T> = {
-  logLevel?: LevelWithSilent;
-  streams: Streams;
-  sync: SyncFunc<T>;
+export type UpdateOptions = {
+  channel: string;
+  event: string;
 };
 
-const MODEL_OPTIONS_DEFAULTS: Partial<ModelOptions<any>> = {
-  logLevel: 'silent',
+export type ModelOptions<T> = {
+  ably: AblyTypes.RealtimePromise;
+  logger: Logger;
+  sync: SyncFunc<T>;
 };
 
 export type ModelStateChange = {
@@ -92,7 +93,7 @@ export type Versioned<T> = {
 };
 
 function eventsAreEqual(e1: Event, e2: Event): boolean {
-  return e1.stream === e2.stream && e1.name === e2.name && _.isEqual(e1.data, e2.data);
+  return e1.channel === e2.channel && e1.name === e2.name && _.isEqual(e1.data, e2.data);
 }
 
 export type SubscriptionOptions = {
@@ -112,7 +113,7 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   private confirmedData: T;
 
   private sync: SyncFunc<T>;
-  private streams: Streams;
+  private streamProvider: StreamProvider;
   private updateFuncs: UpdateFuncs<T> = {};
   private mutations: Record<string, Mutation> = {};
 
@@ -121,18 +122,17 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
 
   private subscriptions = new Subject<{ confirmed: boolean; data: T }>();
   private subscriptionMap: Map<StandardCallback<T>, Subscription> = new Map();
-  private streamSubscriptionsMap: Map<Stream, StandardCallback<Types.Message>> = new Map();
+  private streamSubscriptionsMap: Map<IStream, StandardCallback<AblyTypes.Message>> = new Map();
 
   private logger: Logger;
-  private baseLogContext: Partial<LogContext>;
+  private baseLogContext: Partial<{ scope: string; action: string }>;
 
   constructor(readonly name: string, options: ModelOptions<T>) {
     super();
-    options = { ...MODEL_OPTIONS_DEFAULTS, ...options };
-    this.streams = options.streams;
+    this.logger = options.logger;
+    this.streamProvider = new StreamProvider({ ably: options.ably, logger: options.logger });
     this.sync = options.sync;
     this.baseLogContext = { scope: `Model:${name}` };
-    this.logger = pino({ level: options.logLevel });
     this.init();
   }
 
@@ -151,38 +151,31 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   public async pause() {
     this.logger.trace({ ...this.baseLogContext, action: 'pause()' });
     this.setState(ModelState.PAUSED);
-    for (const streamName in this.streams) {
-      await this.streams[streamName].pause();
+    for (const streamName in this.streamProvider.streams) {
+      await this.streamProvider.streams[streamName].pause();
     }
   }
 
   public async resume() {
     this.logger.trace({ ...this.baseLogContext, action: 'resume()' });
-    for (const streamName in this.streams) {
-      await this.streams[streamName].resume();
+    for (const streamName in this.streamProvider.streams) {
+      await this.streamProvider.streams[streamName].resume();
     }
     this.setState(ModelState.READY);
   }
 
-  public stream(name: string): Stream {
-    if (!this.streams[name]) {
-      throw new Error(`stream with name '${name}' not registered on model '${this.name}'`);
+  public async registerUpdate(update: UpdateFunc<T>, { channel, event }: UpdateOptions) {
+    this.logger.trace({ ...this.baseLogContext, action: 'registerUpdate()', channel, event });
+    if (!this.streamProvider.streams[channel]) {
+      this.addStream(channel);
     }
-    return this.streams[name];
-  }
-
-  public registerUpdate(stream: string, event: string, update: UpdateFunc<T>) {
-    this.logger.trace({ ...this.baseLogContext, action: 'registerUpdate()', stream, event });
-    if (!this.streams[stream]) {
-      throw new Error(`stream with name '${stream}' not registered on model '${this.name}'`);
+    if (!this.updateFuncs[channel]) {
+      this.updateFuncs[channel] = {};
     }
-    if (!this.updateFuncs[stream]) {
-      this.updateFuncs[stream] = {};
+    if (!this.updateFuncs[channel][event]) {
+      this.updateFuncs[channel][event] = [];
     }
-    if (!this.updateFuncs[stream][event]) {
-      this.updateFuncs[stream][event] = [];
-    }
-    this.updateFuncs[stream][event].push(update);
+    this.updateFuncs[channel][event].push(update);
   }
 
   public registerMutation(name: string, mutation: Mutation) {
@@ -272,8 +265,8 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     this.logger.trace({ ...this.baseLogContext, action: 'dispose()', reason });
     this.setState(ModelState.DISPOSED, reason);
     this.subscriptions.unsubscribe();
-    for (const streamName in this.streams) {
-      const stream = this.streams[streamName];
+    for (const streamName in this.streamProvider.streams) {
+      const stream = this.streamProvider.streams[streamName];
       const callback = this.streamSubscriptionsMap.get(stream);
       if (callback) {
         stream.unsubscribe(callback);
@@ -317,9 +310,9 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   private async applyUpdates(initialData: T, event: Event): Promise<T> {
     this.logger.trace({ ...this.baseLogContext, action: 'applyUpdates()', initialData, event });
     let data = initialData;
-    for (let eventName in this.updateFuncs[event.stream]) {
+    for (let eventName in this.updateFuncs[event.channel]) {
       if (event.name === eventName) {
-        for (let updator of this.updateFuncs[event.stream][eventName]) {
+        for (let updator of this.updateFuncs[event.channel][eventName]) {
           data = await updator(data, event);
         }
       }
@@ -332,10 +325,10 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     if (!event) {
       return;
     }
-    if (!this.streams[event.stream]) {
-      throw new Error(`stream with name '${event.stream}' not registered on model '${this.name}'`);
+    if (!this.streamProvider.streams[event.channel]) {
+      throw new Error(`stream with name '${event.channel}' not registered on model '${this.name}'`);
     }
-    if (!this.updateFuncs[event.stream]) {
+    if (!this.updateFuncs[event.channel]) {
       return;
     }
 
@@ -378,35 +371,43 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     throw new Error(`onError not implemented: err = ${err}`);
   }
 
-  private async init(reason?: Error) {
-    this.logger.trace({ ...this.baseLogContext, action: 'init()', reason });
-    this.setState(ModelState.PREPARING, reason);
-
-    // Remove any existing stream subscriptions.
-    for (const streamName in this.streams) {
-      const stream = this.streams[streamName];
+  private removeStreams() {
+    for (const channel in this.streamProvider.streams) {
+      const stream = this.streamProvider.streams[channel];
       const callback = this.streamSubscriptionsMap.get(stream);
       if (callback) {
         stream.unsubscribe(callback);
       }
     }
     this.streamSubscriptionsMap.clear();
+  }
 
-    for (let streamName in this.streams) {
-      const stream = this.streams[streamName];
-      const callback: StandardCallback<Types.Message> = async (err, event) => {
-        try {
-          if (err) {
-            throw err;
-          }
-          await this.onStreamEvent({ ...event!, stream: streamName, confirmed: true });
-        } catch (e) {
-          this.init(e);
+  private addStream(channel: string) {
+    this.streamProvider.streams[channel] = this.streamProvider.getOrCreate({ channel });
+    const callback: StandardCallback<AblyTypes.Message> = async (err, event) => {
+      try {
+        if (err) {
+          throw err;
         }
-      };
-      stream.subscribe(callback);
-      this.streamSubscriptionsMap.set(stream, callback);
+        await this.onStreamEvent({ ...event!, channel, confirmed: true });
+      } catch (e) {
+        this.init(e);
+      }
+    };
+    this.streamProvider.streams[channel].subscribe(callback);
+    this.streamSubscriptionsMap.set(this.streamProvider.streams[channel], callback);
+  }
+
+  private async init(reason?: Error) {
+    this.logger.trace({ ...this.baseLogContext, action: 'init()', reason });
+    this.setState(ModelState.PREPARING, reason);
+
+    this.removeStreams();
+
+    for (let channel in this.streamProvider.streams) {
+      this.addStream(channel);
     }
+
     const { data } = await this.sync();
     this.setOptimisticData(data);
     this.setConfirmedData(data);
