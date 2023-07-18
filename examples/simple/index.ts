@@ -11,28 +11,17 @@ type Post = {
 	comments: string[];
 }
 
-const ably = new Ably.Realtime({
+console.log(process.env.ABLY_API_KEY);
+const ably = new Ably.Realtime.Promise({
 	key: process.env.ABLY_API_KEY,
 });
-const models = new Models(ably, { logLevel: 'silent' });
+const models = new Models({ ably, logLevel: 'silent' });
 
 class Example {
 	model: Model<Post>;
 
 	constructor() {
-		const postStream = models.Stream('post', {
-			channel: 'posts:123',
-		});
-		const commentStream = models.Stream('comment', {
-			channel: 'comments',
-			filter: 'name == `"add"` && headers.post_id == `123`',
-		});
-
 		this.model = models.Model<Post>('post', {
-			streams: {
-				post: postStream,
-				comment: commentStream,
-			},
 			sync: async () => {
 				logger.info('sync');
 				return {
@@ -46,34 +35,43 @@ class Example {
 			},
 		});
 
-		this.model.registerUpdate('post', 'update', async (state: Post, event: Event) => {
-			logger.info({ state, event }, 'apply update: updatePost');
-			return {
-				...state,
-				text: event.data,
-			};
-		});
-		this.model.registerUpdate('comment', 'add', async (state: Post, event: Event) => {
-			logger.info({ state, event }, 'apply update: addComment');
-			return {
-				...state,
-				comments: state.comments.concat([event.data]),
-			};
-		});
-
-		this.model.registerMutation('updatePost', {
-			mutate: async (...args: any[]) => {
-				logger.info({ args }, 'mutation: updatePost');
-				await new Promise(resolve => setTimeout(resolve, 1000));
+		this.model.$register({
+			$update: {
+				'posts:123': {
+					update: async (state: Post, event: Event) => {
+						logger.info({ state, event }, 'apply update: updatePost');
+						return {
+							...state,
+							text: event.data,
+						};
+					},
+				},
+				'posts:123:comments': {
+					add: async (state: Post, event: Event) => {
+						logger.info({ state, event }, 'apply update: addComment');
+						return {
+							...state,
+							comments: state.comments.concat([event.data]),
+						};
+					}
+				}
 			},
-			confirmationTimeout: 5000,
-		});
-		this.model.registerMutation('addComment', {
-			mutate: async (...args: any[]) => {
-				logger.info({ args }, 'mutation: addComment');
-				await new Promise(resolve => setTimeout(resolve, 1000));
-			},
-			confirmationTimeout: 5000,
+			$mutate: {
+				updatePost: {
+					mutate: async (...args: any[]) => {
+						logger.info({ args }, 'mutation: updatePost');
+						await new Promise(resolve => setTimeout(resolve, 1000));
+					},
+					confirmationTimeout: 5000,
+				},
+				addComment: {
+					mutate: async (...args: any[]) => {
+						logger.info({ args }, 'mutation: addComment');
+						await new Promise(resolve => setTimeout(resolve, 1000));
+					},
+					confirmationTimeout: 5000,
+				},
+			}
 		});
 
 		this.model.on(event => logger.info({ event }, 'model state update'));
@@ -101,7 +99,7 @@ class Example {
 		this.model.mutate('updatePost', {
 			args: [text],
 			events: [{
-				stream: 'post',
+				channel: 'posts:123',
 				name: 'update',
 				data: text,
 			}],
@@ -117,29 +115,22 @@ class Example {
 		this.model.mutate('addComment', {
 			args: [text],
 			events: [{
-				stream: 'comment',
+				channel: 'posts:123:comments',
 				name: 'add',
 				data: text,
 			}],
 		});
 		return () => {
 			logger.info({ text }, 'confirm: addComment');
-			ably.channels.get('comments').publish({
+			ably.channels.get('posts:123:comments').publish({
 				name: 'add',
 				data: text,
-				extras: {
-					headers: {
-						post_id: 123,
-					},
-				},
 			});
 		}
 	}
 
 	async teardown() {
 		this.model.dispose();
-		await models.Stream('post').dispose();
-		await models.Stream('comment').dispose();
 	}
 }
 
