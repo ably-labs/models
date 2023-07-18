@@ -148,7 +148,7 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     return this.confirmedData;
   }
 
-  public async pause() {
+  public async $pause() {
     this.logger.trace({ ...this.baseLogContext, action: 'pause()' });
     this.setState(ModelState.PAUSED);
     for (const streamName in this.streamProvider.streams) {
@@ -156,7 +156,7 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     }
   }
 
-  public async resume() {
+  public async $resume() {
     this.logger.trace({ ...this.baseLogContext, action: 'resume()' });
     for (const streamName in this.streamProvider.streams) {
       await this.streamProvider.streams[streamName].resume();
