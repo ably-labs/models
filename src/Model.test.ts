@@ -136,12 +136,12 @@ describe('Model', () => {
     expect(s1.subscribe).toHaveBeenCalledOnce();
     expect(s2.subscribe).toHaveBeenCalledOnce();
 
-    model.pause();
+    model.$pause();
     await modelStatePromise(model, ModelState.PAUSED);
     expect(s1.pause).toHaveBeenCalledOnce();
     expect(s2.pause).toHaveBeenCalledOnce();
 
-    model.resume();
+    model.$resume();
     await modelStatePromise(model, ModelState.READY);
     expect(s1.resume).toHaveBeenCalledOnce();
     expect(s2.resume).toHaveBeenCalledOnce();
