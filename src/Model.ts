@@ -113,6 +113,9 @@ type Registration<T> = {
       [event: string]: UpdateFunc<T>;
     };
   };
+  $mutate?: {
+    [name: string]: Mutation;
+  };
 };
 
 class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
@@ -173,12 +176,13 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   }
 
   public async $register(registration: Registration<T>) {
-    if (registration.$update) {
-      for (let channel in registration.$update) {
-        for (let event in registration.$update[channel]) {
-          this._registerUpdate(registration.$update[channel][event], { channel, event });
-        }
+    for (let channel in registration.$update) {
+      for (let event in registration.$update[channel]) {
+        this._registerUpdate(registration.$update[channel][event], { channel, event });
       }
+    }
+    for (let name in registration.$mutate) {
+      this._registerMutation(name, registration.$mutate[name]);
     }
   }
 
@@ -196,7 +200,7 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     this.updateFuncs[channel][event].push(update);
   }
 
-  public registerMutation(name: string, mutation: Mutation) {
+  private _registerMutation(name: string, mutation: Mutation) {
     this.logger.trace({
       ...this.baseLogContext,
       action: 'registerMutation()',

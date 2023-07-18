@@ -270,7 +270,7 @@ describe('Model', () => {
     const mutation: Mutation = {
       mutate: vi.fn(async () => 'test'),
     };
-    model.registerMutation('foo', mutation);
+    model.$register({ $mutate: { foo: mutation } });
     expect(mutation.mutate).toHaveBeenCalledTimes(0);
     await model.mutate<[string, number], void>('foo', { args: ['bar', 123] });
     expect(mutation.mutate).toHaveBeenCalledTimes(1);
@@ -286,9 +286,9 @@ describe('Model', () => {
     await modelStatePromise(model, ModelState.READY);
 
     const mutation: Mutation = { mutate: vi.fn() };
-    model.registerMutation('foo', mutation);
+    model.$register({ $mutate: { foo: mutation } });
     expect(mutation.mutate).toHaveBeenCalledTimes(0);
-    expect(() => model.registerMutation('foo', mutation)).toThrowError(
+    await expect(model.$register({ $mutate: { foo: mutation } })).rejects.toThrow(
       `mutation with name 'foo' already registered on model 'test'`,
     );
   });
@@ -304,7 +304,7 @@ describe('Model', () => {
     const mutation: Mutation = {
       mutate: vi.fn(async () => 'test'),
     };
-    model.registerMutation('foo', mutation);
+    model.$register({ $mutate: { foo: mutation } });
     expect(mutation.mutate).toHaveBeenCalledTimes(0);
     await expect(model.mutate('foo', { events: [{ channel: 'unknown', name: 'foo' }] })).rejects.toThrow(
       "stream with name 'unknown' not registered on model 'test'",
@@ -320,12 +320,13 @@ describe('Model', () => {
     await modelStatePromise(model, ModelState.READY);
 
     const update1 = vi.fn(async (state, event) => event.data);
-    model.$register({ $update: { s1: { testEvent: update1 } } });
-
     const mutation: Mutation = {
       mutate: vi.fn(async () => 'test'),
     };
-    model.registerMutation('foo', mutation);
+    model.$register({
+      $update: { s1: { testEvent: update1 } },
+      $mutate: { foo: mutation },
+    });
 
     let optimisticSubscription = new Subject<void>();
     const optimisticSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() =>
@@ -365,12 +366,13 @@ describe('Model', () => {
     await modelStatePromise(model, ModelState.READY);
 
     const update1 = vi.fn(async (state, event) => event.data);
-    model.$register({ $update: { s1: { testEvent: update1 } } });
-
     const mutation: Mutation = {
       mutate: vi.fn(async () => 'test'),
     };
-    model.registerMutation('foo', mutation);
+    model.$register({
+      $update: { s1: { testEvent: update1 } },
+      $mutate: { foo: mutation },
+    });
 
     let optimisticSubscription = new Subject<void>();
     const optimisticSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() =>
@@ -417,12 +419,13 @@ describe('Model', () => {
     await modelStatePromise(model, ModelState.READY);
 
     const update1 = vi.fn(async (state, event) => state + event.data);
-    model.$register({ $update: { s1: { testEvent: update1 } } });
-
     const mutation: Mutation = {
       mutate: vi.fn(async () => 'test'),
     };
-    model.registerMutation('foo', mutation);
+    model.$register({
+      $update: { s1: { testEvent: update1 } },
+      $mutate: { foo: mutation },
+    });
 
     let optimisticSubscription = new Subject<void>();
     const optimisticSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() => {
@@ -500,12 +503,13 @@ describe('Model', () => {
     // This is a non-commutative operation which let's us inspect the order in
     // in which updates are applied to the speculative vs confirmed states.
     const update1 = vi.fn(async (state, event) => state + event.data);
-    model.$register({ $update: { s1: { testEvent: update1 }, s2: { testEvent: update1 } } });
-
     const mutation: Mutation = {
       mutate: vi.fn(async () => 'test'),
     };
-    model.registerMutation('foo', mutation);
+    model.$register({
+      $update: { s1: { testEvent: update1 }, s2: { testEvent: update1 } },
+      $mutate: { foo: mutation },
+    });
 
     let optimisticSubscription = new Subject<void>();
     const optimisticSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() => {
@@ -583,12 +587,13 @@ describe('Model', () => {
     await modelStatePromise(model, ModelState.READY);
 
     const update1 = vi.fn(async (state, event) => state + event.data);
-    model.$register({ $update: { s1: { testEvent: update1 } } });
-
     const mutation: Mutation = {
       mutate: vi.fn(async () => 'test'),
     };
-    model.registerMutation('foo', mutation);
+    model.$register({
+      $update: { s1: { testEvent: update1 } },
+      $mutate: { foo: mutation },
+    });
 
     let optimisticSubscription = new Subject<void>();
     const optimisticSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() => {
@@ -658,19 +663,18 @@ describe('Model', () => {
     await modelStatePromise(model, ModelState.READY);
 
     const update1 = vi.fn(async (state, event) => state + event.data);
-    model.$register({ $update: { s1: { testEvent: update1 } } });
-
     const mutation1: Mutation = {
       mutate: vi.fn(async () => 'test'),
     };
-    model.registerMutation('mutation1', mutation1);
-
     const mutation2: Mutation = {
       mutate: vi.fn(async () => {
         throw new Error('test');
       }),
     };
-    model.registerMutation('mutation2', mutation2);
+    model.$register({
+      $update: { s1: { testEvent: update1 } },
+      $mutate: { mutation1, mutation2 },
+    });
 
     await model.mutate<[], void>('mutation1', {
       events: [
@@ -774,12 +778,13 @@ describe('Model', () => {
       }
       return state + event.data;
     });
-    model.$register({ $update: { s1: { testEvent: update1 } } });
-
     const mutation: Mutation = {
       mutate: vi.fn(async () => 'test'),
     };
-    model.registerMutation('mutation', mutation);
+    model.$register({
+      $update: { s1: { testEvent: update1 } },
+      $mutate: { mutation },
+    });
 
     await model.mutate<[], void>('mutation', {
       events: [
@@ -816,13 +821,14 @@ describe('Model', () => {
     await modelStatePromise(model, ModelState.READY);
 
     const update1 = vi.fn(async (state, event) => state + event.data);
-    model.$register({ $update: { s1: { testEvent: update1 } } });
-
     const mutation: Mutation = {
       mutate: vi.fn(async () => 'test'),
       confirmationTimeout: 1,
     };
-    model.registerMutation('foo', mutation);
+    model.$register({
+      $update: { s1: { testEvent: update1 } },
+      $mutate: { foo: mutation },
+    });
 
     const [, confirmationPromise] = await model.mutate<[], void>('foo', {
       events: [
@@ -856,13 +862,14 @@ describe('Model', () => {
     await modelStatePromise(model, ModelState.READY);
 
     const update1 = vi.fn(async (state, event) => state + event.data);
-    model.$register({ $update: { s1: { testEvent: update1 } } });
-
     const mutation: Mutation = {
       mutate: vi.fn(async () => 'test'),
       confirmationTimeout: 1,
     };
-    model.registerMutation('foo', mutation);
+    model.$register({
+      $update: { s1: { testEvent: update1 } },
+      $mutate: { foo: mutation },
+    });
 
     // Mutate and check the returned promise is rejected with a timeout.
     const [, confirmationPromise] = await model.mutate<[], void>('foo', {
