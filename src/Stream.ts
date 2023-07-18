@@ -1,8 +1,7 @@
 import { Subject, Subscription } from 'rxjs';
-import { Types } from 'ably';
-import pino, { Logger, LevelWithSilent } from 'pino';
+import { Types as AblyTypes } from 'ably';
+import { Logger } from 'pino';
 import EventEmitter from './utilities/EventEmitter.js';
-import type { LogContext } from './utilities/logger.js';
 import type { StandardCallback } from './types/callbacks';
 
 export enum StreamState {
@@ -32,41 +31,44 @@ export enum StreamState {
 }
 
 export type StreamOptions = {
-  logLevel?: LevelWithSilent;
   channel: string;
-  filter?: string;
-};
-
-const STREAM_OPTIONS_DEFAULTS: Partial<StreamOptions> = {
-  logLevel: 'silent',
+  ably: AblyTypes.RealtimePromise;
+  logger: Logger;
 };
 
 export type StreamStateChange = {
   current: StreamState;
   previous: StreamState;
-  reason?: Types.ErrorInfo | string;
+  reason?: AblyTypes.ErrorInfo | string;
 };
 
-class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> {
-  private currentState: StreamState = StreamState.INITIALIZED;
-  private ablyChannel: Types.RealtimeChannelPromise;
-  private subscriptions = new Subject<Types.Message>();
-  private subscriptionMap: Map<StandardCallback<Types.Message>, Subscription> = new Map();
+export interface IStream {
+  get state(): StreamState;
+  get channel(): string;
+  pause(): Promise<void>;
+  resume(): Promise<void>;
+  subscribe(callback: StandardCallback<AblyTypes.Message>): void;
+  unsubscribe(callback: StandardCallback<AblyTypes.Message>): void;
+  dispose(reason?: AblyTypes.ErrorInfo | string): Promise<void>;
+}
 
-  private baseLogContext: Partial<LogContext>;
+export default class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> implements IStream {
+  private ably: AblyTypes.RealtimePromise;
+  private currentState: StreamState = StreamState.INITIALIZED;
+  private ablyChannel: AblyTypes.RealtimeChannelPromise;
+  private subscriptions = new Subject<AblyTypes.Message>();
+  private subscriptionMap: Map<StandardCallback<AblyTypes.Message>, Subscription> = new Map();
+
+  private baseLogContext: Partial<{ scope: string; action: string }>;
   private logger: Logger;
 
-  constructor(readonly ably: Types.RealtimePromise, readonly options: StreamOptions) {
+  constructor(readonly options: StreamOptions) {
     super();
-    this.options = { ...STREAM_OPTIONS_DEFAULTS, ...options };
-    if (this.options.filter) {
-      this.ablyChannel = this.ably.channels.getDerived(this.options.channel, { filter: this.options.filter });
-    } else {
-      this.ablyChannel = this.ably.channels.get(this.options.channel);
-    }
+    this.ably = options.ably;
+    this.logger = options.logger;
+    this.ablyChannel = this.ably.channels.get(this.options.channel);
     this.ablyChannel.on('failed', (change) => this.dispose(change.reason));
-    this.baseLogContext = { scope: 'Stream', ...this.options };
-    this.logger = pino({ level: this.options.logLevel });
+    this.baseLogContext = { scope: `Stream#${options.channel}` };
     this.init();
   }
 
@@ -89,7 +91,7 @@ class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> {
     this.setState(StreamState.READY);
   }
 
-  public subscribe(callback: StandardCallback<Types.Message>) {
+  public subscribe(callback: StandardCallback<AblyTypes.Message>) {
     this.logger.trace({ ...this.baseLogContext, action: 'subscribe()' });
     const subscription = this.subscriptions.subscribe({
       next: (message) => {
@@ -108,7 +110,7 @@ class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> {
     this.subscriptionMap.set(callback, subscription);
   }
 
-  public unsubscribe(callback: StandardCallback<Types.Message>) {
+  public unsubscribe(callback: StandardCallback<AblyTypes.Message>) {
     this.logger.trace({ ...this.baseLogContext, action: 'unsubscribe()' });
     const subscription = this.subscriptionMap.get(callback);
     if (subscription) {
@@ -117,7 +119,7 @@ class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> {
     }
   }
 
-  public async dispose(reason?: Types.ErrorInfo | string) {
+  public async dispose(reason?: AblyTypes.ErrorInfo | string) {
     this.logger.trace({ ...this.baseLogContext, action: 'dispose()', reason });
     this.setState(StreamState.DISPOSED, reason);
     this.subscriptions.unsubscribe();
@@ -126,7 +128,7 @@ class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> {
     this.ably.channels.release(this.ablyChannel.name);
   }
 
-  private setState(state: StreamState, reason?: Types.ErrorInfo | string) {
+  private setState(state: StreamState, reason?: AblyTypes.ErrorInfo | string) {
     this.logger.trace({ ...this.baseLogContext, action: 'setState()', state, reason });
     const previous = this.currentState;
     this.currentState = state;
@@ -145,10 +147,8 @@ class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> {
     this.setState(StreamState.READY);
   }
 
-  private onMessage(message: Types.Message) {
+  private onMessage(message: AblyTypes.Message) {
     this.logger.trace({ ...this.baseLogContext, action: 'onMessage()', message });
     this.subscriptions.next(message);
   }
 }
-
-export default Stream;
