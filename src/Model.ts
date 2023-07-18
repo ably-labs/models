@@ -107,6 +107,14 @@ type PendingConfirmation = {
   reject: (err?: Error) => void;
 };
 
+type Registration<T> = {
+  $update?: {
+    [channel: string]: {
+      [event: string]: UpdateFunc<T>;
+    };
+  };
+};
+
 class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   private currentState: ModelState = ModelState.INITIALIZED;
   private optimisticData: T;
@@ -164,7 +172,17 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     this.setState(ModelState.READY);
   }
 
-  public async registerUpdate(update: UpdateFunc<T>, { channel, event }: UpdateOptions) {
+  public async $register(registration: Registration<T>) {
+    if (registration.$update) {
+      for (let channel in registration.$update) {
+        for (let event in registration.$update[channel]) {
+          this._registerUpdate(registration.$update[channel][event], { channel, event });
+        }
+      }
+    }
+  }
+
+  private async _registerUpdate(update: UpdateFunc<T>, { channel, event }: UpdateOptions) {
     this.logger.trace({ ...this.baseLogContext, action: 'registerUpdate()', channel, event });
     if (!this.streamProvider.streams[channel]) {
       this.addStream(channel);
