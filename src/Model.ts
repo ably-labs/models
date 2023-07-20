@@ -6,6 +6,7 @@ import Stream, { IStream } from './Stream.js';
 import StreamProvider from './StreamProvider.js';
 import EventEmitter from './utilities/EventEmitter.js';
 import type { StandardCallback } from './types/callbacks';
+import Mutations, { MutationRegistration, MutationMethods, MutationOptions } from './Mutations.js';
 
 export enum ModelState {
   /**
@@ -47,18 +48,6 @@ type Confirmation = {
 export type SyncFunc<T> = () => Promise<Versioned<T>>;
 
 export type UpdateFunc<T> = (state: T, event: Event) => Promise<T>;
-
-export type MutationFunc<T extends any[] = any[], R = any> = (...args: T) => Promise<R>;
-
-export type Mutation<T extends any[] = any[], R = any> = {
-  mutate: MutationFunc<T, R>;
-  // The timeout to receive a confirmation for optimistic mutation events in
-  // milliseconds. If the timeout is reached without being confirmed the
-  // optimistic events are rolled back.
-  //
-  // If unset there is no timeout (which is the default).
-  confirmationTimeout?: number;
-};
 
 export type Streams = {
   [name: string]: Stream;
@@ -107,18 +96,16 @@ type PendingConfirmation = {
   reject: (err?: Error) => void;
 };
 
-type Registration<T> = {
+type Registration<U, M extends MutationMethods> = {
   $update?: {
     [channel: string]: {
-      [event: string]: UpdateFunc<T>;
+      [event: string]: UpdateFunc<U>;
     };
   };
-  $mutate?: {
-    [name: string]: Mutation;
-  };
+  $mutate?: { [K in keyof M]: MutationRegistration<M[K]> };
 };
 
-class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
+class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   private currentState: ModelState = ModelState.INITIALIZED;
   private optimisticData: T;
   private confirmedData: T;
@@ -126,7 +113,6 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   private sync: SyncFunc<T>;
   private streamProvider: StreamProvider;
   private updateFuncs: UpdateFuncs<T> = {};
-  private mutations: Record<string, Mutation> = {};
 
   private optimisticEvents: Event[] = [];
   private pendingConfirmations: PendingConfirmation[] = [];
@@ -138,12 +124,18 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   private logger: Logger;
   private baseLogContext: Partial<{ scope: string; action: string }>;
 
+  private mutationsRegistry: Mutations<M>;
+
   constructor(readonly name: string, options: ModelOptions<T>) {
     super();
     this.logger = options.logger;
     this.streamProvider = new StreamProvider({ ably: options.ably, logger: options.logger });
     this.sync = options.sync;
     this.baseLogContext = { scope: `Model:${name}` };
+    this.mutationsRegistry = new Mutations<M>({
+      onEvents: this.onMutationEvents.bind(this),
+      onError: this.onMutationError.bind(this),
+    });
     this.init();
   }
 
@@ -157,6 +149,10 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
 
   public get confirmed() {
     return this.confirmedData;
+  }
+
+  public get mutations() {
+    return this.mutationsRegistry.handler;
   }
 
   public async $pause() {
@@ -175,19 +171,18 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     this.setState(ModelState.READY);
   }
 
-  public async $register(registration: Registration<T>) {
+  public $register(registration: Registration<T, M>) {
     for (let channel in registration.$update) {
       for (let event in registration.$update[channel]) {
-        this._registerUpdate(registration.$update[channel][event], { channel, event });
+        this.registerUpdate(registration.$update[channel][event], { channel, event });
       }
     }
-    for (let name in registration.$mutate) {
-      this._registerMutation(name, registration.$mutate[name]);
+    if (registration.$mutate) {
+      this.mutationsRegistry.register(registration.$mutate);
     }
   }
 
-  private async _registerUpdate(update: UpdateFunc<T>, { channel, event }: UpdateOptions) {
-    this.logger.trace({ ...this.baseLogContext, action: 'registerUpdate()', channel, event });
+  private async registerUpdate(update: UpdateFunc<T>, { channel, event }: UpdateOptions) {
     if (!this.streamProvider.streams[channel]) {
       this.addStream(channel);
     }
@@ -200,51 +195,28 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     this.updateFuncs[channel][event].push(update);
   }
 
-  private _registerMutation(name: string, mutation: Mutation) {
-    this.logger.trace({
-      ...this.baseLogContext,
-      action: 'registerMutation()',
-      name,
-      confirmationTimeout: mutation.confirmationTimeout,
-    });
-    if (this.mutations[name]) {
-      throw new Error(`mutation with name '${name}' already registered on model '${this.name}'`);
+  private async onMutationEvents(events: Event[], options: MutationOptions) {
+    for (const event of events) {
+      if (!this.streamProvider.streams[event.channel]) {
+        throw new Error(`stream with name '${event.channel}' not registered on model '${this.name}'`);
+      }
     }
-    this.mutations[name] = mutation;
+    const optimistic = this.onStreamEvents(events.map((event) => ({ ...event, confirmed: false })));
+    let confirmation = Promise.resolve();
+    if (options && options.timeout) {
+      confirmation = this.addPendingConfirmation(events, options.timeout);
+    }
+    return [
+      optimistic,
+      // if optimistically applying an update fails, the confirmation promise should also reject
+      Promise.all([optimistic, confirmation]),
+    ];
   }
 
-  public async mutate<TArgs extends any[], R>(
-    name: string,
-    options?: { events?: Event[]; args?: TArgs },
-  ): Promise<[R, Promise<void>]> {
-    this.logger.trace({ ...this.baseLogContext, action: 'mutate()', name, opts: options });
-    const mutation: Mutation<TArgs, R> = this.mutations[name];
-    if (!mutation) {
-      throw new Error(`mutation with name '${name}' not registered on model '${this.name}'`);
-    }
-
-    try {
-      let confirmationPromise = Promise.resolve();
-      if (options?.events) {
-        for (const event of options.events) {
-          await this.onStreamEvent({ ...event, confirmed: false });
-        }
-
-        if (mutation.confirmationTimeout) {
-          confirmationPromise = this.addPendingConfirmation(options.events, mutation.confirmationTimeout);
-        }
-      }
-
-      const args = options?.args || [];
-      const result = await mutation.mutate(...(args as TArgs));
-      return [result, confirmationPromise];
-    } catch (e) {
-      // If an error occurs either applying the optimistic events, or requesting
-      // the mutation, revert the events.
-      if (options?.events) {
-        await this.revertOptimisticEvents(options?.events);
-      }
-      throw e;
+  private async onMutationError(err: Error, events?: Event[]) {
+    this.logger.error({ ...this.baseLogContext, action: 'onMutationError()', err, events });
+    if (events) {
+      await this.revertOptimisticEvents(events);
     }
   }
 
@@ -320,13 +292,23 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   private setOptimisticData(data: T) {
     this.logger.trace({ ...this.baseLogContext, action: 'setOptimisticData()', data });
     this.optimisticData = data;
-    this.subscriptions.next({ confirmed: false, data });
+    setImmediate(() => {
+      // allow other updates to finish before invoking subscription callback
+      if (this.state !== ModelState.DISPOSED) {
+        this.subscriptions.next({ confirmed: false, data });
+      }
+    });
   }
 
   private setConfirmedData(data: T) {
     this.logger.trace({ ...this.baseLogContext, action: 'setConfirmedData()', data });
     this.confirmedData = data;
-    this.subscriptions.next({ confirmed: true, data });
+    setImmediate(() => {
+      // allow other updates to finish before invoking subscription callback
+      if (this.state !== ModelState.DISPOSED) {
+        this.subscriptions.next({ confirmed: true, data });
+      }
+    });
   }
 
   private async applyUpdates(initialData: T, event: Event): Promise<T> {
@@ -342,13 +324,26 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     return data;
   }
 
+  private async applyOptimisticUpdates(initialData: T, event: Event) {
+    const data = await this.applyUpdates(initialData, event);
+    this.setOptimisticData(data);
+  }
+
+  private async applyConfirmedUpdates(initialData: T, event: Event) {
+    const data = await this.applyUpdates(initialData, event);
+    this.setConfirmedData(data);
+  }
+
+  private async onStreamEvents(events: (Event & Confirmation)[]) {
+    for (const event of events) {
+      await this.onStreamEvent(event);
+    }
+  }
+
   private async onStreamEvent(event?: Event & Confirmation) {
     this.logger.trace({ ...this.baseLogContext, action: 'onStreamEvent()', event });
     if (!event) {
       return;
-    }
-    if (!this.streamProvider.streams[event.channel]) {
-      throw new Error(`stream with name '${event.channel}' not registered on model '${this.name}'`);
     }
     if (!this.updateFuncs[event.channel]) {
       return;
@@ -357,7 +352,7 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     // eagerly apply optimistic updates
     if (!event.confirmed) {
       this.optimisticEvents.push(event);
-      this.setOptimisticData(await this.applyUpdates(this.optimisticData, event));
+      await this.applyOptimisticUpdates(this.optimisticData, event);
       return;
     }
 
@@ -370,7 +365,7 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
       let e = this.optimisticEvents[i];
       if (eventsAreEqual(e, event)) {
         this.optimisticEvents.splice(i, 1);
-        this.setConfirmedData(await this.applyUpdates(this.confirmedData, event));
+        await this.applyConfirmedUpdates(this.confirmedData, event);
         unexpectedEvent = false;
         break;
       }
@@ -380,13 +375,17 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
     // we need to roll back to the last-confirmed state, apply the incoming event,
     // and rebase the optimistic updates on top
     if (unexpectedEvent) {
-      let nextData = await this.applyUpdates(this.confirmedData, event);
-      this.setConfirmedData(nextData);
-      for (const e of this.optimisticEvents) {
-        nextData = await this.applyUpdates(nextData, e);
-      }
-      this.setOptimisticData(nextData);
+      await this.applyWithRebase(event, this.optimisticEvents);
     }
+  }
+
+  private async applyWithRebase(confirmedEvent: Event, optimisticEvents: Event[]) {
+    await this.applyConfirmedUpdates(this.confirmedData, confirmedEvent);
+    let base = this.confirmedData;
+    for (const event of optimisticEvents) {
+      base = await this.applyUpdates(base, event);
+    }
+    this.setOptimisticData(base);
   }
 
   private async onError(err) {
@@ -446,8 +445,8 @@ class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
       } as PendingConfirmation;
       this.pendingConfirmations.push(pendingConfirmation);
 
-      pendingConfirmation.timeout = setTimeout(() => {
-        this.revertOptimisticEvents(pendingConfirmation.unconfirmedEvents);
+      pendingConfirmation.timeout = setTimeout(async () => {
+        await this.revertOptimisticEvents(pendingConfirmation.unconfirmedEvents);
         // Remove the pending confirmation.
         this.pendingConfirmations = this.pendingConfirmations.filter((p) => p !== pendingConfirmation);
         reject(new Error('timed out waiting for event confirmation'));
