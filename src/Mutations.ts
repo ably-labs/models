@@ -11,10 +11,14 @@ export type MutationFunc<T extends any[] = any[], R = any> = (...args: T) => Pro
  * MutationOptions can be used to configure options on individual mutations.
  * @property timeout - The timeout to receive a confirmation for optimistic mutation events in milliseconds.
  * If the timeout is reached without being confirmed the optimistic events are rolled back.
- * If unset there is no timeout (which is the default).
+ * If unset there is a 2 minutes default timeout to avoid leaking unconfirmed events.
  */
 export type MutationOptions = {
   timeout?: number;
+};
+
+export const DEFAULT_OPTIONS: MutationOptions = {
+  timeout: 1000 * 60 * 2,
 };
 
 /**
@@ -103,7 +107,8 @@ export default class Mutations<M extends MutationMethods> {
   private handleMutation<K extends keyof M>(methodName: K, expectedEvents?: Event[]): any {
     const methodItem = this.methods[methodName] as MutationRegistration;
     const method = isMethodObject(methodItem) ? methodItem.func : methodItem;
-    const options = isMethodObject(methodItem) ? methodItem.options : undefined;
+    let options = isMethodObject(methodItem) ? methodItem.options : undefined;
+    options = { ...DEFAULT_OPTIONS, ...options };
 
     const callMethod = async (...args: any[]) => {
       try {
