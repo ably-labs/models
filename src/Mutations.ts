@@ -144,6 +144,9 @@ export default class Mutations<M extends MutationMethods> {
    */
   register(mutations: { [K in keyof M]: MutationRegistration<M[K]> }) {
     Object.keys(mutations).forEach((methodName: string) => {
+      if ((this.handler as any)[methodName]) {
+        throw new Error(`mutation with name '${methodName}' already registered`);
+      }
       const methodItem = mutations[methodName as keyof M];
       if (typeof methodItem === 'function') {
         this.methods[methodName as keyof M] = methodItem;
