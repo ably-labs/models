@@ -36,11 +36,11 @@ describe('Models', () => {
 
   it<ModelsTestContext>('getting a model with the same name returns the same instance', ({ ably }) => {
     const models = new Models({ ably });
-    const model1 = models.Model<string>('test', {
+    const model1 = models.Model<string, {}>('test', {
       sync: async () => ({ version: 1, data: 'foobar' }),
     });
     expect(model1.name).toEqual('test');
-    const model2 = models.Model<string>('test', {
+    const model2 = models.Model<string, {}>('test', {
       sync: async () => ({ version: 1, data: 'foobar' }),
     });
     expect(model2.name).toEqual('test');
