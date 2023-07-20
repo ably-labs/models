@@ -55,8 +55,9 @@ function isMethodObject<T extends MutationFunc>(
  * For each method in M, it defines a corresponding method in `MethodWithExpect<M>`. In addition,
  * it also defines a special `$expect` method, which when invoked with a list of expected events,
  * returns a function that takes the same parameters as the original method and returns a Promise that
- * resolves to a tuple. The first element of the tuple is the result of invoking the original method
- * and the second element is a Promise<void> which gets resolved when the mutation is confirmed.
+ * resolves to a tuple. The first element of the tuple is the result of invoking the original method;
+ * the second element is a Promise<void> which gets resolved when the updates have been optimistically
+ * applied; and the third element is a Promise<void> which gets resolved when the mutation is confirmed.
  *
  * @template M The mutation methods type.
  */
@@ -66,7 +67,7 @@ type MethodWithExpect<M extends MutationMethods> = {
       expectedEvents: Event[],
     ) => (
       ...args: Parameters<M[K]>
-    ) => Promise<[ReturnType<M[K]> extends Promise<infer U> ? U : ReturnType<M[K]>, Promise<void>]>;
+    ) => Promise<[ReturnType<M[K]> extends Promise<infer U> ? U : ReturnType<M[K]>, Promise<void>, Promise<void>]>;
   };
 };
 
@@ -74,12 +75,13 @@ type MethodWithExpect<M extends MutationMethods> = {
  * MutationsCallbacks facilitates custom handling of expected events emitted by mutations.
  *
  * @property onEvents - Invoked with a mutation's expected events and configured options.
- * It should return a Promise that resolves when the mutation has been confirmed.
+ * It should return a tuple of Promise<void>, the first of which resolves when the optimistic
+ * updates have been applied and the second of which resolves when the mutation has been confirmed.
  * @property onError - Invoked with an error and the mutation's expected events the mutation,
  * or the onEvents handler, throws.
  */
 export type MutationsCallbacks = {
-  onEvents: (events: Event[], options?: MutationOptions) => Promise<void>;
+  onEvents: (events: Event[], options?: MutationOptions) => Promise<void>[];
   onError: (err: Error, events?: Event[]) => Promise<void>;
 };
 
@@ -112,12 +114,12 @@ export default class Mutations<M extends MutationMethods> {
 
     const callMethod = async (...args: any[]) => {
       try {
-        let confirmation: Promise<void> = Promise.resolve();
+        let callbackResult: ReturnType<MutationsCallbacks['onEvents']> = [Promise.resolve(), Promise.resolve()];
         if (expectedEvents) {
-          confirmation = this.callbacks.onEvents(expectedEvents, options);
+          callbackResult = await this.callbacks.onEvents(expectedEvents, options);
         }
         let result = await method(...args);
-        return expectedEvents ? [result, confirmation] : result;
+        return expectedEvents ? [result, ...callbackResult] : result;
       } catch (err) {
         await this.callbacks.onError(err, expectedEvents);
         throw err;
