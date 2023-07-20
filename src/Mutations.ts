@@ -111,12 +111,7 @@ export default class Mutations<M extends MutationMethods> {
         if (expectedEvents) {
           confirmation = this.callbacks.onEvents(expectedEvents, options);
         }
-        let result;
-        if (options && options.timeout) {
-          result = await Promise.race([method(...args), confirmation]);
-        } else {
-          result = await method(...args);
-        }
+        let result = await method(...args);
         return expectedEvents ? [result, confirmation] : result;
       } catch (err) {
         await this.callbacks.onError(err, expectedEvents);
