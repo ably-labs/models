@@ -114,11 +114,11 @@ export default class Mutations<M extends MutationMethods> {
 
     const callMethod = async (...args: any[]) => {
       try {
+        let result = await method(...args);
         let callbackResult: ReturnType<MutationsCallbacks['onEvents']> = [Promise.resolve(), Promise.resolve()];
         if (expectedEvents) {
           callbackResult = await this.callbacks.onEvents(expectedEvents, options);
         }
-        let result = await method(...args);
         return expectedEvents ? [result, ...callbackResult] : result;
       } catch (err) {
         await this.callbacks.onError(err, expectedEvents);
