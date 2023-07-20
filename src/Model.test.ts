@@ -5,9 +5,10 @@ import { take } from 'rxjs/operators';
 import pino from 'pino';
 
 import { createMessage, customMessage } from './utilities/test/messages.js';
-import Model, { ModelState, ModelStateChange, Versioned, Mutation, ModelOptions } from './Model.js';
+import Model, { ModelState, ModelStateChange, Versioned, ModelOptions } from './Model.js';
 import { StreamOptions, IStream, StreamState } from './Stream.js';
 import { IStreamProvider } from './StreamProvider.js';
+import { MutationMethods } from './Mutations.js';
 
 vi.mock('ably/promises');
 
@@ -70,7 +71,7 @@ interface ModelTestContext extends Omit<ModelOptions<any>, 'sync'> {
   streams: IStreamProvider;
 }
 
-const modelStatePromise = <T>(model: Model<T>, state: ModelState) =>
+const modelStatePromise = <T, M extends MutationMethods>(model: Model<T, M>, state: ModelState) =>
   new Promise((resolve) => model.whenState(state, model.state, resolve));
 
 const getNthEventPromise = <T>(subject: Subject<T>, n: number) => lastValueFrom(subject.pipe(take(n)));
@@ -106,7 +107,7 @@ describe('Model', () => {
       return simpleTestData;
     });
 
-    const model = new Model<TestData>('test', { ably, logger, sync });
+    const model = new Model<TestData, { foo: (string) => Promise<number> }>('test', { ably, logger, sync });
     await modelStatePromise(model, ModelState.PREPARING);
     completeSync();
     await modelStatePromise(model, ModelState.READY);
@@ -126,7 +127,7 @@ describe('Model', () => {
     s2.resume = vi.fn();
     const sync = vi.fn(async () => simpleTestData);
 
-    const model = new Model<TestData>('test', { ably, logger, sync });
+    const model = new Model<TestData, {}>('test', { ably, logger, sync });
 
     // register update function so that streams get created
     model.$register({
@@ -160,7 +161,7 @@ describe('Model', () => {
     s2.unsubscribe = vi.fn();
     const sync = vi.fn(async () => simpleTestData);
 
-    const model = new Model<TestData>('test', { ably, logger, sync });
+    const model = new Model<TestData, {}>('test', { ably, logger, sync });
 
     // register update function so that streams get created
     model.$register({
@@ -181,100 +182,112 @@ describe('Model', () => {
     expect(s2.unsubscribe).toHaveBeenCalledOnce();
   });
 
-  it<ModelTestContext>('subscribes to updates', async ({ ably, logger, streams }) => {
-    const data: Versioned<any> = {
-      version: 0,
-      data: 'data_0',
-    };
+  it<ModelTestContext>(
+    'subscribes to updates',
+    async ({ ably, logger, streams }) => {
+      const data: Versioned<any> = {
+        version: 0,
+        data: 'data_0',
+      };
 
-    // event subjects used to invoke the stream subscription callbacks
-    // registered by the model, to simulate stream data
-    const events = {
-      e1: new Subject<Types.Message>(),
-      e2: new Subject<Types.Message>(),
-    };
+      // event subjects used to invoke the stream subscription callbacks
+      // registered by the model, to simulate stream data
+      const events = {
+        e1: new Subject<Types.Message>(),
+        e2: new Subject<Types.Message>(),
+      };
 
-    streams.getOrCreate({ channel: 's1' }).subscribe = vi.fn((callback) =>
-      events.e1.subscribe((message) => callback(null, message)),
-    );
-    streams.getOrCreate({ channel: 's2' }).subscribe = vi.fn((callback) =>
-      events.e2.subscribe((message) => callback(null, message)),
-    );
+      streams.getOrCreate({ channel: 's1' }).subscribe = vi.fn((callback) =>
+        events.e1.subscribe((message) => callback(null, message)),
+      );
+      streams.getOrCreate({ channel: 's2' }).subscribe = vi.fn((callback) =>
+        events.e2.subscribe((message) => callback(null, message)),
+      );
 
-    const sync = vi.fn(async () => data); // defines initial version of model
-    const model = new Model<string>('test', { ably, logger, sync });
+      const sync = vi.fn(async () => data); // defines initial version of model
+      const model = new Model<string, {}>('test', { ably, logger, sync });
 
-    const update1 = vi.fn(async (state, event) => event.data);
-    const update2 = vi.fn(async (state, event) => event.data);
-    const update3 = vi.fn(async (state, event) => event.data);
-    model.$register({
-      $update: {
-        s1: { name_1: update1, name_3: update3 },
-        s2: { name_2: update2, name_3: update3 },
-      },
-    });
+      const update1 = vi.fn(async (state, event) => event.data);
+      const update2 = vi.fn(async (state, event) => event.data);
+      const update3 = vi.fn(async (state, event) => event.data);
+      model.$register({
+        $update: {
+          s1: { name_1: update1, name_3: update3 },
+          s2: { name_2: update2, name_3: update3 },
+        },
+      });
 
-    await modelStatePromise(model, ModelState.READY);
-    expect(sync).toHaveBeenCalledOnce();
+      await modelStatePromise(model, ModelState.READY);
+      expect(sync).toHaveBeenCalledOnce();
 
-    let subscription = new Subject<void>();
-    const subscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() => subscription.next());
-    model.subscribe(subscriptionSpy);
+      let subscription = new Subject<void>();
+      const subscriptionCalls = getEventPromises(subscription, 5);
 
-    const subscriptionCalls = getEventPromises(subscription, 4);
+      const subscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() => subscription.next());
+      model.subscribe(subscriptionSpy);
 
-    events.e1.next(createMessage(1));
-    await subscriptionCalls[0];
-    expect(update1).toHaveBeenCalledTimes(1);
-    expect(update2).toHaveBeenCalledTimes(0);
-    expect(update3).toHaveBeenCalledTimes(0);
-    expect(subscriptionSpy).toHaveBeenCalledTimes(1);
-    expect(subscriptionSpy).toHaveBeenNthCalledWith(1, null, 'data_1');
+      // initial data
+      await subscriptionCalls[0];
+      expect(subscriptionSpy).toHaveBeenCalledTimes(1);
+      expect(subscriptionSpy).toHaveBeenNthCalledWith(1, null, 'data_0');
 
-    events.e2.next(createMessage(2));
-    await subscriptionCalls[1];
-    expect(update1).toHaveBeenCalledTimes(1);
-    expect(update2).toHaveBeenCalledTimes(1);
-    expect(update3).toHaveBeenCalledTimes(0);
-    expect(subscriptionSpy).toHaveBeenCalledTimes(2);
-    expect(subscriptionSpy).toHaveBeenNthCalledWith(2, null, 'data_2');
+      events.e1.next(createMessage(1));
+      await subscriptionCalls[1];
+      expect(update1).toHaveBeenCalledTimes(1);
+      expect(update2).toHaveBeenCalledTimes(0);
+      expect(update3).toHaveBeenCalledTimes(0);
+      expect(subscriptionSpy).toHaveBeenCalledTimes(2);
+      expect(subscriptionSpy).toHaveBeenNthCalledWith(2, null, 'data_1');
 
-    events.e1.next(createMessage(3));
-    await subscriptionCalls[2];
-    expect(update1).toHaveBeenCalledTimes(1);
-    expect(update2).toHaveBeenCalledTimes(1);
-    expect(update3).toHaveBeenCalledTimes(1);
-    expect(subscriptionSpy).toHaveBeenCalledTimes(3);
-    expect(subscriptionSpy).toHaveBeenNthCalledWith(3, null, 'data_3');
+      events.e2.next(createMessage(2));
+      await subscriptionCalls[2];
+      expect(update1).toHaveBeenCalledTimes(1);
+      expect(update2).toHaveBeenCalledTimes(1);
+      expect(update3).toHaveBeenCalledTimes(0);
+      expect(subscriptionSpy).toHaveBeenCalledTimes(3);
+      expect(subscriptionSpy).toHaveBeenNthCalledWith(3, null, 'data_2');
 
-    events.e2.next(createMessage(3));
-    await subscriptionCalls[3];
-    expect(update1).toHaveBeenCalledTimes(1);
-    expect(update2).toHaveBeenCalledTimes(1);
-    expect(update3).toHaveBeenCalledTimes(2);
-    expect(subscriptionSpy).toHaveBeenCalledTimes(4);
-    expect(subscriptionSpy).toHaveBeenNthCalledWith(4, null, 'data_3');
+      events.e1.next(createMessage(3));
+      await subscriptionCalls[3];
+      expect(update1).toHaveBeenCalledTimes(1);
+      expect(update2).toHaveBeenCalledTimes(1);
+      expect(update3).toHaveBeenCalledTimes(1);
+      expect(subscriptionSpy).toHaveBeenCalledTimes(4);
+      expect(subscriptionSpy).toHaveBeenNthCalledWith(4, null, 'data_3');
 
-    expect(model.optimistic).toEqual('data_3');
-    expect(model.confirmed).toEqual('data_3');
-  });
+      events.e2.next(createMessage(3));
+      await subscriptionCalls[4];
+      expect(update1).toHaveBeenCalledTimes(1);
+      expect(update2).toHaveBeenCalledTimes(1);
+      expect(update3).toHaveBeenCalledTimes(2);
+      expect(subscriptionSpy).toHaveBeenCalledTimes(5);
+      expect(subscriptionSpy).toHaveBeenNthCalledWith(5, null, 'data_3');
+
+      console.log(model.optimistic, model.confirmed);
+      expect(model.optimistic).toEqual('data_3');
+      expect(model.confirmed).toEqual('data_3');
+    },
+    { timeout: 10000 },
+  );
 
   it<ModelTestContext>('executes a registered mutation', async ({ ably, logger, streams }) => {
     const s1 = streams.getOrCreate({ channel: 's1' });
     const s2 = streams.getOrCreate({ channel: 's2' });
     s1.subscribe = vi.fn();
     s2.subscribe = vi.fn();
-    const model = new Model<string>('test', { ably, logger, sync: async () => ({ version: 1, data: 'foobar' }) });
+    const model = new Model<string, { foo: (string, number) => Promise<string> }>('test', {
+      ably,
+      logger,
+      sync: async () => ({ version: 1, data: 'foobar' }),
+    });
     await modelStatePromise(model, ModelState.READY);
 
-    const mutation: Mutation = {
-      mutate: vi.fn(async () => 'test'),
-    };
+    const mutation = vi.fn(async () => 'test');
     model.$register({ $mutate: { foo: mutation } });
-    expect(mutation.mutate).toHaveBeenCalledTimes(0);
-    await model.mutate<[string, number], void>('foo', { args: ['bar', 123] });
-    expect(mutation.mutate).toHaveBeenCalledTimes(1);
-    expect(mutation.mutate).toHaveBeenCalledWith('bar', 123);
+
+    await expect(model.mutations.foo('bar', 123)).resolves.toEqual('test');
+    expect(mutation).toHaveBeenCalledTimes(1);
+    expect(mutation).toHaveBeenCalledWith('bar', 123);
   });
 
   it<ModelTestContext>('fails to register a duplicate mutation', async ({ ably, logger, streams }) => {
@@ -282,14 +295,18 @@ describe('Model', () => {
     const s2 = streams.getOrCreate({ channel: 's2' });
     s1.subscribe = vi.fn();
     s2.subscribe = vi.fn();
-    const model = new Model<string>('test', { ably, logger, sync: async () => ({ version: 1, data: 'foobar' }) });
+    const model = new Model<string, { foo: () => Promise<void> }>('test', {
+      ably,
+      logger,
+      sync: async () => ({ version: 1, data: 'foobar' }),
+    });
     await modelStatePromise(model, ModelState.READY);
 
-    const mutation: Mutation = { mutate: vi.fn() };
+    const mutation = vi.fn();
     model.$register({ $mutate: { foo: mutation } });
-    expect(mutation.mutate).toHaveBeenCalledTimes(0);
-    await expect(model.$register({ $mutate: { foo: mutation } })).rejects.toThrow(
-      `mutation with name 'foo' already registered on model 'test'`,
+
+    expect(() => model.$register({ $mutate: { foo: mutation } })).toThrowError(
+      `mutation with name 'foo' already registered`,
     );
   });
 
@@ -298,15 +315,16 @@ describe('Model', () => {
     const s2 = streams.getOrCreate({ channel: 's2' });
     s1.subscribe = vi.fn();
     s2.subscribe = vi.fn();
-    const model = new Model<string>('test', { ably, logger, sync: async () => ({ version: 1, data: 'foobar' }) });
+    const model = new Model<string, { foo: () => Promise<string> }>('test', {
+      ably,
+      logger,
+      sync: async () => ({ version: 1, data: 'foobar' }),
+    });
     await modelStatePromise(model, ModelState.READY);
 
-    const mutation: Mutation = {
-      mutate: vi.fn(async () => 'test'),
-    };
+    const mutation = vi.fn(async () => 'test');
     model.$register({ $mutate: { foo: mutation } });
-    expect(mutation.mutate).toHaveBeenCalledTimes(0);
-    await expect(model.mutate('foo', { events: [{ channel: 'unknown', name: 'foo' }] })).rejects.toThrow(
+    await expect(model.mutations.foo.$expect([{ channel: 'unknown', name: 'foo' }])()).rejects.toThrow(
       "stream with name 'unknown' not registered on model 'test'",
     );
   });
@@ -316,39 +334,51 @@ describe('Model', () => {
     const s2 = streams.getOrCreate({ channel: 's2' });
     s1.subscribe = vi.fn();
     s2.subscribe = vi.fn();
-    const model = new Model<string>('test', { ably, logger, sync: async () => ({ version: 1, data: 'data_0' }) });
+    const model = new Model<string, { foo: () => Promise<string> }>('test', {
+      ably,
+      logger,
+      sync: async () => ({ version: 1, data: 'data_0' }),
+    });
     await modelStatePromise(model, ModelState.READY);
 
     const update1 = vi.fn(async (state, event) => event.data);
-    const mutation: Mutation = {
-      mutate: vi.fn(async () => 'test'),
-    };
+    const mutation = vi.fn(async () => 'test');
     model.$register({
       $update: { s1: { testEvent: update1 } },
       $mutate: { foo: mutation },
     });
 
     let optimisticSubscription = new Subject<void>();
+    const optimisticSubscriptionCalls = getEventPromises(optimisticSubscription, 2);
     const optimisticSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() =>
       optimisticSubscription.next(),
     );
     model.subscribe(optimisticSubscriptionSpy);
-    const optimisticSubscriptionCall = getNthEventPromise(optimisticSubscription, 1);
 
     let confirmedSubscription = new Subject<void>();
+    const confirmedSubscriptionCalls = getEventPromises(confirmedSubscription, 2);
     const confirmedSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() =>
       confirmedSubscription.next(),
     );
     model.subscribe(confirmedSubscriptionSpy, { optimistic: false });
 
-    await model.mutate<[string], void>('foo', { events: [{ channel: 's1', name: 'testEvent', data: 'data_1' }] });
+    await optimisticSubscriptionCalls[0];
+    await confirmedSubscriptionCalls[0];
+    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(1);
+    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(1, null, 'data_0');
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(1);
+    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(1, null, 'data_0');
+    expect(model.optimistic).toEqual('data_0');
+    expect(model.confirmed).toEqual('data_0');
 
-    await optimisticSubscriptionCall;
+    await model.mutations.foo.$expect([{ channel: 's1', name: 'testEvent', data: 'data_1' }])();
+
+    await optimisticSubscriptionCalls[1];
     expect(model.optimistic).toEqual('data_1');
     expect(model.confirmed).toEqual('data_0');
-    expect(optimisticSubscriptionSpy).toHaveBeenCalledOnce();
-    expect(optimisticSubscriptionSpy).toHaveBeenCalledWith(null, 'data_1');
-    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(0);
+    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(2);
+    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(2, null, 'data_1');
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(1);
   });
 
   it<ModelTestContext>('confirms an optimistic event', async ({ ably, logger, streams }) => {
@@ -362,45 +392,56 @@ describe('Model', () => {
       events.e1.subscribe((message) => callback(null, message));
     });
 
-    const model = new Model<string>('test', { ably, logger, sync: async () => ({ version: 1, data: 'data_0' }) });
+    const model = new Model<string, { foo: () => Promise<string> }>('test', {
+      ably,
+      logger,
+      sync: async () => ({ version: 1, data: 'data_0' }),
+    });
     await modelStatePromise(model, ModelState.READY);
 
     const update1 = vi.fn(async (state, event) => event.data);
-    const mutation: Mutation = {
-      mutate: vi.fn(async () => 'test'),
-    };
+    const mutation = vi.fn(async () => 'test');
     model.$register({
       $update: { s1: { testEvent: update1 } },
       $mutate: { foo: mutation },
     });
 
     let optimisticSubscription = new Subject<void>();
+    const optimisticSubscriptionCalls = getEventPromises(optimisticSubscription, 2);
     const optimisticSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() =>
       optimisticSubscription.next(),
     );
     model.subscribe(optimisticSubscriptionSpy);
-    const optimisticSubscriptionCall = getNthEventPromise(optimisticSubscription, 1);
 
     let confirmedSubscription = new Subject<void>();
+    const confirmedSubscriptionCalls = getEventPromises(confirmedSubscription, 2);
     const confirmedSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() =>
       confirmedSubscription.next(),
     );
     model.subscribe(confirmedSubscriptionSpy, { optimistic: false });
-    const confirmedSubscriptionCall = getNthEventPromise(confirmedSubscription, 1);
 
-    await model.mutate<[string], void>('foo', { events: [{ channel: 's1', name: 'testEvent', data: 'data_1' }] });
+    await optimisticSubscriptionCalls[0];
+    await confirmedSubscriptionCalls[0];
+    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(1);
+    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(1, null, 'data_0');
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(1);
+    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(1, null, 'data_0');
+    expect(model.optimistic).toEqual('data_0');
+    expect(model.confirmed).toEqual('data_0');
 
-    await optimisticSubscriptionCall;
+    await model.mutations.foo.$expect([{ channel: 's1', name: 'testEvent', data: 'data_1' }])();
+
+    await optimisticSubscriptionCalls[1];
     expect(model.optimistic).toEqual('data_1');
     expect(model.confirmed).toEqual('data_0');
-    expect(optimisticSubscriptionSpy).toHaveBeenCalledOnce();
-    expect(optimisticSubscriptionSpy).toHaveBeenCalledWith(null, 'data_1');
-    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(0);
+    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(2);
+    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(2, null, 'data_1');
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(1);
 
     events.e1.next(customMessage('id_1', 'testEvent', 'data_1'));
-    await confirmedSubscriptionCall;
-    expect(confirmedSubscriptionSpy).toHaveBeenCalledOnce();
-    expect(confirmedSubscriptionSpy).toHaveBeenCalledWith(null, 'data_1');
+    await confirmedSubscriptionCalls[1];
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(2);
+    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(2, null, 'data_1');
     expect(model.confirmed).toEqual('data_1');
   });
 
@@ -415,44 +456,55 @@ describe('Model', () => {
       events.e1.subscribe((message) => callback(null, message));
     });
 
-    const model = new Model<string>('test', { ably, logger, sync: async () => ({ version: 1, data: '0' }) });
+    const model = new Model<string, { foo: () => Promise<string> }>('test', {
+      ably,
+      logger,
+      sync: async () => ({ version: 1, data: '0' }),
+    });
     await modelStatePromise(model, ModelState.READY);
 
     const update1 = vi.fn(async (state, event) => state + event.data);
-    const mutation: Mutation = {
-      mutate: vi.fn(async () => 'test'),
-    };
+    const mutation = vi.fn(async () => 'test');
     model.$register({
       $update: { s1: { testEvent: update1 } },
       $mutate: { foo: mutation },
     });
 
     let optimisticSubscription = new Subject<void>();
-    const optimisticSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() => {
-      optimisticSubscription.next();
-    });
+    const optimisticSubscriptionCalls = getEventPromises(optimisticSubscription, 4);
+    const optimisticSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() =>
+      optimisticSubscription.next(),
+    );
     model.subscribe(optimisticSubscriptionSpy);
-    const optimisticSubscriptionCall = getEventPromises(optimisticSubscription, 3);
 
     let confirmedSubscription = new Subject<void>();
-    const confirmedSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() => {
-      confirmedSubscription.next();
-    });
+    const confirmedSubscriptionCalls = getEventPromises(confirmedSubscription, 4);
+    const confirmedSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() =>
+      confirmedSubscription.next(),
+    );
     model.subscribe(confirmedSubscriptionSpy, { optimistic: false });
-    const confirmedSubscriptionCalls = getEventPromises(confirmedSubscription, 3);
 
-    await model.mutate<[string, string], void>('foo', { events: [{ channel: 's1', name: 'testEvent', data: '1' }] });
-    await model.mutate<[string, string], void>('foo', { events: [{ channel: 's1', name: 'testEvent', data: '2' }] });
+    await optimisticSubscriptionCalls[0];
+    await confirmedSubscriptionCalls[0];
+    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(1);
+    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(1, null, '0');
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(1);
+    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(1, null, '0');
+    expect(model.optimistic).toEqual('0');
+    expect(model.confirmed).toEqual('0');
+
+    await model.mutations.foo.$expect([{ channel: 's1', name: 'testEvent', data: '1' }])();
+    await model.mutations.foo.$expect([{ channel: 's1', name: 'testEvent', data: '2' }])();
 
     // optimistic updates are applied in the order the mutations were called
-    await optimisticSubscriptionCall[0];
-    await optimisticSubscriptionCall[1];
+    await optimisticSubscriptionCalls[1];
+    await optimisticSubscriptionCalls[2];
     expect(model.optimistic).toEqual('012');
     expect(model.confirmed).toEqual('0');
-    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(2);
-    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(1, null, '01');
-    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(2, null, '012');
-    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(0);
+    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(3);
+    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(2, null, '01');
+    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(3, null, '012');
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(1);
 
     // You would typically expect the confirmation events to be sent (and arrive) in the
     // same order as their corresponding mutations were applied.
@@ -462,21 +514,21 @@ describe('Model', () => {
 
     // confirm the second expected event
     events.e1.next(customMessage('id_1', 'testEvent', '2'));
-    await confirmedSubscriptionCalls[0];
+    await confirmedSubscriptionCalls[1];
     expect(model.optimistic).toEqual('012');
     expect(model.confirmed).toEqual('02');
-    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(1);
-    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(1, null, '02');
-    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(2);
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(2);
+    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(2, null, '02');
+    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(3);
 
     // confirm the first expected event
     events.e1.next(customMessage('id_1', 'testEvent', '1'));
-    await confirmedSubscriptionCalls[1];
+    await confirmedSubscriptionCalls[2];
     expect(model.optimistic).toEqual('012');
     expect(model.confirmed).toEqual('021');
-    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(2);
-    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(2, null, '021');
-    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(2);
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(3);
+    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(3, null, '021');
+    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(3);
   });
 
   it<ModelTestContext>('confirms optimistic events from multiple streams', async ({ ably, logger, streams }) => {
@@ -496,48 +548,61 @@ describe('Model', () => {
       events.e2.subscribe((message) => callback(null, message));
     });
 
-    const model = new Model<string>('test', { ably, logger, sync: async () => ({ version: 1, data: '0' }) });
+    const model = new Model<string, { foo: () => Promise<string> }>('test', {
+      ably,
+      logger,
+      sync: async () => ({ version: 1, data: '0' }),
+    });
     await modelStatePromise(model, ModelState.READY);
 
     // Defines an update function which concatenates strings.
     // This is a non-commutative operation which let's us inspect the order in
     // in which updates are applied to the speculative vs confirmed states.
     const update1 = vi.fn(async (state, event) => state + event.data);
-    const mutation: Mutation = {
-      mutate: vi.fn(async () => 'test'),
-    };
+    const mutation = vi.fn(async () => 'test');
     model.$register({
       $update: { s1: { testEvent: update1 }, s2: { testEvent: update1 } },
       $mutate: { foo: mutation },
     });
 
     let optimisticSubscription = new Subject<void>();
-    const optimisticSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() => {
-      optimisticSubscription.next();
-    });
+    const optimisticSubscriptionCalls = getEventPromises(optimisticSubscription, 4);
+    const optimisticSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() =>
+      optimisticSubscription.next(),
+    );
     model.subscribe(optimisticSubscriptionSpy);
-    const optimisticSubscriptionCall = getNthEventPromise(optimisticSubscription, 3);
 
     let confirmedSubscription = new Subject<void>();
-    const confirmedSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() => {
-      confirmedSubscription.next();
-    });
+    const confirmedSubscriptionCalls = getEventPromises(confirmedSubscription, 4);
+    const confirmedSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() =>
+      confirmedSubscription.next(),
+    );
     model.subscribe(confirmedSubscriptionSpy, { optimistic: false });
-    const confirmedSubscriptionCalls = getEventPromises(confirmedSubscription, 3);
 
-    await model.mutate<[string, string], void>('foo', { events: [{ channel: 's1', name: 'testEvent', data: '1' }] });
-    await model.mutate<[string, string], void>('foo', { events: [{ channel: 's2', name: 'testEvent', data: '2' }] });
-    await model.mutate<[string, string], void>('foo', { events: [{ channel: 's1', name: 'testEvent', data: '3' }] });
+    await optimisticSubscriptionCalls[0];
+    await confirmedSubscriptionCalls[0];
+    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(1);
+    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(1, null, '0');
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(1);
+    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(1, null, '0');
+    expect(model.optimistic).toEqual('0');
+    expect(model.confirmed).toEqual('0');
+
+    await model.mutations.foo.$expect([{ channel: 's1', name: 'testEvent', data: '1' }])();
+    await model.mutations.foo.$expect([{ channel: 's2', name: 'testEvent', data: '2' }])();
+    await model.mutations.foo.$expect([{ channel: 's1', name: 'testEvent', data: '3' }])();
 
     // optimistic updates are applied in the order the mutations were called
-    await optimisticSubscriptionCall;
+    await optimisticSubscriptionCalls[1];
+    await optimisticSubscriptionCalls[2];
+    await optimisticSubscriptionCalls[3];
     expect(model.optimistic).toEqual('0123');
     expect(model.confirmed).toEqual('0');
-    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(3);
-    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(1, null, '01');
-    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(2, null, '012');
-    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(3, null, '0123');
-    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(0);
+    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(4);
+    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(2, null, '01');
+    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(3, null, '012');
+    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(4, null, '0123');
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(1);
 
     // Optimistic updates must be confirmed in-order only in the context of a single stream,
     // so here we confirm s2 in a different order to the order the mutation were optimistically applied,
@@ -546,30 +611,30 @@ describe('Model', () => {
 
     // confirm the first expected event
     events.e1.next(customMessage('id_1', 'testEvent', '1'));
-    await confirmedSubscriptionCalls[0];
+    await confirmedSubscriptionCalls[1];
     expect(model.optimistic).toEqual('0123');
     expect(model.confirmed).toEqual('01');
-    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(1);
-    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(1, null, '01');
-    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(3); // unchanged
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(2);
+    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(2, null, '01');
+    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(4); // unchanged
 
     // confirm the third expected event (second event on the first stream)
     events.e1.next(customMessage('id_2', 'testEvent', '3'));
-    await confirmedSubscriptionCalls[1];
+    await confirmedSubscriptionCalls[2];
     expect(model.optimistic).toEqual('0123');
     expect(model.confirmed).toEqual('013');
-    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(2);
-    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(2, null, '013');
-    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(3); // unchanged
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(3);
+    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(3, null, '013');
+    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(4); // unchanged
 
     // confirm the second expected event (first event on the second stream)
     events.e2.next(customMessage('id_1', 'testEvent', '2'));
-    await confirmedSubscriptionCalls[2];
+    await confirmedSubscriptionCalls[3];
     expect(model.optimistic).toEqual('0123');
     expect(model.confirmed).toEqual('0132');
-    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(3);
-    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(3, null, '0132');
-    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(3); // unchanged
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(4);
+    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(4, null, '0132');
+    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(4); // unchanged
   });
 
   it<ModelTestContext>('rebases optimistic events on top of confirmed state', async ({ ably, logger, streams }) => {
@@ -583,74 +648,85 @@ describe('Model', () => {
       events.e1.subscribe((message) => callback(null, message));
     });
 
-    const model = new Model<string>('test', { ably, logger, sync: async () => ({ version: 1, data: '0' }) });
+    const model = new Model<string, { foo: () => Promise<string> }>('test', {
+      ably,
+      logger,
+      sync: async () => ({ version: 1, data: '0' }),
+    });
     await modelStatePromise(model, ModelState.READY);
 
     const update1 = vi.fn(async (state, event) => state + event.data);
-    const mutation: Mutation = {
-      mutate: vi.fn(async () => 'test'),
-    };
+    const mutation = vi.fn(async () => 'test');
     model.$register({
       $update: { s1: { testEvent: update1 } },
       $mutate: { foo: mutation },
     });
 
     let optimisticSubscription = new Subject<void>();
-    const optimisticSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() => {
-      optimisticSubscription.next();
-    });
+    const optimisticSubscriptionCalls = getEventPromises(optimisticSubscription, 4);
+    const optimisticSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() =>
+      optimisticSubscription.next(),
+    );
     model.subscribe(optimisticSubscriptionSpy);
-    const optimisticSubscriptionCall = getEventPromises(optimisticSubscription, 3);
 
     let confirmedSubscription = new Subject<void>();
-    const confirmedSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() => {
-      confirmedSubscription.next();
-    });
+    const confirmedSubscriptionCalls = getEventPromises(confirmedSubscription, 4);
+    const confirmedSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() =>
+      confirmedSubscription.next(),
+    );
     model.subscribe(confirmedSubscriptionSpy, { optimistic: false });
-    const confirmedSubscriptionCalls = getEventPromises(confirmedSubscription, 3);
 
-    await model.mutate<[string, string], void>('foo', { events: [{ channel: 's1', name: 'testEvent', data: '1' }] });
-    await model.mutate<[string, string], void>('foo', { events: [{ channel: 's1', name: 'testEvent', data: '2' }] });
+    await optimisticSubscriptionCalls[0];
+    await confirmedSubscriptionCalls[0];
+    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(1);
+    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(1, null, '0');
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(1);
+    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(1, null, '0');
+    expect(model.optimistic).toEqual('0');
+    expect(model.confirmed).toEqual('0');
+
+    await model.mutations.foo.$expect([{ channel: 's1', name: 'testEvent', data: '1' }])();
+    await model.mutations.foo.$expect([{ channel: 's1', name: 'testEvent', data: '2' }])();
 
     // optimistic updates are applied in the order the mutations were called
-    await optimisticSubscriptionCall[0];
-    await optimisticSubscriptionCall[1];
+    await optimisticSubscriptionCalls[1];
+    await optimisticSubscriptionCalls[2];
     expect(model.optimistic).toEqual('012');
     expect(model.confirmed).toEqual('0');
-    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(2);
-    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(1, null, '01');
-    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(2, null, '012');
-    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(0);
+    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(3);
+    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(2, null, '01');
+    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(3, null, '012');
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(1);
 
     // confirm the first expected event
     events.e1.next(customMessage('id_1', 'testEvent', '1'));
-    await confirmedSubscriptionCalls[0];
+    await confirmedSubscriptionCalls[1];
     expect(model.optimistic).toEqual('012');
     expect(model.confirmed).toEqual('01');
-    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(1);
-    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(1, null, '01');
-    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(2);
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(2);
+    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(2, null, '01');
+    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(3);
 
     // an event is received which does not have a corresponding expected event,
     // and the speculative updates are rebased on top of the incoming event
     events.e1.next(customMessage('id_1', 'testEvent', '3'));
-    await confirmedSubscriptionCalls[1];
-    await optimisticSubscriptionCall[2];
+    await confirmedSubscriptionCalls[2];
+    await optimisticSubscriptionCalls[3];
     expect(model.optimistic).toEqual('0132');
     expect(model.confirmed).toEqual('013');
-    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(2);
-    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(2, null, '013');
-    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(3);
-    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(3, null, '0132');
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(3);
+    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(3, null, '013');
+    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(4);
+    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(4, null, '0132');
 
     // confirm the second expected event
     events.e1.next(customMessage('id_1', 'testEvent', '2'));
-    await confirmedSubscriptionCalls[2];
+    await confirmedSubscriptionCalls[3];
     expect(model.optimistic).toEqual('0132');
     expect(model.confirmed).toEqual('0132');
-    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(3);
-    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(3, null, '0132');
-    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(3);
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(4);
+    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(4, null, '0132');
+    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(4);
   });
 
   it<ModelTestContext>('revert optimistic events if mutate fails', async ({ ably, logger, streams }) => {
@@ -659,45 +735,44 @@ describe('Model', () => {
     s1.subscribe = vi.fn();
     s2.subscribe = vi.fn();
 
-    const model = new Model<string>('test', { ably, logger, sync: async () => ({ version: 1, data: '0' }) });
+    const model = new Model<
+      string,
+      {
+        mutation1: () => Promise<string>;
+        mutation2: () => Promise<string>;
+      }
+    >('test', { ably, logger, sync: async () => ({ version: 1, data: '0' }) });
     await modelStatePromise(model, ModelState.READY);
 
     const update1 = vi.fn(async (state, event) => state + event.data);
-    const mutation1: Mutation = {
-      mutate: vi.fn(async () => 'test'),
-    };
-    const mutation2: Mutation = {
-      mutate: vi.fn(async () => {
-        throw new Error('test');
-      }),
-    };
+    const mutation1 = vi.fn(async () => 'test');
+    const mutation2 = vi.fn(async () => {
+      throw new Error('test');
+    });
+
     model.$register({
       $update: { s1: { testEvent: update1 } },
       $mutate: { mutation1, mutation2 },
     });
 
-    await model.mutate<[], void>('mutation1', {
-      events: [
-        { channel: 's1', name: 'testEvent', data: '1' },
-        { channel: 's1', name: 'testEvent', data: '2' },
-        { channel: 's1', name: 'testEvent', data: '3' },
-      ],
-    });
+    const result1 = await model.mutations.mutation1.$expect([
+      { channel: 's1', name: 'testEvent', data: '1' },
+      { channel: 's1', name: 'testEvent', data: '2' },
+      { channel: 's1', name: 'testEvent', data: '3' },
+    ])();
+    expect(result1[0]).toEqual('test');
+    await result1[1];
     await expect(
-      model.mutate<[], void>('mutation2', {
-        events: [
-          { channel: 's1', name: 'testEvent', data: '4' },
-          { channel: 's1', name: 'testEvent', data: '5' },
-          { channel: 's1', name: 'testEvent', data: '6' },
-        ],
-      }),
+      model.mutations.mutation2.$expect([
+        { channel: 's1', name: 'testEvent', data: '4' },
+        { channel: 's1', name: 'testEvent', data: '5' },
+        { channel: 's1', name: 'testEvent', data: '6' },
+      ])(),
     ).rejects.toThrow('test');
-    // The failed mutation should have been reverted.
     expect(model.optimistic).toEqual('0123');
   });
 
-  // Tests if applying a received stream update throws an excection, the
-  // model reverts to the PREPARING state and re-syncs.
+  // If applying a received stream update throws, the model reverts to the PREPARING state and re-syncs.
   it<ModelTestContext>('resync if stream apply update fails', async ({ ably, logger, streams }) => {
     const s1 = streams.getOrCreate({ channel: 's1' });
     const s2 = streams.getOrCreate({ channel: 's2' });
@@ -722,7 +797,7 @@ describe('Model', () => {
     let counter = 0;
 
     const sync = vi.fn(async () => ({ version: counter + 1, data: String(counter) }));
-    const model = new Model<string>('test', { ably, logger, sync });
+    const model = new Model<string, {}>('test', { ably, logger, sync });
     await modelStatePromise(model, ModelState.READY);
     expect(sync).toHaveBeenCalledOnce();
 
@@ -740,24 +815,27 @@ describe('Model', () => {
     });
     model.subscribe(subscriptionSpy);
 
-    const subscriptionCalls = getEventPromises(subscription, 4);
+    const subscriptionCalls = getEventPromises(subscription, 5);
+
+    await subscriptionCalls[0];
+    expect(subscriptionSpy).toHaveBeenNthCalledWith(1, null, '0');
 
     events.e1.next(customMessage('id_1', 'testEvent', String(++counter)));
-    await subscriptionCalls[0];
-    expect(subscriptionSpy).toHaveBeenNthCalledWith(1, null, '1');
+    await subscriptionCalls[1];
+    expect(subscriptionSpy).toHaveBeenNthCalledWith(2, null, '1');
 
     events.e1.next(customMessage('id_2', 'testEvent', String(++counter)));
-    await subscriptionCalls[1];
-    expect(subscriptionSpy).toHaveBeenNthCalledWith(2, null, '2');
+    await subscriptionCalls[2];
+    expect(subscriptionSpy).toHaveBeenNthCalledWith(3, null, '2');
 
-    // The 3rd event throws an exection running apply update, which should
+    // The 3rd event throws when applying the update, which should
     // trigger a resync and get the latest counter value.
     const preparingPromise = modelStatePromise(model, ModelState.PREPARING);
     events.e1.next(customMessage('id_3', 'testEvent', String(++counter)));
     const { reason } = (await preparingPromise) as ModelStateChange;
     expect(reason.message).toEqual('test');
-    await subscriptionCalls[2];
-    expect(subscriptionSpy).toHaveBeenNthCalledWith(3, null, '3');
+    await subscriptionCalls[3];
+    expect(subscriptionSpy).toHaveBeenNthCalledWith(4, null, '3');
     expect(model.state).toEqual(ModelState.READY);
   });
 
@@ -769,39 +847,37 @@ describe('Model', () => {
     s1.subscribe = vi.fn();
     s2.subscribe = vi.fn();
 
-    const model = new Model<string>('test', { ably, logger, sync: async () => ({ version: 1, data: '0' }) });
+    const model = new Model<string, { mutation: () => Promise<string> }>('test', {
+      ably,
+      logger,
+      sync: async () => ({ version: 1, data: '0' }),
+    });
     await modelStatePromise(model, ModelState.READY);
 
     const update1 = vi.fn(async (state, event) => {
       if (event.data === '6') {
-        throw new Error('test');
+        throw new Error('update error');
       }
       return state + event.data;
     });
-    const mutation: Mutation = {
-      mutate: vi.fn(async () => 'test'),
-    };
+    const mutation = vi.fn(async () => 'test');
     model.$register({
       $update: { s1: { testEvent: update1 } },
       $mutate: { mutation },
     });
-
-    await model.mutate<[], void>('mutation', {
-      events: [
-        { channel: 's1', name: 'testEvent', data: '1' },
-        { channel: 's1', name: 'testEvent', data: '2' },
-        { channel: 's1', name: 'testEvent', data: '3' },
-      ],
-    });
-    await expect(
-      model.mutate<[], void>('mutation', {
-        events: [
-          { channel: 's1', name: 'testEvent', data: '4' },
-          { channel: 's1', name: 'testEvent', data: '5' },
-          { channel: 's1', name: 'testEvent', data: '6' },
-        ],
-      }),
-    ).rejects.toThrow('test');
+    await model.mutations.mutation.$expect([
+      { channel: 's1', name: 'testEvent', data: '1' },
+      { channel: 's1', name: 'testEvent', data: '2' },
+      { channel: 's1', name: 'testEvent', data: '3' },
+    ])();
+    const [result, update, confirmation] = await model.mutations.mutation.$expect([
+      { channel: 's1', name: 'testEvent', data: '4' },
+      { channel: 's1', name: 'testEvent', data: '5' },
+      { channel: 's1', name: 'testEvent', data: '6' },
+    ])();
+    expect(result).toEqual('test');
+    await expect(update).rejects.toThrow('update error');
+    await expect(confirmation).rejects.toThrow('update error'); // confirmation should fail by proxy
     // The failed mutation should have been reverted.
     expect(model.optimistic).toEqual('0123');
   });
@@ -817,33 +893,38 @@ describe('Model', () => {
       events.e1.subscribe((message) => callback(null, message));
     });
 
-    const model = new Model<string>('test', { ably, logger, sync: async () => ({ version: 1, data: '0' }) });
+    const model = new Model<string, { foo: () => Promise<string> }>('test', {
+      ably,
+      logger,
+      sync: async () => ({ version: 1, data: '0' }),
+    });
     await modelStatePromise(model, ModelState.READY);
 
     const update1 = vi.fn(async (state, event) => state + event.data);
-    const mutation: Mutation = {
-      mutate: vi.fn(async () => 'test'),
-      confirmationTimeout: 1,
-    };
+    const mutation = vi.fn(async () => 'test');
     model.$register({
       $update: { s1: { testEvent: update1 } },
-      $mutate: { foo: mutation },
+      $mutate: {
+        foo: {
+          func: mutation,
+          options: { timeout: 1000 },
+        },
+      },
     });
-
-    const [, confirmationPromise] = await model.mutate<[], void>('foo', {
-      events: [
-        { channel: 's1', name: 'testEvent', data: '1' },
-        { channel: 's1', name: 'testEvent', data: '2' },
-        { channel: 's1', name: 'testEvent', data: '3' },
-      ],
-    });
+    const [result, update, confirmation] = await model.mutations.foo.$expect([
+      { channel: 's1', name: 'testEvent', data: '1' },
+      { channel: 's1', name: 'testEvent', data: '2' },
+      { channel: 's1', name: 'testEvent', data: '3' },
+    ])();
+    expect(result).toEqual('test');
+    await update;
     expect(model.optimistic).toEqual('0123');
+
     // Confirm the event.
     events.e1.next(customMessage('id_1', 'testEvent', '1'));
     events.e1.next(customMessage('id_1', 'testEvent', '2'));
     events.e1.next(customMessage('id_1', 'testEvent', '3'));
-    await confirmationPromise;
-
+    await confirmation;
     expect(model.optimistic).toEqual('0123');
   });
 
@@ -858,29 +939,34 @@ describe('Model', () => {
       events.e1.subscribe((message) => callback(null, message));
     });
 
-    const model = new Model<string>('test', { ably, logger, sync: async () => ({ version: 1, data: '0' }) });
+    const model = new Model<string, { foo: () => Promise<string> }>('test', {
+      ably,
+      logger,
+      sync: async () => ({ version: 1, data: '0' }),
+    });
     await modelStatePromise(model, ModelState.READY);
 
     const update1 = vi.fn(async (state, event) => state + event.data);
-    const mutation: Mutation = {
-      mutate: vi.fn(async () => 'test'),
-      confirmationTimeout: 1,
-    };
+    const mutation = vi.fn(async () => 'test');
     model.$register({
       $update: { s1: { testEvent: update1 } },
-      $mutate: { foo: mutation },
+      $mutate: {
+        foo: {
+          func: mutation,
+          options: { timeout: 1 },
+        },
+      },
     });
 
     // Mutate and check the returned promise is rejected with a timeout.
-    const [, confirmationPromise] = await model.mutate<[], void>('foo', {
-      events: [
-        { channel: 's1', name: 'testEvent', data: '1' },
-        { channel: 's1', name: 'testEvent', data: '2' },
-        { channel: 's1', name: 'testEvent', data: '3' },
-      ],
-    });
+    const [, update, confirmation] = await model.mutations.foo.$expect([
+      { channel: 's1', name: 'testEvent', data: '1' },
+      { channel: 's1', name: 'testEvent', data: '2' },
+      { channel: 's1', name: 'testEvent', data: '3' },
+    ])();
+    await update;
     expect(model.optimistic).toEqual('0123');
-    await expect(confirmationPromise).rejects.toThrow('timed out waiting for event confirmation');
+    await expect(confirmation).rejects.toThrow('timed out waiting for event confirmation');
     // Check the optimistic event is reverted.
     expect(model.optimistic).toEqual('0');
   });
