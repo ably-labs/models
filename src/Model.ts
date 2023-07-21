@@ -6,7 +6,9 @@ import Stream, { IStream } from './Stream.js';
 import StreamProvider from './StreamProvider.js';
 import EventEmitter from './utilities/EventEmitter.js';
 import type { StandardCallback } from './types/callbacks';
+import UpdatesRegistry, { UpdateFunc } from './Updates.js';
 import Mutations, { MutationRegistration, MutationMethods, MutationOptions } from './Mutations.js';
+import { UpdateRegistrationError } from './Errors.js';
 
 export enum ModelState {
   /**
@@ -47,21 +49,8 @@ type Confirmation = {
 
 export type SyncFunc<T> = () => Promise<Versioned<T>>;
 
-export type UpdateFunc<T> = (state: T, event: Event) => Promise<T>;
-
 export type Streams = {
   [name: string]: Stream;
-};
-
-export type UpdateFuncs<T> = {
-  [channel: string]: {
-    [event: string]: UpdateFunc<T>[];
-  };
-};
-
-export type UpdateOptions = {
-  channel: string;
-  event: string;
 };
 
 export type ModelOptions = {
@@ -112,7 +101,7 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
 
   private sync: SyncFunc<T>;
   private streamProvider: StreamProvider;
-  private updateFuncs: UpdateFuncs<T> = {};
+  private updatesRegistry: UpdatesRegistry<T> = new UpdatesRegistry<T>();
 
   private optimisticEvents: Event[] = [];
   private pendingConfirmations: PendingConfirmation[] = [];
@@ -176,26 +165,16 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
     this.sync = registration.$sync;
     for (let channel in registration.$update) {
       for (let event in registration.$update[channel]) {
-        this.registerUpdate(registration.$update[channel][event], { channel, event });
+        if (!this.streamProvider.streams[channel]) {
+          this.addStream(channel);
+        }
+        this.updatesRegistry.register(registration.$update[channel][event], { channel, event });
       }
     }
     if (registration.$mutate) {
       this.mutationsRegistry.register(registration.$mutate);
     }
     this.init();
-  }
-
-  private async registerUpdate(update: UpdateFunc<T>, { channel, event }: UpdateOptions) {
-    if (!this.streamProvider.streams[channel]) {
-      this.addStream(channel);
-    }
-    if (!this.updateFuncs[channel]) {
-      this.updateFuncs[channel] = {};
-    }
-    if (!this.updateFuncs[channel][event]) {
-      this.updateFuncs[channel][event] = [];
-    }
-    this.updateFuncs[channel][event].push(update);
   }
 
   private async onMutationEvents(events: Event[], options: MutationOptions) {
@@ -317,12 +296,9 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
   private async applyUpdates(initialData: T, event: Event): Promise<T> {
     this.logger.trace({ ...this.baseLogContext, action: 'applyUpdates()', initialData, event });
     let data = initialData;
-    for (let eventName in this.updateFuncs[event.channel]) {
-      if (event.name === eventName) {
-        for (let updator of this.updateFuncs[event.channel][eventName]) {
-          data = await updator(data, event);
-        }
-      }
+    const updates = this.updatesRegistry.get({ channel: event.channel, event: event.name });
+    for (const update of updates) {
+      data = await update.func(data, event);
     }
     return data;
   }
@@ -348,8 +324,16 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
     if (!event) {
       return;
     }
-    if (!this.updateFuncs[event.channel]) {
-      return;
+    try {
+      const updates = this.updatesRegistry.get({ channel: event.channel });
+      if (!updates || updates.length === 0) {
+        return;
+      }
+    } catch (err) {
+      if (err instanceof UpdateRegistrationError) {
+        return;
+      }
+      throw err;
     }
 
     // eagerly apply optimistic updates
