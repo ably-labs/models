@@ -95,6 +95,7 @@ type Registration<T, M extends MutationMethods> = {
 };
 
 class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState, ModelStateChange>> {
+  private wasRegistered = false;
   private currentState: ModelState = ModelState.INITIALIZED;
   private optimisticData: T;
   private confirmedData: T;
@@ -182,11 +183,15 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
   }
 
   public $register(registration: Registration<T, M>) {
+    if (this.wasRegistered) {
+      throw new Error('$register was already called');
+    }
     if (this.state !== ModelState.INITIALIZED) {
       throw new Error(
         `$register can only be called when the model is in the ${ModelState.INITIALIZED} state (current: ${this.state})`,
       );
     }
+    this.wasRegistered = true;
     this.sync = registration.$sync;
     for (let channel in registration.$update) {
       for (let event in registration.$update[channel]) {
@@ -263,7 +268,7 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
     }
   }
 
-  private setState(state: ModelState, reason?: Error) {
+  protected setState(state: ModelState, reason?: Error) {
     this.logger.trace({ ...this.baseLogContext, action: 'setState()', state, reason });
     const previous = this.currentState;
     this.currentState = state;
