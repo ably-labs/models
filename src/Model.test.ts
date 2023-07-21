@@ -178,7 +178,7 @@ describe('Model', () => {
     expect(s1.subscribe).toHaveBeenCalledOnce();
     expect(s2.subscribe).toHaveBeenCalledOnce();
 
-    model.dispose();
+    model.$dispose();
     await modelStatePromise(model, ModelState.DISPOSED);
     expect(s1.unsubscribe).toHaveBeenCalledOnce();
     expect(s2.unsubscribe).toHaveBeenCalledOnce();

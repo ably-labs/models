@@ -157,7 +157,7 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
     this.setState(ModelState.READY);
   }
 
-  public dispose(reason?: Error) {
+  public $dispose(reason?: Error) {
     this.logger.trace({ ...this.baseLogContext, action: 'dispose()', reason });
     this.setState(ModelState.DISPOSED, reason);
     this.subscriptions.unsubscribe();
