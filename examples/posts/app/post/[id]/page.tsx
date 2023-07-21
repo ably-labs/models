@@ -10,5 +10,5 @@ export default async function Page({ params }: { params: { id: number } }) {
     <Suspense fallback={<PostPlaceholder />}>
       <Post post={post} />
     </Suspense>
-  )
+  );
 }

@@ -1,4 +1,4 @@
-import CommentPlaceholder from "./comment-placeholder"
+import CommentPlaceholder from './comment-placeholder';
 
 export default function PostPlaceholder() {
   return (
@@ -10,8 +10,10 @@ export default function PostPlaceholder() {
         <p className="font-normal text-gray-500 leading-none">...</p>
       </div>
       <div className="w-full divide-y divide-gray-900/5">
-        {[...Array(3)].map((_, i) => <CommentPlaceholder key={i} />)}
+        {[...Array(3)].map((_, i) => (
+          <CommentPlaceholder key={i} />
+        ))}
       </div>
     </main>
-  )
+  );
 }

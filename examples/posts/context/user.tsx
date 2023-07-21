@@ -21,9 +21,5 @@ export const UserProvider = ({ children }: UserProviderProps) => {
     fetchUser();
   }, []);
 
-  return (
-    <UserContext.Provider value={user}>
-      {children}
-    </UserContext.Provider>
-  );
+  return <UserContext.Provider value={user}>{children}</UserContext.Provider>;
 };

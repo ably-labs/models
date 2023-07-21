@@ -1,8 +1,8 @@
-import { Prisma } from "@prisma/client";
-import prisma from ".";
+import { Prisma } from '@prisma/client';
+import prisma from '.';
 
 export async function getPosts() {
-	return await prisma.post.findMany({
+  return await prisma.post.findMany({
     include: {
       comments: true,
     },

@@ -1,13 +1,13 @@
-import Image from 'next/image'
-import Link from 'next/link'
-import { Suspense } from 'react'
-import Table from '@/components/table'
-import TablePlaceholder from '@/components/table-placeholder'
+import Image from 'next/image';
+import Link from 'next/link';
+import { Suspense } from 'react';
+import Table from '@/components/table';
+import TablePlaceholder from '@/components/table-placeholder';
 
 // Prisma does not support Edge without the Data Proxy currently
 // export const runtime = 'edge'
-export const preferredRegion = 'home'
-export const dynamic = 'force-dynamic'
+export const preferredRegion = 'home';
+export const dynamic = 'force-dynamic';
 
 export default function Home() {
   return (
@@ -67,5 +67,5 @@ export default function Home() {
         </Link>
       </div>
     </main>
-  )
+  );
 }
