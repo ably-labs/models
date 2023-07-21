@@ -1,11 +1,11 @@
 import Stream, { IStream, StreamOptions } from './Stream.js';
 
-export interface IStreamProvider {
+export interface IStreamRegistry {
   getOrCreate(options: Pick<StreamOptions, 'channel'>): IStream;
   get streams(): { [key: string]: IStream };
 }
 
-export default class StreamProvider implements IStreamProvider {
+export default class StreamRegistry implements IStreamRegistry {
   private _streams: { [key: string]: IStream } = {};
 
   constructor(readonly options: Pick<StreamOptions, 'ably' | 'logger'>) {}

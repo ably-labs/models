@@ -7,18 +7,18 @@ import pino from 'pino';
 import { createMessage, customMessage } from './utilities/test/messages.js';
 import Model, { ModelState, ModelStateChange, Versioned, ModelOptions } from './Model.js';
 import { StreamOptions, IStream, StreamState } from './Stream.js';
-import { IStreamProvider } from './StreamProvider.js';
+import { IStreamRegistry } from './StreamRegistry.js';
 import { MutationMethods } from './Mutations.js';
 
 vi.mock('ably/promises');
 
-// Mocks the StreamProvider import so that we can modify the Stream instances
+// Mocks the StreamRegistry import so that we can modify the Stream instances
 // used by the model to spy on their methods.
-// This implementation ensures that all instances of StreamProvider use the
-// same cache of Stream instances so that the StreamProvider instantiated in the
-// model returns the same Stream instances as the StreamProvider instantiated
+// This implementation ensures that all instances of StreamRegistry use the
+// same cache of Stream instances so that the StreamRegistry instantiated in the
+// model returns the same Stream instances as the StreamRegistry instantiated
 // in these tests.
-vi.mock('./StreamProvider', () => {
+vi.mock('./StreamRegistry', () => {
   class MockStream implements IStream {
     constructor(readonly options: Pick<StreamOptions, 'channel'>) {}
     get state() {
@@ -36,7 +36,7 @@ vi.mock('./StreamProvider', () => {
   const streams: { [key: string]: IStream } = {};
 
   return {
-    default: class implements IStreamProvider {
+    default: class implements IStreamRegistry {
       getOrCreate(options: Pick<StreamOptions, 'channel'>) {
         if (!streams[options.channel]) {
           streams[options.channel] = new MockStream(options);
@@ -68,7 +68,7 @@ const simpleTestData: Versioned<TestData> = {
 };
 
 interface ModelTestContext extends ModelOptions {
-  streams: IStreamProvider;
+  streams: IStreamRegistry;
 }
 
 const modelStatePromise = <T, M extends MutationMethods>(model: Model<T, M>, state: ModelState) =>
@@ -90,7 +90,7 @@ describe('Model', () => {
     const logger = pino({ level: 'silent' });
     context.ably = ably;
     context.logger = logger;
-    const { default: provider } = await import('./StreamProvider.js');
+    const { default: provider } = await import('./StreamRegistry.js');
     context.streams = new provider({ ably, logger });
   });
 
