@@ -17,8 +17,12 @@ export default function Post({ post }: { post: PostWithComments }) {
         <div className="space-y-1 mb-8">
           <p className="font-normal text-gray-500 leading-none">{post.content}</p>
         </div>
-        <Comments postId={post.id} comments={comments} onChange={setComments}></Comments>
+        <Comments
+          postId={post.id}
+          comments={comments}
+          onChange={setComments}
+        ></Comments>
       </main>
     </UserProvider>
-  )
+  );
 }

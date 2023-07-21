@@ -6,6 +6,6 @@ const nextConfig = {
   images: {
     domains: ['randomuser.me', 'www.gravatar.com'],
   },
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;
