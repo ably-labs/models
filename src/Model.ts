@@ -157,6 +157,29 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
     this.setState(ModelState.READY);
   }
 
+  public dispose(reason?: Error) {
+    this.logger.trace({ ...this.baseLogContext, action: 'dispose()', reason });
+    this.setState(ModelState.DISPOSED, reason);
+    this.subscriptions.unsubscribe();
+    for (const streamName in this.streamRegistry.streams) {
+      const stream = this.streamRegistry.streams[streamName];
+      const callback = this.streamSubscriptionsMap.get(stream);
+      if (callback) {
+        stream.unsubscribe(callback);
+      }
+    }
+    for (const pendingConfirmation of this.pendingConfirmations) {
+      if (pendingConfirmation.timeout) {
+        clearTimeout(pendingConfirmation.timeout);
+      }
+      if (pendingConfirmation.reject) {
+        pendingConfirmation.reject(reason);
+      }
+    }
+    this.subscriptionMap.clear();
+    this.streamSubscriptionsMap.clear();
+  }
+
   public $register(registration: Registration<T, M>) {
     if (this.state !== ModelState.INITIALIZED) {
       throw new Error(`$register can only be called when the model is in the ${ModelState.INITIALIZED} state`);
@@ -236,29 +259,6 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
     }
   }
 
-  public dispose(reason?: Error) {
-    this.logger.trace({ ...this.baseLogContext, action: 'dispose()', reason });
-    this.setState(ModelState.DISPOSED, reason);
-    this.subscriptions.unsubscribe();
-    for (const streamName in this.streamRegistry.streams) {
-      const stream = this.streamRegistry.streams[streamName];
-      const callback = this.streamSubscriptionsMap.get(stream);
-      if (callback) {
-        stream.unsubscribe(callback);
-      }
-    }
-    for (const pendingConfirmation of this.pendingConfirmations) {
-      if (pendingConfirmation.timeout) {
-        clearTimeout(pendingConfirmation.timeout);
-      }
-      if (pendingConfirmation.reject) {
-        pendingConfirmation.reject(reason);
-      }
-    }
-    this.subscriptionMap.clear();
-    this.streamSubscriptionsMap.clear();
-  }
-
   private setState(state: ModelState, reason?: Error) {
     this.logger.trace({ ...this.baseLogContext, action: 'setState()', state, reason });
     const previous = this.currentState;
@@ -268,6 +268,49 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
       previous,
       reason,
     } as ModelStateChange);
+  }
+
+  private async init(reason?: Error) {
+    this.logger.trace({ ...this.baseLogContext, action: 'init()', reason });
+    this.setState(ModelState.PREPARING, reason);
+
+    this.removeStreams();
+
+    for (let channel in this.streamRegistry.streams) {
+      this.addStream(channel);
+    }
+
+    const { data } = await this.sync();
+    this.setOptimisticData(data);
+    this.setConfirmedData(data);
+    this.setState(ModelState.READY);
+  }
+
+  private removeStreams() {
+    for (const channel in this.streamRegistry.streams) {
+      const stream = this.streamRegistry.streams[channel];
+      const callback = this.streamSubscriptionsMap.get(stream);
+      if (callback) {
+        stream.unsubscribe(callback);
+      }
+    }
+    this.streamSubscriptionsMap.clear();
+  }
+
+  private addStream(channel: string) {
+    this.streamRegistry.streams[channel] = this.streamRegistry.getOrCreate({ channel });
+    const callback: StandardCallback<AblyTypes.Message> = async (err, event) => {
+      try {
+        if (err) {
+          throw err;
+        }
+        await this.onStreamEvent({ ...event!, channel, confirmed: true });
+      } catch (e) {
+        this.init(e);
+      }
+    };
+    this.streamRegistry.streams[channel].subscribe(callback);
+    this.streamSubscriptionsMap.set(this.streamRegistry.streams[channel], callback);
   }
 
   private setOptimisticData(data: T) {
@@ -372,49 +415,6 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
       base = await this.applyUpdates(base, event);
     }
     this.setOptimisticData(base);
-  }
-
-  private removeStreams() {
-    for (const channel in this.streamRegistry.streams) {
-      const stream = this.streamRegistry.streams[channel];
-      const callback = this.streamSubscriptionsMap.get(stream);
-      if (callback) {
-        stream.unsubscribe(callback);
-      }
-    }
-    this.streamSubscriptionsMap.clear();
-  }
-
-  private addStream(channel: string) {
-    this.streamRegistry.streams[channel] = this.streamRegistry.getOrCreate({ channel });
-    const callback: StandardCallback<AblyTypes.Message> = async (err, event) => {
-      try {
-        if (err) {
-          throw err;
-        }
-        await this.onStreamEvent({ ...event!, channel, confirmed: true });
-      } catch (e) {
-        this.init(e);
-      }
-    };
-    this.streamRegistry.streams[channel].subscribe(callback);
-    this.streamSubscriptionsMap.set(this.streamRegistry.streams[channel], callback);
-  }
-
-  private async init(reason?: Error) {
-    this.logger.trace({ ...this.baseLogContext, action: 'init()', reason });
-    this.setState(ModelState.PREPARING, reason);
-
-    this.removeStreams();
-
-    for (let channel in this.streamRegistry.streams) {
-      this.addStream(channel);
-    }
-
-    const { data } = await this.sync();
-    this.setOptimisticData(data);
-    this.setConfirmedData(data);
-    this.setState(ModelState.READY);
   }
 
   private addPendingConfirmation(events: Event[], timeout: number): Promise<void> {
