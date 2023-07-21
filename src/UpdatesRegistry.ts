@@ -31,6 +31,9 @@ export default class UpdatesRegistry<T> {
 
   public get(options: Partial<UpdateOptions>) {
     const result: { options: UpdateOptions; func: UpdateFunc<T> }[] = [];
+    if (!!options.channel && Object.keys(this.registry).length === 0) {
+      throw new UpdateRegistrationError({ channel: options.channel });
+    }
     for (const channel in this.registry) {
       if (!!options.channel && options.channel !== channel) {
         continue;
@@ -49,6 +52,9 @@ export default class UpdatesRegistry<T> {
           result.push({ options: { channel, event }, func });
         }
       }
+    }
+    if (!!options.event && result.length === 0) {
+      throw new UpdateRegistrationError({ event: options.event });
     }
     return result;
   }
