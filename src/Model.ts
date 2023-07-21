@@ -64,10 +64,9 @@ export type UpdateOptions = {
   event: string;
 };
 
-export type ModelOptions<T> = {
+export type ModelOptions = {
   ably: AblyTypes.RealtimePromise;
   logger: Logger;
-  sync: SyncFunc<T>;
 };
 
 export type ModelStateChange = {
@@ -96,10 +95,11 @@ type PendingConfirmation = {
   reject: (err?: Error) => void;
 };
 
-type Registration<U, M extends MutationMethods> = {
+type Registration<T, M extends MutationMethods> = {
+  $sync: SyncFunc<T>;
   $update?: {
     [channel: string]: {
-      [event: string]: UpdateFunc<U>;
+      [event: string]: UpdateFunc<T>;
     };
   };
   $mutate?: { [K in keyof M]: MutationRegistration<M[K]> };
@@ -126,17 +126,15 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
 
   private mutationsRegistry: Mutations<M>;
 
-  constructor(readonly name: string, options: ModelOptions<T>) {
+  constructor(readonly name: string, options: ModelOptions) {
     super();
     this.logger = options.logger;
     this.streamProvider = new StreamProvider({ ably: options.ably, logger: options.logger });
-    this.sync = options.sync;
     this.baseLogContext = { scope: `Model:${name}` };
     this.mutationsRegistry = new Mutations<M>({
       onEvents: this.onMutationEvents.bind(this),
       onError: this.onMutationError.bind(this),
     });
-    this.init();
   }
 
   public get state() {
@@ -172,6 +170,10 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
   }
 
   public $register(registration: Registration<T, M>) {
+    if (this.state !== ModelState.INITIALIZED) {
+      throw new Error(`$register can only be called when the model is in the ${ModelState.INITIALIZED} state`);
+    }
+    this.sync = registration.$sync;
     for (let channel in registration.$update) {
       for (let event in registration.$update[channel]) {
         this.registerUpdate(registration.$update[channel][event], { channel, event });
@@ -180,6 +182,7 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
     if (registration.$mutate) {
       this.mutationsRegistry.register(registration.$mutate);
     }
+    this.init();
   }
 
   private async registerUpdate(update: UpdateFunc<T>, { channel, event }: UpdateOptions) {
