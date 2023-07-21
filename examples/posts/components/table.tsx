@@ -6,7 +6,6 @@ export default async function Table() {
   const startTime = Date.now();
   const posts = await getPosts();
   const duration = Date.now() - startTime;
-  await new Promise((resolve) => setTimeout(resolve, 10000));
 
   return (
     <div className="bg-white/30 p-12 shadow-xl ring-1 ring-gray-900/5 rounded-lg backdrop-blur-lg max-w-xl mx-auto w-full">
