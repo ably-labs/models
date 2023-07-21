@@ -67,7 +67,7 @@ const simpleTestData: Versioned<TestData> = {
   },
 };
 
-interface ModelTestContext extends Omit<ModelOptions<any>, 'sync'> {
+interface ModelTestContext extends ModelOptions {
   streams: IStreamProvider;
 }
 
@@ -106,8 +106,8 @@ describe('Model', () => {
       await synchronised;
       return simpleTestData;
     });
-
-    const model = new Model<TestData, { foo: (string) => Promise<number> }>('test', { ably, logger, sync });
+    const model = new Model<TestData, { foo: (string) => Promise<number> }>('test', { ably, logger });
+    model.$register({ $sync: sync });
     await modelStatePromise(model, ModelState.PREPARING);
     completeSync();
     await modelStatePromise(model, ModelState.READY);
@@ -127,10 +127,11 @@ describe('Model', () => {
     s2.resume = vi.fn();
     const sync = vi.fn(async () => simpleTestData);
 
-    const model = new Model<TestData, {}>('test', { ably, logger, sync });
+    const model = new Model<TestData, {}>('test', { ably, logger });
 
     // register update function so that streams get created
     model.$register({
+      $sync: sync,
       $update: {
         s1: { event: async (state) => state },
         s2: { event: async (state) => state },
@@ -161,10 +162,11 @@ describe('Model', () => {
     s2.unsubscribe = vi.fn();
     const sync = vi.fn(async () => simpleTestData);
 
-    const model = new Model<TestData, {}>('test', { ably, logger, sync });
+    const model = new Model<TestData, {}>('test', { ably, logger });
 
     // register update function so that streams get created
     model.$register({
+      $sync: sync,
       $update: {
         s1: { event: async (state) => state },
         s2: { event: async (state) => state },
@@ -205,12 +207,13 @@ describe('Model', () => {
       );
 
       const sync = vi.fn(async () => data); // defines initial version of model
-      const model = new Model<string, {}>('test', { ably, logger, sync });
+      const model = new Model<string, {}>('test', { ably, logger });
 
       const update1 = vi.fn(async (state, event) => event.data);
       const update2 = vi.fn(async (state, event) => event.data);
       const update3 = vi.fn(async (state, event) => event.data);
       model.$register({
+        $sync: sync,
         $update: {
           s1: { name_1: update1, name_3: update3 },
           s2: { name_2: update2, name_3: update3 },
@@ -275,38 +278,37 @@ describe('Model', () => {
     const s2 = streams.getOrCreate({ channel: 's2' });
     s1.subscribe = vi.fn();
     s2.subscribe = vi.fn();
-    const model = new Model<string, { foo: (string, number) => Promise<string> }>('test', {
-      ably,
-      logger,
-      sync: async () => ({ version: 1, data: 'foobar' }),
-    });
-    await modelStatePromise(model, ModelState.READY);
+    const model = new Model<string, { foo: (string, number) => Promise<string> }>('test', { ably, logger });
 
     const mutation = vi.fn(async () => 'test');
-    model.$register({ $mutate: { foo: mutation } });
+    model.$register({
+      $sync: async () => ({ version: 1, data: 'foobar' }),
+      $mutate: { foo: mutation },
+    });
+    await modelStatePromise(model, ModelState.READY);
 
     await expect(model.mutations.foo('bar', 123)).resolves.toEqual('test');
     expect(mutation).toHaveBeenCalledTimes(1);
     expect(mutation).toHaveBeenCalledWith('bar', 123);
   });
 
-  it<ModelTestContext>('fails to register a duplicate mutation', async ({ ably, logger, streams }) => {
+  it<ModelTestContext>('fails to register after initialization', async ({ ably, logger, streams }) => {
     const s1 = streams.getOrCreate({ channel: 's1' });
     const s2 = streams.getOrCreate({ channel: 's2' });
     s1.subscribe = vi.fn();
     s2.subscribe = vi.fn();
-    const model = new Model<string, { foo: () => Promise<void> }>('test', {
-      ably,
-      logger,
-      sync: async () => ({ version: 1, data: 'foobar' }),
+    const model = new Model<string, { foo: () => Promise<void> }>('test', { ably, logger });
+
+    const mutation = vi.fn();
+    const sync = async () => ({ version: 1, data: 'foobar' });
+    model.$register({
+      $sync: sync,
+      $mutate: { foo: mutation },
     });
     await modelStatePromise(model, ModelState.READY);
 
-    const mutation = vi.fn();
-    model.$register({ $mutate: { foo: mutation } });
-
-    expect(() => model.$register({ $mutate: { foo: mutation } })).toThrowError(
-      `mutation with name 'foo' already registered`,
+    expect(() => model.$register({ $sync: sync, $mutate: { foo: mutation } })).toThrowError(
+      `$register can only be called when the model is in the initialized state`,
     );
   });
 
@@ -315,15 +317,14 @@ describe('Model', () => {
     const s2 = streams.getOrCreate({ channel: 's2' });
     s1.subscribe = vi.fn();
     s2.subscribe = vi.fn();
-    const model = new Model<string, { foo: () => Promise<string> }>('test', {
-      ably,
-      logger,
-      sync: async () => ({ version: 1, data: 'foobar' }),
-    });
-    await modelStatePromise(model, ModelState.READY);
+    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, logger });
 
     const mutation = vi.fn(async () => 'test');
-    model.$register({ $mutate: { foo: mutation } });
+    model.$register({
+      $sync: async () => ({ version: 1, data: 'foobar' }),
+      $mutate: { foo: mutation },
+    });
+    await modelStatePromise(model, ModelState.READY);
     await expect(model.mutations.foo.$expect([{ channel: 'unknown', name: 'foo' }])()).rejects.toThrow(
       "stream with name 'unknown' not registered on model 'test'",
     );
@@ -334,19 +335,16 @@ describe('Model', () => {
     const s2 = streams.getOrCreate({ channel: 's2' });
     s1.subscribe = vi.fn();
     s2.subscribe = vi.fn();
-    const model = new Model<string, { foo: () => Promise<string> }>('test', {
-      ably,
-      logger,
-      sync: async () => ({ version: 1, data: 'data_0' }),
-    });
-    await modelStatePromise(model, ModelState.READY);
+    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, logger });
 
     const update1 = vi.fn(async (state, event) => event.data);
     const mutation = vi.fn(async () => 'test');
     model.$register({
+      $sync: async () => ({ version: 1, data: 'data_0' }),
       $update: { s1: { testEvent: update1 } },
       $mutate: { foo: mutation },
     });
+    await modelStatePromise(model, ModelState.READY);
 
     let optimisticSubscription = new Subject<void>();
     const optimisticSubscriptionCalls = getEventPromises(optimisticSubscription, 2);
@@ -392,19 +390,16 @@ describe('Model', () => {
       events.e1.subscribe((message) => callback(null, message));
     });
 
-    const model = new Model<string, { foo: () => Promise<string> }>('test', {
-      ably,
-      logger,
-      sync: async () => ({ version: 1, data: 'data_0' }),
-    });
-    await modelStatePromise(model, ModelState.READY);
+    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, logger });
 
     const update1 = vi.fn(async (state, event) => event.data);
     const mutation = vi.fn(async () => 'test');
     model.$register({
+      $sync: async () => ({ version: 1, data: 'data_0' }),
       $update: { s1: { testEvent: update1 } },
       $mutate: { foo: mutation },
     });
+    await modelStatePromise(model, ModelState.READY);
 
     let optimisticSubscription = new Subject<void>();
     const optimisticSubscriptionCalls = getEventPromises(optimisticSubscription, 2);
@@ -456,19 +451,16 @@ describe('Model', () => {
       events.e1.subscribe((message) => callback(null, message));
     });
 
-    const model = new Model<string, { foo: () => Promise<string> }>('test', {
-      ably,
-      logger,
-      sync: async () => ({ version: 1, data: '0' }),
-    });
-    await modelStatePromise(model, ModelState.READY);
+    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, logger });
 
     const update1 = vi.fn(async (state, event) => state + event.data);
     const mutation = vi.fn(async () => 'test');
     model.$register({
+      $sync: async () => ({ version: 1, data: '0' }),
       $update: { s1: { testEvent: update1 } },
       $mutate: { foo: mutation },
     });
+    await modelStatePromise(model, ModelState.READY);
 
     let optimisticSubscription = new Subject<void>();
     const optimisticSubscriptionCalls = getEventPromises(optimisticSubscription, 4);
@@ -548,12 +540,7 @@ describe('Model', () => {
       events.e2.subscribe((message) => callback(null, message));
     });
 
-    const model = new Model<string, { foo: () => Promise<string> }>('test', {
-      ably,
-      logger,
-      sync: async () => ({ version: 1, data: '0' }),
-    });
-    await modelStatePromise(model, ModelState.READY);
+    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, logger });
 
     // Defines an update function which concatenates strings.
     // This is a non-commutative operation which let's us inspect the order in
@@ -561,9 +548,11 @@ describe('Model', () => {
     const update1 = vi.fn(async (state, event) => state + event.data);
     const mutation = vi.fn(async () => 'test');
     model.$register({
+      $sync: async () => ({ version: 1, data: '0' }),
       $update: { s1: { testEvent: update1 }, s2: { testEvent: update1 } },
       $mutate: { foo: mutation },
     });
+    await modelStatePromise(model, ModelState.READY);
 
     let optimisticSubscription = new Subject<void>();
     const optimisticSubscriptionCalls = getEventPromises(optimisticSubscription, 4);
@@ -648,19 +637,16 @@ describe('Model', () => {
       events.e1.subscribe((message) => callback(null, message));
     });
 
-    const model = new Model<string, { foo: () => Promise<string> }>('test', {
-      ably,
-      logger,
-      sync: async () => ({ version: 1, data: '0' }),
-    });
-    await modelStatePromise(model, ModelState.READY);
+    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, logger });
 
     const update1 = vi.fn(async (state, event) => state + event.data);
     const mutation = vi.fn(async () => 'test');
     model.$register({
+      $sync: async () => ({ version: 1, data: '0' }),
       $update: { s1: { testEvent: update1 } },
       $mutate: { foo: mutation },
     });
+    await modelStatePromise(model, ModelState.READY);
 
     let optimisticSubscription = new Subject<void>();
     const optimisticSubscriptionCalls = getEventPromises(optimisticSubscription, 4);
@@ -741,8 +727,7 @@ describe('Model', () => {
         mutation1: () => Promise<string>;
         mutation2: () => Promise<string>;
       }
-    >('test', { ably, logger, sync: async () => ({ version: 1, data: '0' }) });
-    await modelStatePromise(model, ModelState.READY);
+    >('test', { ably, logger });
 
     const update1 = vi.fn(async (state, event) => state + event.data);
     const mutation1 = vi.fn(async () => 'test');
@@ -751,9 +736,11 @@ describe('Model', () => {
     });
 
     model.$register({
+      $sync: async () => ({ version: 1, data: '0' }),
       $update: { s1: { testEvent: update1 } },
       $mutate: { mutation1, mutation2 },
     });
+    await modelStatePromise(model, ModelState.READY);
 
     const result1 = await model.mutations.mutation1.$expect([
       { channel: 's1', name: 'testEvent', data: '1' },
@@ -797,9 +784,7 @@ describe('Model', () => {
     let counter = 0;
 
     const sync = vi.fn(async () => ({ version: counter + 1, data: String(counter) }));
-    const model = new Model<string, {}>('test', { ably, logger, sync });
-    await modelStatePromise(model, ModelState.READY);
-    expect(sync).toHaveBeenCalledOnce();
+    const model = new Model<string, {}>('test', { ably, logger });
 
     const update1 = vi.fn(async (state, event) => {
       if (event.data === '3') {
@@ -807,7 +792,9 @@ describe('Model', () => {
       }
       return event.data;
     });
-    model.$register({ $update: { s1: { testEvent: update1 } } });
+    model.$register({ $sync: sync, $update: { s1: { testEvent: update1 } } });
+    await modelStatePromise(model, ModelState.READY);
+    expect(sync).toHaveBeenCalledOnce();
 
     let subscription = new Subject<void>();
     const subscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() => {
@@ -847,12 +834,7 @@ describe('Model', () => {
     s1.subscribe = vi.fn();
     s2.subscribe = vi.fn();
 
-    const model = new Model<string, { mutation: () => Promise<string> }>('test', {
-      ably,
-      logger,
-      sync: async () => ({ version: 1, data: '0' }),
-    });
-    await modelStatePromise(model, ModelState.READY);
+    const model = new Model<string, { mutation: () => Promise<string> }>('test', { ably, logger });
 
     const update1 = vi.fn(async (state, event) => {
       if (event.data === '6') {
@@ -862,9 +844,11 @@ describe('Model', () => {
     });
     const mutation = vi.fn(async () => 'test');
     model.$register({
+      $sync: async () => ({ version: 1, data: '0' }),
       $update: { s1: { testEvent: update1 } },
       $mutate: { mutation },
     });
+    await modelStatePromise(model, ModelState.READY);
     await model.mutations.mutation.$expect([
       { channel: 's1', name: 'testEvent', data: '1' },
       { channel: 's1', name: 'testEvent', data: '2' },
@@ -893,16 +877,12 @@ describe('Model', () => {
       events.e1.subscribe((message) => callback(null, message));
     });
 
-    const model = new Model<string, { foo: () => Promise<string> }>('test', {
-      ably,
-      logger,
-      sync: async () => ({ version: 1, data: '0' }),
-    });
-    await modelStatePromise(model, ModelState.READY);
+    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, logger });
 
     const update1 = vi.fn(async (state, event) => state + event.data);
     const mutation = vi.fn(async () => 'test');
     model.$register({
+      $sync: async () => ({ version: 1, data: '0' }),
       $update: { s1: { testEvent: update1 } },
       $mutate: {
         foo: {
@@ -911,6 +891,7 @@ describe('Model', () => {
         },
       },
     });
+    await modelStatePromise(model, ModelState.READY);
     const [result, update, confirmation] = await model.mutations.foo.$expect([
       { channel: 's1', name: 'testEvent', data: '1' },
       { channel: 's1', name: 'testEvent', data: '2' },
@@ -939,16 +920,12 @@ describe('Model', () => {
       events.e1.subscribe((message) => callback(null, message));
     });
 
-    const model = new Model<string, { foo: () => Promise<string> }>('test', {
-      ably,
-      logger,
-      sync: async () => ({ version: 1, data: '0' }),
-    });
-    await modelStatePromise(model, ModelState.READY);
+    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, logger });
 
     const update1 = vi.fn(async (state, event) => state + event.data);
     const mutation = vi.fn(async () => 'test');
     model.$register({
+      $sync: async () => ({ version: 1, data: '0' }),
       $update: { s1: { testEvent: update1 } },
       $mutate: {
         foo: {
@@ -957,6 +934,7 @@ describe('Model', () => {
         },
       },
     });
+    await modelStatePromise(model, ModelState.READY);
 
     // Mutate and check the returned promise is rejected with a timeout.
     const [, update, confirmation] = await model.mutations.foo.$expect([
