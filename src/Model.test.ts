@@ -289,7 +289,7 @@ describe('Model', () => {
     expect(mutation).toHaveBeenCalledWith('bar', 123);
   });
 
-  it<ModelTestContext>('fails to register after initialization', async ({ ably, logger, streams }) => {
+  it<ModelTestContext>('fails to register twice', async ({ ably, logger, streams }) => {
     const s1 = streams.getOrCreate({ channel: 's1' });
     const s2 = streams.getOrCreate({ channel: 's2' });
     s1.subscribe = vi.fn();
@@ -298,10 +298,39 @@ describe('Model', () => {
 
     const mutation = vi.fn();
     const sync = async () => ({ version: 1, data: 'foobar' });
-    await model.$register({
+    model.$register({
       $sync: sync,
       $mutate: { foo: mutation },
     });
+    expect(() =>
+      model.$register({
+        $sync: sync,
+        $mutate: { foo: mutation },
+      }),
+    ).toThrow('$register was already called');
+  });
+
+  it<ModelTestContext>('fails to register after initialization', async ({ ably, logger, streams }) => {
+    // extend the Model class to get access to protected member setState
+    class ModelWithSetState<T, M extends MutationMethods> extends Model<T, M> {
+      constructor(readonly name: string, options: ModelOptions) {
+        super(name, options);
+      }
+      setState(state: ModelState) {
+        super.setState(state);
+      }
+    }
+
+    const s1 = streams.getOrCreate({ channel: 's1' });
+    const s2 = streams.getOrCreate({ channel: 's2' });
+    s1.subscribe = vi.fn();
+    s2.subscribe = vi.fn();
+    const model = new ModelWithSetState<string, { foo: () => Promise<void> }>('test', { ably, logger });
+
+    const mutation = vi.fn();
+    const sync = async () => ({ version: 1, data: 'foobar' });
+
+    model.setState(ModelState.READY);
 
     expect(() => model.$register({ $sync: sync, $mutate: { foo: mutation } })).toThrow(
       `$register can only be called when the model is in the initialized state`,
