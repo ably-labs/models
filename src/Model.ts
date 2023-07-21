@@ -6,7 +6,7 @@ import Stream, { IStream } from './Stream.js';
 import StreamRegistry from './StreamRegistry.js';
 import EventEmitter from './utilities/EventEmitter.js';
 import type { StandardCallback } from './types/callbacks';
-import UpdatesRegistry, { UpdateFunc } from './Updates.js';
+import UpdatesRegistry, { UpdateFunc } from './UpdatesRegistry.js';
 import MutationsRegistry, { MutationRegistration, MutationMethods, MutationOptions } from './MutationsRegistry.js';
 import { UpdateRegistrationError } from './Errors.js';
 

@@ -1,4 +1,4 @@
-import type { UpdateOptions } from './Updates.js';
+import type { UpdateOptions } from './UpdatesRegistry.js';
 
 export class RegistrationError extends Error {
   constructor(message) {
