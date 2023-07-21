@@ -374,10 +374,6 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
     this.setOptimisticData(base);
   }
 
-  private async onError(err) {
-    throw new Error(`onError not implemented: err = ${err}`);
-  }
-
   private removeStreams() {
     for (const channel in this.streamRegistry.streams) {
       const stream = this.streamRegistry.streams[channel];
