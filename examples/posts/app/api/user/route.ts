@@ -7,7 +7,6 @@ export async function GET(request: NextRequest) {
   const session = await getSession(request, response);
 	if (!session.user) {
 		session.user = await getRandomUser();
-		console.log('user', session.user);
 		await session.save();
 	}
 	return createResponse(
