@@ -22,7 +22,7 @@ class Models {
   }
 
   Model = <T>(name: string, options: Omit<ModelOptions<T>, 'ably' | 'logger'>) => {
-    if (typeof name !== 'string' || name.length === 0) {
+    if (!name) {
       throw new Error('Model must have a non-empty name');
     }
     if (this.models[name]) {
