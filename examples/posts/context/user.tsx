@@ -12,9 +12,7 @@ export const UserProvider = ({ children }: UserProviderProps) => {
 
   useEffect(() => {
     const fetchUser = async () => {
-      console.log('fetching user...');
       const user = await (await fetch('/api/user')).json();
-      console.log('user:', user);
       setUser(user);
     };
 
