@@ -3,7 +3,7 @@ import type { Logger } from 'pino';
 import type { Types as AblyTypes } from 'ably/promises.js';
 import { Subject, Subscription } from 'rxjs';
 import Stream, { IStream } from './Stream.js';
-import StreamProvider from './StreamProvider.js';
+import StreamRegistry from './StreamRegistry.js';
 import EventEmitter from './utilities/EventEmitter.js';
 import type { StandardCallback } from './types/callbacks';
 import UpdatesRegistry, { UpdateFunc } from './Updates.js';
@@ -100,8 +100,9 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
   private confirmedData: T;
 
   private sync: SyncFunc<T>;
-  private streamProvider: StreamProvider;
+  private streamRegistry: StreamRegistry;
   private updatesRegistry: UpdatesRegistry<T> = new UpdatesRegistry<T>();
+  private mutationsRegistry: Mutations<M>;
 
   private optimisticEvents: Event[] = [];
   private pendingConfirmations: PendingConfirmation[] = [];
@@ -113,12 +114,10 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
   private logger: Logger;
   private baseLogContext: Partial<{ scope: string; action: string }>;
 
-  private mutationsRegistry: Mutations<M>;
-
   constructor(readonly name: string, options: ModelOptions) {
     super();
     this.logger = options.logger;
-    this.streamProvider = new StreamProvider({ ably: options.ably, logger: options.logger });
+    this.streamRegistry = new StreamRegistry({ ably: options.ably, logger: options.logger });
     this.baseLogContext = { scope: `Model:${name}` };
     this.mutationsRegistry = new Mutations<M>({
       onEvents: this.onMutationEvents.bind(this),
@@ -145,15 +144,15 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
   public async $pause() {
     this.logger.trace({ ...this.baseLogContext, action: 'pause()' });
     this.setState(ModelState.PAUSED);
-    for (const streamName in this.streamProvider.streams) {
-      await this.streamProvider.streams[streamName].pause();
+    for (const streamName in this.streamRegistry.streams) {
+      await this.streamRegistry.streams[streamName].pause();
     }
   }
 
   public async $resume() {
     this.logger.trace({ ...this.baseLogContext, action: 'resume()' });
-    for (const streamName in this.streamProvider.streams) {
-      await this.streamProvider.streams[streamName].resume();
+    for (const streamName in this.streamRegistry.streams) {
+      await this.streamRegistry.streams[streamName].resume();
     }
     this.setState(ModelState.READY);
   }
@@ -165,7 +164,7 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
     this.sync = registration.$sync;
     for (let channel in registration.$update) {
       for (let event in registration.$update[channel]) {
-        if (!this.streamProvider.streams[channel]) {
+        if (!this.streamRegistry.streams[channel]) {
           this.addStream(channel);
         }
         this.updatesRegistry.register(registration.$update[channel][event], { channel, event });
@@ -179,7 +178,7 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
 
   private async onMutationEvents(events: Event[], options: MutationOptions) {
     for (const event of events) {
-      if (!this.streamProvider.streams[event.channel]) {
+      if (!this.streamRegistry.streams[event.channel]) {
         throw new Error(`stream with name '${event.channel}' not registered on model '${this.name}'`);
       }
     }
@@ -241,8 +240,8 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
     this.logger.trace({ ...this.baseLogContext, action: 'dispose()', reason });
     this.setState(ModelState.DISPOSED, reason);
     this.subscriptions.unsubscribe();
-    for (const streamName in this.streamProvider.streams) {
-      const stream = this.streamProvider.streams[streamName];
+    for (const streamName in this.streamRegistry.streams) {
+      const stream = this.streamRegistry.streams[streamName];
       const callback = this.streamSubscriptionsMap.get(stream);
       if (callback) {
         stream.unsubscribe(callback);
@@ -380,8 +379,8 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
   }
 
   private removeStreams() {
-    for (const channel in this.streamProvider.streams) {
-      const stream = this.streamProvider.streams[channel];
+    for (const channel in this.streamRegistry.streams) {
+      const stream = this.streamRegistry.streams[channel];
       const callback = this.streamSubscriptionsMap.get(stream);
       if (callback) {
         stream.unsubscribe(callback);
@@ -391,7 +390,7 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
   }
 
   private addStream(channel: string) {
-    this.streamProvider.streams[channel] = this.streamProvider.getOrCreate({ channel });
+    this.streamRegistry.streams[channel] = this.streamRegistry.getOrCreate({ channel });
     const callback: StandardCallback<AblyTypes.Message> = async (err, event) => {
       try {
         if (err) {
@@ -402,8 +401,8 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
         this.init(e);
       }
     };
-    this.streamProvider.streams[channel].subscribe(callback);
-    this.streamSubscriptionsMap.set(this.streamProvider.streams[channel], callback);
+    this.streamRegistry.streams[channel].subscribe(callback);
+    this.streamSubscriptionsMap.set(this.streamRegistry.streams[channel], callback);
   }
 
   private async init(reason?: Error) {
@@ -412,7 +411,7 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
 
     this.removeStreams();
 
-    for (let channel in this.streamProvider.streams) {
+    for (let channel in this.streamRegistry.streams) {
       this.addStream(channel);
     }
 
