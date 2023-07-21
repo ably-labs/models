@@ -178,11 +178,14 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
     }
     this.subscriptionMap.clear();
     this.streamSubscriptionsMap.clear();
+    return new Promise((resolve) => this.whenState(ModelState.DISPOSED, this.state, resolve));
   }
 
   public $register(registration: Registration<T, M>) {
     if (this.state !== ModelState.INITIALIZED) {
-      throw new Error(`$register can only be called when the model is in the ${ModelState.INITIALIZED} state`);
+      throw new Error(
+        `$register can only be called when the model is in the ${ModelState.INITIALIZED} state (current: ${this.state})`,
+      );
     }
     this.sync = registration.$sync;
     for (let channel in registration.$update) {
@@ -197,6 +200,7 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
       this.mutationsRegistry.register(registration.$mutate);
     }
     this.init();
+    return new Promise((resolve) => this.whenState(ModelState.READY, this.state, resolve));
   }
 
   private async onMutationEvents(events: Event[], options: MutationOptions) {
