@@ -1,7 +1,7 @@
 import type { Types } from 'ably/promises';
 import Model, { ModelOptions } from './Model.js';
 import pino, { LevelWithSilent } from 'pino';
-import { MutationMethods } from './Mutations.js';
+import { MutationMethods } from './MutationsRegistry.js';
 
 export type ModelsOptions = {
   ably: Types.RealtimePromise;

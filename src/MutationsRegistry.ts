@@ -86,13 +86,13 @@ export type MutationsCallbacks = {
 };
 
 /**
- * The Mutations class encapsulates the mutations that can be executed on a given model.
+ * The MutationsRegistry class encapsulates the mutations that can be executed on a given model.
  * It allows you to register mutation methods, handle expected events during a mutation, and handle errors
  * that might occur during a mutation.
  *
  * @template M - The type of the mutation methods. This should be a map from method names to MutationFunc.
  */
-export default class Mutations<M extends MutationMethods> {
+export default class MutationsRegistry<M extends MutationMethods> {
   private methods: Partial<{ [K in keyof M]: MutationRegistration<M[K]> }> = {};
 
   constructor(readonly callbacks: MutationsCallbacks) {}
