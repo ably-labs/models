@@ -1,5 +1,5 @@
 import { it, describe, expect, vi } from 'vitest';
-import Mutations, { MutationMethods, MutationFunc, DEFAULT_OPTIONS } from './Mutations.js';
+import MutationsRegistry, { MutationMethods, MutationFunc, DEFAULT_OPTIONS } from './MutationsRegistry.js';
 import type { Event } from './Model.js';
 
 interface Methods extends MutationMethods {
@@ -9,11 +9,11 @@ interface Methods extends MutationMethods {
 
 interface MutationsTestContext {}
 
-describe('Mutations', () => {
+describe('MutationsRegistry', () => {
   it<MutationsTestContext>('invokes mutation methods', async () => {
     let onEvents = vi.fn(() => [Promise.resolve(), Promise.resolve()]);
     let onError = vi.fn();
-    const mutations = new Mutations<Methods>({ onEvents, onError });
+    const mutations = new MutationsRegistry<Methods>({ onEvents, onError });
     mutations.register({
       one: async (x: string) => x,
       two: {
@@ -30,7 +30,7 @@ describe('Mutations', () => {
   it<MutationsTestContext>('mutation method throws and calls onError', async () => {
     let onEvents = vi.fn(() => [Promise.resolve(), Promise.resolve()]);
     let onError = vi.fn();
-    const mutations = new Mutations<Pick<Methods, 'one'>>({ onEvents, onError });
+    const mutations = new MutationsRegistry<Pick<Methods, 'one'>>({ onEvents, onError });
     mutations.register({
       one: async (x: string) => {
         throw x;
@@ -46,7 +46,7 @@ describe('Mutations', () => {
   it<MutationsTestContext>('invokes mutation methods with expectations and options', async () => {
     let onEvents = vi.fn(() => [Promise.resolve(), Promise.resolve()]);
     let onError = vi.fn();
-    const mutations = new Mutations<Methods>({ onEvents, onError });
+    const mutations = new MutationsRegistry<Methods>({ onEvents, onError });
     mutations.register({
       one: async (x: string) => x,
       two: {
@@ -76,7 +76,7 @@ describe('Mutations', () => {
   it<MutationsTestContext>('mutation methods with expectations and options throw and call onError', async () => {
     let onEvents = vi.fn(() => [Promise.resolve(), Promise.resolve()]);
     let onError = vi.fn();
-    const mutations = new Mutations<Methods>({ onEvents, onError });
+    const mutations = new MutationsRegistry<Methods>({ onEvents, onError });
     mutations.register({
       one: async (x: string) => {
         throw x;
@@ -104,7 +104,7 @@ describe('Mutations', () => {
   it<MutationsTestContext>('apply updates fails', async () => {
     let onEvents = vi.fn(() => [Promise.reject(), Promise.resolve()]);
     let onError = vi.fn();
-    const mutations = new Mutations<Methods>({ onEvents, onError });
+    const mutations = new MutationsRegistry<Methods>({ onEvents, onError });
     mutations.register({
       one: async (x: string) => x,
       two: {
@@ -134,7 +134,7 @@ describe('Mutations', () => {
   it<MutationsTestContext>('methods not confirmed', async () => {
     let onEvents = vi.fn(() => [Promise.resolve(), Promise.reject()]);
     let onError = vi.fn();
-    const mutations = new Mutations<Methods>({ onEvents, onError });
+    const mutations = new MutationsRegistry<Methods>({ onEvents, onError });
     mutations.register({
       one: async (x: string) => x,
       two: {

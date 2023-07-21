@@ -7,7 +7,7 @@ import StreamRegistry from './StreamRegistry.js';
 import EventEmitter from './utilities/EventEmitter.js';
 import type { StandardCallback } from './types/callbacks';
 import UpdatesRegistry, { UpdateFunc } from './Updates.js';
-import Mutations, { MutationRegistration, MutationMethods, MutationOptions } from './Mutations.js';
+import MutationsRegistry, { MutationRegistration, MutationMethods, MutationOptions } from './MutationsRegistry.js';
 import { UpdateRegistrationError } from './Errors.js';
 
 export enum ModelState {
@@ -102,7 +102,7 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
   private sync: SyncFunc<T>;
   private streamRegistry: StreamRegistry;
   private updatesRegistry: UpdatesRegistry<T> = new UpdatesRegistry<T>();
-  private mutationsRegistry: Mutations<M>;
+  private mutationsRegistry: MutationsRegistry<M>;
 
   private optimisticEvents: Event[] = [];
   private pendingConfirmations: PendingConfirmation[] = [];
@@ -119,7 +119,7 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
     this.logger = options.logger;
     this.streamRegistry = new StreamRegistry({ ably: options.ably, logger: options.logger });
     this.baseLogContext = { scope: `Model:${name}` };
-    this.mutationsRegistry = new Mutations<M>({
+    this.mutationsRegistry = new MutationsRegistry<M>({
       onEvents: this.onMutationEvents.bind(this),
       onError: this.onMutationError.bind(this),
     });
