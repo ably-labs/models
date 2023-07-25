@@ -1,4 +1,5 @@
-import { Event } from './Model.js';
+import _ from 'lodash';
+import { Event, OptimisticEventWithParams } from './Model.js';
 
 /**
  * A MutationFunc is a function that mutates the actual data, typically via an API request to the backend.
@@ -8,13 +9,19 @@ import { Event } from './Model.js';
 export type MutationFunc<T extends any[] = any[], R = any> = (...args: T) => Promise<R>;
 
 /**
+ * EventComparator compares an optimistic event with a confirmed event and returns
+ * true if the confirmed event corresponds to the optimistic event (i.e. it confirms it).
+ */
+export type EventComparator = (optimistic: Event, confirmed: Event) => boolean;
+
+/**
  * MutationOptions can be used to configure options on individual mutations.
  * @property timeout - The timeout to receive a confirmation for optimistic mutation events in milliseconds.
  * If the timeout is reached without being confirmed the optimistic events are rolled back.
  * If unset there is a 2 minutes default timeout to avoid leaking unconfirmed events.
  */
 export type MutationOptions = {
-  timeout?: number;
+  timeout: number;
 };
 
 export const DEFAULT_OPTIONS: MutationOptions = {
@@ -30,7 +37,7 @@ export type MutationRegistration<T extends MutationFunc = MutationFunc> =
   | T
   | {
       func: T;
-      options?: MutationOptions;
+      options: MutationOptions;
     };
 
 /**
@@ -46,8 +53,8 @@ export type MutationMethods = { [K: string]: MutationFunc<any[], any> };
  */
 function isMethodObject<T extends MutationFunc>(
   method: MutationRegistration<T>,
-): method is { func: T; options?: MutationOptions } {
-  return (method as { func: T; options?: MutationOptions }).func !== undefined;
+): method is { func: T; options: MutationOptions } {
+  return (method as { func: T; options: MutationOptions }).func !== undefined;
 }
 
 /**
@@ -81,8 +88,16 @@ type MethodWithExpect<M extends MutationMethods> = {
  * or the onEvents handler, throws.
  */
 export type MutationsCallbacks = {
-  onEvents: (events: Event[], options?: MutationOptions) => Promise<void>[];
-  onError: (err: Error, events?: Event[]) => Promise<void>;
+  onEvents: (events: OptimisticEventWithParams[]) => Promise<void>[];
+  onError: (err: Error, events: OptimisticEventWithParams[]) => Promise<void>;
+};
+
+export const defaultComparator: EventComparator = (optimistic: Event, confirmed: Event) => {
+  return (
+    optimistic.channel === confirmed.channel &&
+    optimistic.name === confirmed.name &&
+    _.isEqual(optimistic.data, confirmed.data)
+  );
 };
 
 /**
@@ -109,19 +124,27 @@ export default class MutationsRegistry<M extends MutationMethods> {
   private handleMutation<K extends keyof M>(methodName: K, expectedEvents?: Event[]): any {
     const methodItem = this.methods[methodName] as MutationRegistration;
     const method = isMethodObject(methodItem) ? methodItem.func : methodItem;
-    let options = isMethodObject(methodItem) ? methodItem.options : undefined;
-    options = { ...DEFAULT_OPTIONS, ...options };
-
+    let options = isMethodObject(methodItem) ? { ...DEFAULT_OPTIONS, ...methodItem.options } : DEFAULT_OPTIONS;
+    const events: OptimisticEventWithParams[] = expectedEvents
+      ? expectedEvents.map((event) => ({
+          ...event,
+          confirmed: false,
+          params: {
+            timeout: options.timeout,
+            comparator: defaultComparator,
+          },
+        }))
+      : [];
     const callMethod = async (...args: any[]) => {
       try {
         let result = await method(...args);
         let callbackResult: ReturnType<MutationsCallbacks['onEvents']> = [Promise.resolve(), Promise.resolve()];
-        if (expectedEvents) {
-          callbackResult = await this.callbacks.onEvents(expectedEvents, options);
+        if (events && events.length > 0) {
+          callbackResult = await this.callbacks.onEvents(events);
         }
         return expectedEvents ? [result, ...callbackResult] : result;
       } catch (err) {
-        await this.callbacks.onError(err, expectedEvents);
+        await this.callbacks.onError(err, events);
         throw err;
       }
     };
