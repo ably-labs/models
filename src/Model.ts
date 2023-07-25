@@ -400,8 +400,8 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
 
     // eagerly apply optimistic updates
     if (!event.confirmed) {
-      this.optimisticEvents.push(event);
-      await this.applyOptimisticUpdates(this.optimisticData, event);
+      this.optimisticEvents.push(event as OptimisticEventWithParams);
+      await this.applyOptimisticUpdates(this.optimisticData, event as OptimisticEventWithParams);
       return;
     }
 

@@ -72,6 +72,7 @@ type MethodWithExpect<M extends MutationMethods> = {
   [K in keyof M]: M[K] & {
     $expect: (
       expectedEvents: Event[],
+      comparator?: EventComparator,
     ) => (
       ...args: Parameters<M[K]>
     ) => Promise<[ReturnType<M[K]> extends Promise<infer U> ? U : ReturnType<M[K]>, Promise<void>, Promise<void>]>;
@@ -121,7 +122,11 @@ export default class MutationsRegistry<M extends MutationMethods> {
    * along with the mutation result.
    * If the mutation or the onEvents callback throws, it calls the onError callback before re-throwing.
    */
-  private handleMutation<K extends keyof M>(methodName: K, expectedEvents?: Event[]): any {
+  private handleMutation<K extends keyof M>(
+    methodName: K,
+    expectedEvents?: Event[],
+    comparator?: EventComparator,
+  ): any {
     const methodItem = this.methods[methodName] as MutationRegistration;
     const method = isMethodObject(methodItem) ? methodItem.func : methodItem;
     let options = isMethodObject(methodItem) ? { ...DEFAULT_OPTIONS, ...methodItem.options } : DEFAULT_OPTIONS;
@@ -131,7 +136,7 @@ export default class MutationsRegistry<M extends MutationMethods> {
           confirmed: false,
           params: {
             timeout: options.timeout,
-            comparator: defaultComparator,
+            comparator: comparator || defaultComparator,
           },
         }))
       : [];
@@ -140,7 +145,7 @@ export default class MutationsRegistry<M extends MutationMethods> {
         let result = await method(...args);
         let callbackResult: ReturnType<MutationsCallbacks['onEvents']> = [Promise.resolve(), Promise.resolve()];
         if (events && events.length > 0) {
-          callbackResult = await this.callbacks.onEvents(events);
+          callbackResult = await this.callbacks.onEvents(events); // TODO this doesn't need awaiting, but tests fail if not awaited
         }
         return expectedEvents ? [result, ...callbackResult] : result;
       } catch (err) {
@@ -150,9 +155,9 @@ export default class MutationsRegistry<M extends MutationMethods> {
     };
 
     callMethod.$expect =
-      (expectedEvents: Event[]) =>
+      (expectedEvents: Event[], comparator?: EventComparator) =>
       (...args: Parameters<M[K]>) =>
-        this.handleMutation(methodName, expectedEvents)(...args);
+        this.handleMutation(methodName, expectedEvents, comparator)(...args);
 
     return callMethod;
   }

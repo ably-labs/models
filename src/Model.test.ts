@@ -5,10 +5,10 @@ import { take } from 'rxjs/operators';
 import pino from 'pino';
 
 import { createMessage, customMessage } from './utilities/test/messages.js';
-import Model, { ModelState, ModelStateChange, Versioned, ModelOptions } from './Model.js';
+import Model, { ModelState, ModelStateChange, Versioned, ModelOptions, Event } from './Model.js';
 import { StreamOptions, IStream, StreamState } from './Stream.js';
 import { IStreamRegistry } from './StreamRegistry.js';
-import { MutationMethods } from './MutationsRegistry.js';
+import { MutationMethods, EventComparator } from './MutationsRegistry.js';
 
 vi.mock('ably/promises');
 
@@ -460,6 +460,67 @@ describe('Model', () => {
     expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(2);
     expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(2, null, 'data_1');
     expect(model.confirmed).toEqual('data_1');
+  });
+
+  it<ModelTestContext>('confirms an optimistic event with a custom comparator', async ({ ably, logger, streams }) => {
+    const s1 = streams.getOrCreate({ channel: 's1' });
+    s1.subscribe = vi.fn();
+
+    const events = { e1: new Subject<Types.Message>() };
+    s1.subscribe = vi.fn((callback) => {
+      events.e1.subscribe((message) => callback(null, message));
+    });
+
+    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, logger });
+
+    const update1 = vi.fn(async (state, event) => event.data);
+    const mutation = vi.fn(async () => 'test');
+    await model.$register({
+      $sync: async () => ({ version: 1, data: 'data_0' }),
+      $update: { s1: { testEvent: update1 } },
+      $mutate: { foo: mutation },
+    });
+
+    let optimisticSubscription = new Subject<void>();
+    const optimisticSubscriptionCalls = getEventPromises(optimisticSubscription, 2);
+    const optimisticSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() =>
+      optimisticSubscription.next(),
+    );
+    model.subscribe(optimisticSubscriptionSpy);
+
+    let confirmedSubscription = new Subject<void>();
+    const confirmedSubscriptionCalls = getEventPromises(confirmedSubscription, 2);
+    const confirmedSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() =>
+      confirmedSubscription.next(),
+    );
+    model.subscribe(confirmedSubscriptionSpy, { optimistic: false });
+
+    await optimisticSubscriptionCalls[0];
+    await confirmedSubscriptionCalls[0];
+    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(1);
+    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(1, null, 'data_0');
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(1);
+    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(1, null, 'data_0');
+    expect(model.optimistic).toEqual('data_0');
+    expect(model.confirmed).toEqual('data_0');
+
+    const nameOnlyComparator: EventComparator = (optimistic: Event, confirmed: Event) =>
+      optimistic.name === confirmed.name;
+    await model.mutations.foo.$expect([{ channel: 's1', name: 'testEvent', data: 'data_1' }], nameOnlyComparator)();
+
+    await optimisticSubscriptionCalls[1];
+    expect(model.optimistic).toEqual('data_1');
+    expect(model.confirmed).toEqual('data_0');
+    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(2);
+    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(2, null, 'data_1');
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(1);
+
+    events.e1.next(customMessage('id_1', 'testEvent', 'not_compared'));
+    await confirmedSubscriptionCalls[1];
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(2);
+    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(2, null, 'not_compared');
+    expect(model.confirmed).toEqual('not_compared');
+    expect(model.optimistic).toEqual('data_1');
   });
 
   it<ModelTestContext>(
