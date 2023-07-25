@@ -1,4 +1,3 @@
-import _ from 'lodash';
 import type { Logger } from 'pino';
 import type { Types as AblyTypes } from 'ably/promises.js';
 import { Subject, Subscription } from 'rxjs';
@@ -7,7 +6,7 @@ import StreamRegistry from './StreamRegistry.js';
 import EventEmitter from './utilities/EventEmitter.js';
 import type { StandardCallback } from './types/callbacks';
 import UpdatesRegistry, { UpdateFunc } from './UpdatesRegistry.js';
-import MutationsRegistry, { MutationRegistration, MutationMethods, MutationOptions } from './MutationsRegistry.js';
+import MutationsRegistry, { MutationRegistration, MutationMethods, EventComparator } from './MutationsRegistry.js';
 import { UpdateRegistrationError } from './Errors.js';
 
 export enum ModelState {
@@ -43,8 +42,21 @@ export type Event = {
   data?: any;
 };
 
-type Confirmation = {
-  confirmed: boolean;
+export type EventParams = {
+  timeout: number;
+  comparator: EventComparator;
+};
+
+export type OptimisticEvent = Event & {
+  confirmed: false;
+};
+
+export type ConfirmedEvent = Event & {
+  confirmed: true;
+};
+
+export type OptimisticEventWithParams = OptimisticEvent & {
+  params: EventParams;
 };
 
 export type SyncFunc<T> = () => Promise<Versioned<T>>;
@@ -69,16 +81,12 @@ export type Versioned<T> = {
   data: T;
 };
 
-function eventsAreEqual(e1: Event, e2: Event): boolean {
-  return e1.channel === e2.channel && e1.name === e2.name && _.isEqual(e1.data, e2.data);
-}
-
 export type SubscriptionOptions = {
   optimistic: boolean;
 };
 
 type PendingConfirmation = {
-  unconfirmedEvents: Event[];
+  unconfirmedEvents: OptimisticEventWithParams[];
   timeout: ReturnType<typeof setTimeout>;
   resolve: () => void;
   reject: (err?: Error) => void;
@@ -105,7 +113,7 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
   private updatesRegistry: UpdatesRegistry<T> = new UpdatesRegistry<T>();
   private mutationsRegistry: MutationsRegistry<M>;
 
-  private optimisticEvents: Event[] = [];
+  private optimisticEvents: OptimisticEventWithParams[] = [];
   private pendingConfirmations: PendingConfirmation[] = [];
 
   private subscriptions = new Subject<{ confirmed: boolean; data: T }>();
@@ -208,17 +216,20 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
     return new Promise((resolve) => this.whenState(ModelState.READY, this.state, resolve));
   }
 
-  private async onMutationEvents(events: Event[], options: MutationOptions) {
+  private async onMutationEvents(events: OptimisticEventWithParams[]) {
+    if (events.length === 0) {
+      return;
+    }
+    if (!events.every((event) => event.params.timeout === events[0].params.timeout)) {
+      throw new Error('expected every optimistic event in batch to have the same timeout');
+    }
     for (const event of events) {
       if (!this.streamRegistry.streams[event.channel]) {
         throw new Error(`stream with name '${event.channel}' not registered on model '${this.name}'`);
       }
     }
-    const optimistic = this.onStreamEvents(events.map((event) => ({ ...event, confirmed: false })));
-    let confirmation = Promise.resolve();
-    if (options && options.timeout) {
-      confirmation = this.addPendingConfirmation(events, options.timeout);
-    }
+    const optimistic = this.onStreamEvents(events);
+    let confirmation = this.addPendingConfirmation(events, events[0].params.timeout);
     return [
       optimistic,
       // if optimistically applying an update fails, the confirmation promise should also reject
@@ -226,7 +237,7 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
     ];
   }
 
-  private async onMutationError(err: Error, events?: Event[]) {
+  private async onMutationError(err: Error, events: OptimisticEventWithParams[]) {
     this.logger.error({ ...this.baseLogContext, action: 'onMutationError()', err, events });
     if (events) {
       await this.revertOptimisticEvents(events);
@@ -354,23 +365,23 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
     return data;
   }
 
-  private async applyOptimisticUpdates(initialData: T, event: Event) {
+  private async applyOptimisticUpdates(initialData: T, event: OptimisticEvent) {
     const data = await this.applyUpdates(initialData, event);
     this.setOptimisticData(data);
   }
 
-  private async applyConfirmedUpdates(initialData: T, event: Event) {
+  private async applyConfirmedUpdates(initialData: T, event: ConfirmedEvent) {
     const data = await this.applyUpdates(initialData, event);
     this.setConfirmedData(data);
   }
 
-  private async onStreamEvents(events: (Event & Confirmation)[]) {
+  private async onStreamEvents(events: OptimisticEventWithParams[]) {
     for (const event of events) {
       await this.onStreamEvent(event);
     }
   }
 
-  private async onStreamEvent(event?: Event & Confirmation) {
+  private async onStreamEvent(event?: OptimisticEventWithParams | ConfirmedEvent) {
     this.logger.trace({ ...this.baseLogContext, action: 'onStreamEvent()', event });
     if (!event) {
       return;
@@ -401,7 +412,7 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
     let unexpectedEvent = true;
     for (let i = 0; i < this.optimisticEvents.length; i++) {
       let e = this.optimisticEvents[i];
-      if (eventsAreEqual(e, event)) {
+      if (e.params.comparator(e, event)) {
         this.optimisticEvents.splice(i, 1);
         await this.applyConfirmedUpdates(this.confirmedData, event);
         unexpectedEvent = false;
@@ -417,7 +428,7 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
     }
   }
 
-  private async applyWithRebase(confirmedEvent: Event, optimisticEvents: Event[]) {
+  private async applyWithRebase(confirmedEvent: ConfirmedEvent, optimisticEvents: OptimisticEvent[]) {
     await this.applyConfirmedUpdates(this.confirmedData, confirmedEvent);
     let base = this.confirmedData;
     for (const event of optimisticEvents) {
@@ -426,7 +437,7 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
     this.setOptimisticData(base);
   }
 
-  private addPendingConfirmation(events: Event[], timeout: number): Promise<void> {
+  private addPendingConfirmation(events: OptimisticEvent[], timeout: number): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       this.logger.trace({ ...this.baseLogContext, action: 'addPendingConfirmation()', events, timeout });
       let pendingConfirmation = {
@@ -445,12 +456,12 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
     });
   }
 
-  private confirmPendingEvents(event: Event) {
+  private confirmPendingEvents(event: ConfirmedEvent) {
     this.logger.trace({ ...this.baseLogContext, action: 'confirmPendingEvents()', event });
     for (let pendingConfirmation of this.pendingConfirmations) {
       // Remove any unconfirmed events that have now been confirmed.
       pendingConfirmation.unconfirmedEvents = pendingConfirmation.unconfirmedEvents.filter(
-        (e) => !eventsAreEqual(e, event),
+        (e) => !e.params.comparator(e, event),
       );
 
       // If the pending confirmation no longer has any pending optimistic events
@@ -466,12 +477,12 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
     this.pendingConfirmations = this.pendingConfirmations.filter((p) => p.unconfirmedEvents.length !== 0);
   }
 
-  private async revertOptimisticEvents(events: Event[]) {
+  private async revertOptimisticEvents(events: OptimisticEvent[]) {
     this.logger.trace({ ...this.baseLogContext, action: 'revertOptimisticEvents()', events });
     // Remove any events from optimisticEvents and re-apply any unconfirmed
     // optimistic events.
     for (let event of events) {
-      this.optimisticEvents = this.optimisticEvents.filter((e) => !eventsAreEqual(e, event));
+      this.optimisticEvents = this.optimisticEvents.filter((e) => !e.params.comparator(e, event));
     }
     let nextData = this.confirmedData;
     for (const e of this.optimisticEvents) {
