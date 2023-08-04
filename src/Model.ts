@@ -268,6 +268,9 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
       },
     });
     this.subscriptionMap.set(callback, subscription);
+    // subscribe callback invoked immediately with initial state
+    this.subscriptions.next({ confirmed: false, data: this.optimisticData });
+    this.subscriptions.next({ confirmed: true, data: this.confirmedData });
   }
 
   public unsubscribe(callback: StandardCallback<T>) {
