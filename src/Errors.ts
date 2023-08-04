@@ -1,13 +1,13 @@
 import type { UpdateOptions } from './UpdatesRegistry.js';
 
 export class RegistrationError extends Error {
-  constructor(message) {
+  constructor(message: string) {
     super(message);
     this.name = 'RegistrationError';
   }
 }
 
-export class UpdateRegistrationError extends Error {
+export class UpdateRegistrationError extends RegistrationError {
   constructor(options: Partial<UpdateOptions>) {
     let message = 'update not registered';
     if (options.channel && !options.event) {
@@ -18,6 +18,6 @@ export class UpdateRegistrationError extends Error {
       message = `update for event ${options.event} on channel ${options.channel} not registered`;
     }
     super(message);
-    this.name = 'RegistrationError';
+    this.name = 'UpdateRegistrationError';
   }
 }
