@@ -271,6 +271,41 @@ describe('Model', () => {
     { timeout: 10000 },
   );
 
+  it<ModelTestContext>(
+    'subscribes after initialisation',
+    async ({ ably, logger }) => {
+      const data: Versioned<any> = {
+        version: 0,
+        data: 'data_0',
+      };
+
+      const sync = vi.fn(async () => data); // defines initial version of model
+      const model = new Model<string, {}>('test', { ably, logger });
+
+      await model.$register({ $sync: sync });
+
+      expect(sync).toHaveBeenCalledOnce();
+
+      // wait for the next event loop iteration so that any scheduled tasks on the tasks queue are cleared,
+      // specifically model state updates scheduled via setTimeout from the model init() call in $register()
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      let subscription = new Subject<void>();
+      const subscriptionCall = getNthEventPromise(subscription, 1);
+
+      const subscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() => subscription.next());
+      model.subscribe(subscriptionSpy);
+
+      // initial data
+      await subscriptionCall;
+      expect(subscriptionSpy).toHaveBeenCalledTimes(1);
+      expect(subscriptionSpy).toHaveBeenNthCalledWith(1, null, 'data_0');
+      expect(model.optimistic).toEqual('data_0');
+      expect(model.confirmed).toEqual('data_0');
+    },
+    { timeout: 10000 },
+  );
+
   it<ModelTestContext>('executes a registered mutation', async ({ ably, logger, streams }) => {
     const s1 = streams.getOrCreate({ channel: 's1' });
     const s2 = streams.getOrCreate({ channel: 's2' });
