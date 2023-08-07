@@ -1,7 +1,7 @@
 import { it, describe, expect, afterEach, vi, beforeEach } from 'vitest';
 import { Realtime, Types } from 'ably/promises';
 import { Subject, lastValueFrom } from 'rxjs';
-import { take } from 'rxjs/operators';
+import { take } from 'rxjs';
 import pino from 'pino';
 
 import { createMessage, customMessage } from './utilities/test/messages.js';
