@@ -153,16 +153,12 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
   public async $pause() {
     this.logger.trace({ ...this.baseLogContext, action: 'pause()' });
     this.setState(ModelState.PAUSED);
-    for (const streamName in this.streamRegistry.streams) {
-      await this.streamRegistry.streams[streamName].pause();
-    }
+    await Promise.all(Object.values(this.streamRegistry.streams).map((stream) => stream.pause()));
   }
 
   public async $resume() {
     this.logger.trace({ ...this.baseLogContext, action: 'resume()' });
-    for (const streamName in this.streamRegistry.streams) {
-      await this.streamRegistry.streams[streamName].resume();
-    }
+    await Promise.all(Object.values(this.streamRegistry.streams).map((stream) => stream.resume()));
     this.setState(ModelState.READY);
   }
 
