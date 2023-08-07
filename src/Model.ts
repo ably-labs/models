@@ -216,7 +216,7 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
 
   private async onMutationEvents(events: OptimisticEventWithParams[]) {
     if (events.length === 0) {
-      return;
+      return [];
     }
     if (!events.every((event) => event.params.timeout === events[0].params.timeout)) {
       throw new Error('expected every optimistic event in batch to have the same timeout');
@@ -231,7 +231,7 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
     return [
       optimistic,
       // if optimistically applying an update fails, the confirmation promise should also reject
-      Promise.all([optimistic, confirmation]),
+      Promise.all([optimistic, confirmation]).then(() => undefined),
     ];
   }
 
