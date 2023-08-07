@@ -109,19 +109,19 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
   private confirmedData: T;
 
   private sync: SyncFunc<T>;
-  private streamRegistry: StreamRegistry;
-  private updatesRegistry: UpdatesRegistry<T> = new UpdatesRegistry<T>();
-  private mutationsRegistry: MutationsRegistry<M>;
+  private readonly streamRegistry: StreamRegistry;
+  private readonly updatesRegistry: UpdatesRegistry<T> = new UpdatesRegistry<T>();
+  private readonly mutationsRegistry: MutationsRegistry<M>;
 
   private optimisticEvents: OptimisticEventWithParams[] = [];
   private pendingConfirmations: PendingConfirmation[] = [];
 
-  private subscriptions = new Subject<{ confirmed: boolean; data: T }>();
+  private readonly subscriptions = new Subject<{ confirmed: boolean; data: T }>();
   private subscriptionMap: WeakMap<StandardCallback<T>, Subscription> = new WeakMap();
   private streamSubscriptionsMap: WeakMap<IStream, StandardCallback<AblyTypes.Message>> = new WeakMap();
 
-  private logger: Logger;
-  private baseLogContext: Partial<{ scope: string; action: string }>;
+  private readonly logger: Logger;
+  private readonly baseLogContext: Partial<{ scope: string; action: string }>;
 
   constructor(readonly name: string, options: ModelOptions) {
     super();
