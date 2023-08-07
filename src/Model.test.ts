@@ -940,7 +940,8 @@ describe('Model', () => {
     const preparingPromise = modelStatePromise(model, ModelState.PREPARING);
     events.e1.next(customMessage('id_3', 'testEvent', String(++counter)));
     const { reason } = (await preparingPromise) as ModelStateChange;
-    expect(reason.message).toEqual('test');
+    expect(reason).to.toBeDefined();
+    expect(reason!.message).toEqual('test');
     await subscriptionCalls[3];
     expect(subscriptionSpy).toHaveBeenNthCalledWith(4, null, '3');
     expect(model.state).toEqual(ModelState.READY);

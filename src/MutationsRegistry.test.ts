@@ -54,7 +54,7 @@ describe('MutationsRegistry', () => {
     await expect(mutations.handler.one('foo')).rejects.toEqual('foo');
     expect(onEvents).not.toHaveBeenCalled();
     expect(onError).toHaveBeenCalledTimes(1);
-    expect(onError).toHaveBeenNthCalledWith(1, 'foo', []);
+    expect(onError).toHaveBeenNthCalledWith(1, new Error('foo'), []);
   });
 
   it<MutationsTestContext>('invokes mutation methods with expectations (default comparator) and options', async () => {
@@ -154,7 +154,7 @@ describe('MutationsRegistry', () => {
     expect(onError).toHaveBeenCalledTimes(1);
     expect(onError).toHaveBeenNthCalledWith(
       1,
-      'foo',
+      new Error('foo'),
       toExpectedEvents(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: defaultComparator }),
     );
 
@@ -163,7 +163,7 @@ describe('MutationsRegistry', () => {
     expect(onError).toHaveBeenCalledTimes(2);
     expect(onError).toHaveBeenNthCalledWith(
       2,
-      123,
+      new Error('123'),
       toExpectedEvents(events, { timeout: 1000, comparator: defaultComparator }),
     );
   });
