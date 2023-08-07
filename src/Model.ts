@@ -108,7 +108,9 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
   private optimisticData: T;
   private confirmedData: T;
 
-  private sync: SyncFunc<T>;
+  private sync: SyncFunc<T> = async () => {
+    throw new Error('sync func not registered');
+  };
   private readonly streamRegistry: StreamRegistry;
   private readonly updatesRegistry: UpdatesRegistry<T> = new UpdatesRegistry<T>();
   private readonly mutationsRegistry: MutationsRegistry<M>;

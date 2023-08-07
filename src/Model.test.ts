@@ -100,13 +100,15 @@ describe('Model', () => {
 
   it<ModelTestContext>('enters ready state after sync', async ({ ably, logger }) => {
     // the promise returned by the subscribe method resolves when we have successfully attached to the channel
-    let completeSync;
+    let completeSync: (...args: any[]) => void = () => {
+      throw new Error('completeSync not defined');
+    };
     const synchronised = new Promise((resolve) => (completeSync = resolve));
     const sync = vi.fn(async () => {
       await synchronised;
       return simpleTestData;
     });
-    const model = new Model<TestData, { foo: (string) => Promise<number> }>('test', { ably, logger });
+    const model = new Model<TestData, { foo: (val: string) => Promise<number> }>('test', { ably, logger });
     const ready = model.$register({ $sync: sync });
     await modelStatePromise(model, ModelState.PREPARING);
     completeSync();
@@ -303,7 +305,7 @@ describe('Model', () => {
     const s2 = streams.getOrCreate({ channel: 's2' });
     s1.subscribe = vi.fn();
     s2.subscribe = vi.fn();
-    const model = new Model<string, { foo: (string, number) => Promise<string> }>('test', { ably, logger });
+    const model = new Model<string, { foo: (a: string, b: number) => Promise<string> }>('test', { ably, logger });
 
     const mutation = vi.fn(async () => 'test');
     await model.$register({
