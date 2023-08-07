@@ -106,8 +106,8 @@ type Registration<T, M extends MutationMethods> = {
 class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   private wasRegistered = false;
   private currentState: ModelState = ModelState.INITIALIZED;
-  private optimisticData: T;
-  private confirmedData: T;
+  private optimisticData!: T;
+  private confirmedData!: T;
 
   private sync: SyncFunc<T> = async () => {
     throw new Error('sync func not registered');
