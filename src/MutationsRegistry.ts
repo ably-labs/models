@@ -73,9 +73,7 @@ type MethodWithExpect<M extends MutationMethods> = {
     $expect: (
       expectedEvents: Event[],
       comparator?: EventComparator,
-    ) => (
-      ...args: Parameters<M[K]>
-    ) => Promise<[ReturnType<M[K]> extends Promise<infer U> ? U : ReturnType<M[K]>, Promise<void>, Promise<void>]>;
+    ) => (...args: Parameters<M[K]>) => Awaited<[ReturnType<M[K]>, Promise<void>, Promise<void>]>;
   };
 };
 
