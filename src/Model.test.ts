@@ -614,27 +614,26 @@ describe('Model', () => {
     // optimistic and confirmed states may differ (assuming non-commutative update functions)
     // since the updates were applied in different order.
 
-      // confirm the second expected event
-      events.e1.next(customMessage('id_1', 'testEvent', '2'));
-      await confirmedSubscriptionCalls[1];
-      expect(model.confirmed).toEqual('02');
-      await optimisticSubscriptionCalls[3];
-      expect(model.optimistic).toEqual('021');
-      expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(2);
-      expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(2, null, '02');
-      expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(4);
-      expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(4, null, '021');
+    // confirm the second expected event
+    events.e1.next(customMessage('id_1', 'testEvent', '2'));
+    await confirmedSubscriptionCalls[1];
+    expect(model.confirmed).toEqual('02');
+    await optimisticSubscriptionCalls[3];
+    expect(model.optimistic).toEqual('021');
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(2);
+    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(2, null, '02');
+    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(4);
+    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(4, null, '021');
 
-      // confirm the first expected event
-      events.e1.next(customMessage('id_1', 'testEvent', '1'));
-      await confirmedSubscriptionCalls[2];
-      expect(model.optimistic).toEqual('021');
-      expect(model.confirmed).toEqual('021');
-      expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(3);
-      expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(3, null, '021');
-      expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(4); // unchanged
-    },
-  );
+    // confirm the first expected event
+    events.e1.next(customMessage('id_1', 'testEvent', '1'));
+    await confirmedSubscriptionCalls[2];
+    expect(model.optimistic).toEqual('021');
+    expect(model.confirmed).toEqual('021');
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(3);
+    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(3, null, '021');
+    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(4); // unchanged
+  });
 
   it<ModelTestContext>('confirms optimistic events from multiple streams', async ({ ably, logger, streams }) => {
     const s1 = streams.getOrCreate({ channel: 's1' });
@@ -917,12 +916,11 @@ describe('Model', () => {
     expect(sync).toHaveBeenCalledOnce();
 
     let subscription = new Subject<void>();
+    const subscriptionCalls = getEventPromises(subscription, 5);
     const subscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() => {
       subscription.next();
     });
     model.subscribe(subscriptionSpy);
-
-    const subscriptionCalls = getEventPromises(subscription, 5);
 
     await subscriptionCalls[0];
     expect(subscriptionSpy).toHaveBeenNthCalledWith(1, null, '0');
