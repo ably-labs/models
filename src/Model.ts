@@ -8,6 +8,7 @@ import type { StandardCallback } from './types/callbacks';
 import UpdatesRegistry, { UpdateFunc } from './UpdatesRegistry.js';
 import MutationsRegistry, { MutationRegistration, MutationMethods, EventComparator } from './MutationsRegistry.js';
 import { UpdateRegistrationError } from './Errors.js';
+import { toError } from './utilities/Errors.js';
 
 export enum ModelState {
   /**
@@ -73,7 +74,7 @@ export type ModelOptions = {
 export type ModelStateChange = {
   current: ModelState;
   previous: ModelState;
-  reason?: any;
+  reason?: Error;
 };
 
 export type Versioned<T> = {
@@ -334,8 +335,8 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
           throw err;
         }
         await this.onStreamEvent({ ...event!, channel, confirmed: true });
-      } catch (e) {
-        this.init(e);
+      } catch (err) {
+        this.init(toError(err));
       }
     };
     this.streamRegistry.streams[channel].subscribe(callback);
