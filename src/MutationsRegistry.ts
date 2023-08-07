@@ -87,7 +87,7 @@ type MethodWithExpect<M extends MutationMethods> = {
  * or the onEvents handler, throws.
  */
 export type MutationsCallbacks = {
-  onEvents: (events: OptimisticEventWithParams[]) => Promise<void>[];
+  onEvents: (events: OptimisticEventWithParams[]) => Promise<Promise<void>[]>;
   onError: (err: Error, events: OptimisticEventWithParams[]) => Promise<void>;
 };
 
@@ -141,7 +141,10 @@ export default class MutationsRegistry<M extends MutationMethods> {
     const callMethod = async (...args: any[]) => {
       try {
         let result = await method(...args);
-        let callbackResult: ReturnType<MutationsCallbacks['onEvents']> = [Promise.resolve(), Promise.resolve()];
+        let callbackResult: Awaited<ReturnType<MutationsCallbacks['onEvents']>> = [
+          Promise.resolve(),
+          Promise.resolve(),
+        ];
         if (events && events.length > 0) {
           callbackResult = await this.callbacks.onEvents(events); // TODO this doesn't need awaiting, but tests fail if not awaited
         }
