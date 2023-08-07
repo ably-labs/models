@@ -1,32 +1,17 @@
-import { it, describe, expect, expectTypeOf, beforeEach, afterEach } from 'vitest';
+import { vi, it, describe, expect, expectTypeOf, beforeEach } from 'vitest';
 import { Realtime, Types } from 'ably/promises';
-import { WebSocket } from 'mock-socket';
 
 import Models from './Models.js';
 
-import Server from './utilities/test/mock-server.js';
-import defaultClientConfig from './utilities/test/default-client-config.js';
-
 interface ModelsTestContext {
   ably: Types.RealtimePromise;
-  server: Server;
 }
+
+vi.mock('ably/promises');
 
 describe('Models', () => {
   beforeEach<ModelsTestContext>((context) => {
-    (Realtime as any).Platform.Config.WebSocket = WebSocket;
-    context.server = new Server('wss://realtime.ably.io/');
-    context.ably = new Realtime(defaultClientConfig);
-  });
-
-  afterEach<ModelsTestContext>((context) => {
-    context.server.stop();
-  });
-
-  it<ModelsTestContext>('connects successfully with the Ably Client', async ({ ably, server }) => {
-    server.start();
-    const connectSuccess = await ably.connection.whenState('connected');
-    expect(connectSuccess.current).toBe('connected');
+    context.ably = new Realtime({ key: 'abc:def' });
   });
 
   it<ModelsTestContext>('expects the injected client to be of the type RealtimePromise', ({ ably }) => {

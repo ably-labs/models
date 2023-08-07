@@ -7,9 +7,6 @@ type MockChannel = Partial<Types.RealtimeChannelPromise>;
 
 const mockChannel: MockChannel = {
 	on: () => mockNotImplemented<void>('on'),
-	attach: () => mockPromiseErrorNotImplemented<void>('attach'),
-	detach: () => mockPromiseErrorNotImplemented<void>('detach'),
-	subscribe: () => mockPromiseErrorNotImplemented<void>('subscribe'),
 }
 
 type MockChannels = Partial<Types.Channels<MockChannel>>;
@@ -29,6 +26,7 @@ const mockConnection: MockConnection = {
 class MockRealtime {	
 	public channels = mockChannels;
 	public connection = mockConnection;
+	public time = () => Promise.resolve(Date.now());
 }
 
 export { MockRealtime as Realtime };
