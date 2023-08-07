@@ -53,14 +53,14 @@ export interface IStream {
 }
 
 export default class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> implements IStream {
-  private ably: AblyTypes.RealtimePromise;
+  private readonly ably: AblyTypes.RealtimePromise;
   private currentState: StreamState = StreamState.INITIALIZED;
-  private ablyChannel: AblyTypes.RealtimeChannelPromise;
-  private subscriptions = new Subject<AblyTypes.Message>();
+  private readonly ablyChannel: AblyTypes.RealtimeChannelPromise;
+  private readonly subscriptions = new Subject<AblyTypes.Message>();
   private subscriptionMap: WeakMap<StandardCallback<AblyTypes.Message>, Subscription> = new WeakMap();
 
-  private baseLogContext: Partial<{ scope: string; action: string }>;
-  private logger: Logger;
+  private readonly baseLogContext: Partial<{ scope: string; action: string }>;
+  private readonly logger: Logger;
 
   constructor(readonly options: StreamOptions) {
     super();

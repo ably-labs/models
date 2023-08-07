@@ -9,7 +9,7 @@ export type ModelsOptions = {
 };
 
 class Models {
-  private options: ModelOptions;
+  private readonly options: ModelOptions;
   private models: Record<string, Model<any, any>> = {};
 
   readonly version = '0.0.1';
