@@ -1,4 +1,4 @@
-import _ from 'lodash';
+import isEqual from 'lodash/isEqual.js';
 import { Event, OptimisticEventWithParams } from './Model.js';
 
 /**
@@ -97,7 +97,7 @@ export const defaultComparator: EventComparator = (optimistic: Event, confirmed:
   return (
     optimistic.channel === confirmed.channel &&
     optimistic.name === confirmed.name &&
-    _.isEqual(optimistic.data, confirmed.data)
+    isEqual(optimistic.data, confirmed.data)
   );
 };
 
