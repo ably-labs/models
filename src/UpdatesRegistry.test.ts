@@ -21,8 +21,8 @@ describe('UpdatesRegistry', () => {
     registry.register(func1, { channel: 'channel1', event: 'event1' });
     const result = registry.get({ channel: 'channel1', event: 'event1' });
     expect(result.length).toBe(1);
-    expect(result[0].options.channel).toBe('channel1');
-    expect(result[0].options.event).toBe('event1');
+    expect(result[0].targets.channel).toBe('channel1');
+    expect(result[0].targets.event).toBe('event1');
     expect(result[0].func).toBe(func1);
   });
 
@@ -31,11 +31,11 @@ describe('UpdatesRegistry', () => {
     registry.register(func2, { channel: 'channel1', event: 'event1' });
     const result = registry.get({ channel: 'channel1', event: 'event1' });
     expect(result.length).toBe(2);
-    expect(result[0].options.channel).toBe('channel1');
-    expect(result[0].options.event).toBe('event1');
+    expect(result[0].targets.channel).toBe('channel1');
+    expect(result[0].targets.event).toBe('event1');
     expect(result[0].func).toBe(func1);
-    expect(result[1].options.channel).toBe('channel1');
-    expect(result[1].options.event).toBe('event1');
+    expect(result[1].targets.channel).toBe('channel1');
+    expect(result[1].targets.event).toBe('event1');
     expect(result[1].func).toBe(func2);
   });
 
@@ -44,12 +44,12 @@ describe('UpdatesRegistry', () => {
     registry.register(func2, { channel: 'channel2', event: 'event2' });
     let result = registry.get({ channel: 'channel1', event: 'event1' });
     expect(result.length).toBe(1);
-    expect(result[0].options.channel).toBe('channel1');
-    expect(result[0].options.event).toBe('event1');
+    expect(result[0].targets.channel).toBe('channel1');
+    expect(result[0].targets.event).toBe('event1');
     result = registry.get({ channel: 'channel2', event: 'event2' });
     expect(result.length).toBe(1);
-    expect(result[0].options.channel).toBe('channel2');
-    expect(result[0].options.event).toBe('event2');
+    expect(result[0].targets.channel).toBe('channel2');
+    expect(result[0].targets.event).toBe('event2');
   });
 
   it('returns all registered functions when no options are given', async () => {

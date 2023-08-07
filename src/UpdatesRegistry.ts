@@ -9,7 +9,7 @@ export type UpdateFuncs<T> = {
   };
 };
 
-export type UpdateOptions = {
+export type UpdateTargets = {
   channel: string;
   event: string;
 };
@@ -19,7 +19,7 @@ export default class UpdatesRegistry<T> {
 
   constructor() {}
 
-  register(update: UpdateFunc<T>, { channel, event }: UpdateOptions) {
+  register(update: UpdateFunc<T>, { channel, event }: UpdateTargets) {
     if (!this.registry[channel]) {
       this.registry[channel] = {};
     }
@@ -29,32 +29,32 @@ export default class UpdatesRegistry<T> {
     this.registry[channel][event].push(update);
   }
 
-  public get(options: Partial<UpdateOptions>) {
-    const result: { options: UpdateOptions; func: UpdateFunc<T> }[] = [];
-    if (!!options.channel && Object.keys(this.registry).length === 0) {
-      throw new UpdateRegistrationError({ channel: options.channel });
+  public get(targets: Partial<UpdateTargets>) {
+    const result: { targets: UpdateTargets; func: UpdateFunc<T> }[] = [];
+    if (!!targets.channel && Object.keys(this.registry).length === 0) {
+      throw new UpdateRegistrationError({ channel: targets.channel });
     }
     for (const channel in this.registry) {
-      if (!!options.channel && options.channel !== channel) {
+      if (!!targets.channel && targets.channel !== channel) {
         continue;
       }
-      if (!!options.channel && !this.registry[channel]) {
-        throw new UpdateRegistrationError({ channel: options.channel });
+      if (!!targets.channel && !this.registry[channel]) {
+        throw new UpdateRegistrationError({ channel: targets.channel });
       }
       for (const event in this.registry[channel]) {
-        if (!!options.event && options.event !== event) {
+        if (!!targets.event && targets.event !== event) {
           continue;
         }
-        if (!!options.event && !this.registry[channel][event]) {
-          throw new UpdateRegistrationError({ channel: options.channel, event: options.event });
+        if (!!targets.event && !this.registry[channel][event]) {
+          throw new UpdateRegistrationError({ channel: targets.channel, event: targets.event });
         }
         for (const func of this.registry[channel][event]) {
-          result.push({ options: { channel, event }, func });
+          result.push({ targets: { channel, event }, func });
         }
       }
     }
-    if (!!options.event && result.length === 0) {
-      throw new UpdateRegistrationError({ event: options.event });
+    if (!!targets.event && result.length === 0) {
+      throw new UpdateRegistrationError({ event: targets.event });
     }
     return result;
   }
