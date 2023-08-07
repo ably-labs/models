@@ -116,9 +116,9 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
   private optimisticEvents: OptimisticEventWithParams[] = [];
   private pendingConfirmations: PendingConfirmation[] = [];
 
-  private subscriptionMap: Map<StandardCallback<T>, Subscription> = new Map();
   private subscriptions = new Subject<{ confirmed: boolean; data: T }>();
-  private streamSubscriptionsMap: Map<IStream, StandardCallback<AblyTypes.Message>> = new Map();
+  private subscriptionMap: WeakMap<StandardCallback<T>, Subscription> = new WeakMap();
+  private streamSubscriptionsMap: WeakMap<IStream, StandardCallback<AblyTypes.Message>> = new WeakMap();
 
   private logger: Logger;
   private baseLogContext: Partial<{ scope: string; action: string }>;
@@ -181,8 +181,8 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
         pendingConfirmation.reject(reason);
       }
     }
-    this.subscriptionMap.clear();
-    this.streamSubscriptionsMap.clear();
+    this.subscriptionMap = new WeakMap();
+    this.streamSubscriptionsMap = new WeakMap();
     return new Promise((resolve) => this.whenState(ModelState.DISPOSED, this.state, resolve));
   }
 
@@ -321,7 +321,7 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
         stream.unsubscribe(callback);
       }
     }
-    this.streamSubscriptionsMap.clear();
+    this.streamSubscriptionsMap = new WeakMap();
   }
 
   private addStream(channel: string) {
