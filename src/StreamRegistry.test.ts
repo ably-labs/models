@@ -42,7 +42,9 @@ describe('Stream', () => {
     ablyChannel,
   }) => {
     // the promise returned by the subscribe method resolves when we have successfully attached to the channel
-    let attach;
+    let attach: (...args: any[]) => void = () => {
+      throw new Error('attach not defined');
+    };
     const attachment = new Promise((resolve) => (attach = resolve));
     ablyChannel.subscribe = vi.fn().mockImplementation(async () => {
       await attachment;
@@ -89,7 +91,9 @@ describe('Stream', () => {
   });
 
   it<StreamTestContext>('disposes of the stream on channel failed', async ({ ably, logger, ablyChannel }) => {
-    let fail;
+    let fail: (...args: any[]) => void = () => {
+      throw new Error('fail not defined');
+    };
     ablyChannel.on = vi.fn<any, any>(async (name: string, callback) => {
       if (name === 'failed') {
         fail = callback;
