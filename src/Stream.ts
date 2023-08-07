@@ -57,7 +57,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
   private currentState: StreamState = StreamState.INITIALIZED;
   private ablyChannel: AblyTypes.RealtimeChannelPromise;
   private subscriptions = new Subject<AblyTypes.Message>();
-  private subscriptionMap: Map<StandardCallback<AblyTypes.Message>, Subscription> = new Map();
+  private subscriptionMap: WeakMap<StandardCallback<AblyTypes.Message>, Subscription> = new WeakMap();
 
   private baseLogContext: Partial<{ scope: string; action: string }>;
   private logger: Logger;
@@ -123,7 +123,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     this.logger.trace({ ...this.baseLogContext, action: 'dispose()', reason });
     this.setState(StreamState.DISPOSED, reason);
     this.subscriptions.unsubscribe();
-    this.subscriptionMap.clear();
+    this.subscriptionMap = new WeakMap();
     await this.ablyChannel.detach();
     this.ably.channels.release(this.ablyChannel.name);
   }
