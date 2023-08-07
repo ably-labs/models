@@ -116,8 +116,8 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
   private optimisticEvents: OptimisticEventWithParams[] = [];
   private pendingConfirmations: PendingConfirmation[] = [];
 
-  private subscriptions = new Subject<{ confirmed: boolean; data: T }>();
   private subscriptionMap: Map<StandardCallback<T>, Subscription> = new Map();
+  private subscriptions = new Subject<{ confirmed: boolean; data: T }>();
   private streamSubscriptionsMap: Map<IStream, StandardCallback<AblyTypes.Message>> = new Map();
 
   private logger: Logger;
@@ -246,9 +246,14 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
 
   public subscribe(callback: StandardCallback<T>, options: SubscriptionOptions = { optimistic: true }) {
     this.logger.trace({ ...this.baseLogContext, action: 'subscribe()', options });
+
+    let timeout: NodeJS.Timeout;
     const subscription = this.subscriptions.subscribe({
       next: (value) => {
         this.logger.trace({ ...this.baseLogContext, action: 'next()', value });
+        if (timeout) {
+          clearTimeout(timeout);
+        }
         if (options.optimistic && !value.confirmed) {
           callback(null, value.data);
           return;
@@ -260,6 +265,9 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
       },
       error: (err) => {
         this.logger.trace({ ...this.baseLogContext, action: 'error()', err });
+        if (timeout) {
+          clearTimeout(timeout);
+        }
         callback(err);
       },
       complete: () => {
@@ -268,9 +276,9 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
       },
     });
     this.subscriptionMap.set(callback, subscription);
+
     // subscribe callback invoked immediately with initial state
-    this.subscriptions.next({ confirmed: false, data: this.optimisticData });
-    this.subscriptions.next({ confirmed: true, data: this.confirmedData });
+    timeout = setTimeout(() => callback(null, this.confirmedData), 0);
   }
 
   public unsubscribe(callback: StandardCallback<T>) {
