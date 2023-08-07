@@ -8,14 +8,9 @@ export type ModelsOptions = {
   logLevel?: LevelWithSilent;
 };
 
-type AnyModel = Model<any, any>;
-type ModelsRecord = {
-  [K in keyof AnyModel]: AnyModel[K] extends Model<infer T, infer M> ? Model<T, M> : never;
-};
-
 class Models {
   private options: ModelOptions;
-  private models: Partial<ModelsRecord> = {};
+  private models: Record<string, Model<any, any>> = {};
 
   readonly version = '0.0.1';
 
