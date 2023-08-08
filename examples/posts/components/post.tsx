@@ -33,7 +33,6 @@ function Post({ model }: { model: ModelType }) {
       }
       setPost(post!);
     };
-    if (!model) return;
     model.subscribe(onUpdate);
     return () => {
       model.unsubscribe(onUpdate);
@@ -41,7 +40,6 @@ function Post({ model }: { model: ModelType }) {
   });
 
   async function onAdd(author: AuthorType, postId: number, content: string) {
-    if (!model) return;
     const [, update, confirmation] = await model.mutations.addComment.$expect(
       [{ channel: 'comments', name: 'add', data: { author, content } }],
       compareComments,
@@ -57,7 +55,6 @@ function Post({ model }: { model: ModelType }) {
   }
 
   async function onEdit(id: number, content: string) {
-    if (!model) return;
     const [, update, confirmation] = await model.mutations.editComment.$expect(
       [{ channel: 'comments', name: 'edit', data: { id, content } }],
       compareComments,
@@ -73,7 +70,6 @@ function Post({ model }: { model: ModelType }) {
   }
 
   async function onDelete(id: number) {
-    if (!model) return;
     const [, update, confirmation] = await model.mutations.deleteComment.$expect(
       [{ channel: 'comments', name: 'delete', data: { id } }],
       compareComments,
