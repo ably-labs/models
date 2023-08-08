@@ -31,11 +31,7 @@ export default function Comment({ comment, onEdit, onDelete }: CommentProps) {
   }
 
   return (
-    <div
-      className={`${
-        comment.optimistic ? 'opacity-25' : ''
-      } bg-white/30 px-4 pb-4 mb-2 shadow-xl ring-1 ring-gray-900/5 rounded-lg backdrop-blur-lg max-w-xl mx-auto w-full`}
-    >
+    <div className={`${comment.optimistic ? 'opacity-25' : ''} bg-white/30 px-4 pb-4 mb-2 shadow-xl ring-1 ring-gray-900/5 rounded-lg backdrop-blur-lg max-w-xl mx-auto w-full`}>
       <div className="flex flex-col">
         <div className="flex items-center py-3">
           <div className="flex flex-col space-x-4 pr-3">
