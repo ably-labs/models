@@ -5,11 +5,11 @@ import { User } from '@prisma/client';
 import NewComment from '@/components/new-comment';
 import Comment from '@/components/comment';
 import CommentPlaceholder from '@/components/comment-placeholder';
-import type { CommentsWithAuthor } from '@/lib/prisma/api';
+import type { Comment as CommentType } from '@/lib/prisma/api';
 
 type CommentsProps = {
   postId: number;
-  comments: CommentsWithAuthor;
+  comments: CommentType[];
   onAdd: (author: User, postId: number, content: string) => void;
   onEdit: (id: number, content: string) => void;
   onDelete: (id: number) => void;
