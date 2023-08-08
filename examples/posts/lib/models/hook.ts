@@ -4,6 +4,11 @@ import type { Post as PostType } from '@/lib/prisma/api';
 import * as Mutations from '@/lib/models/mutations';
 import * as Updates from './updates';
 import Models, { Model } from '@ably-labs/models';
+import { configureAbly } from '@ably-labs/react-hooks';
+
+configureAbly({ key: process.env.NEXT_PUBLIC_ABLY_API_KEY });
+
+export type ModelType = Model<PostType, typeof Mutations>;
 
 export async function getPost(id: number) {
   const response = await fetch(`/api/posts/${id}`, {
@@ -17,9 +22,9 @@ export async function getPost(id: number) {
   return { data, version: 1 }; // TODO remove version requirement
 }
 
-export const usePost = (id: number) => {
-  const [model, setModel] = useState<Model<PostType, typeof Mutations> | undefined>(undefined);
-
+export const useModel = (id: number) => {
+  const [model, setModel] = useState<ModelType>();  
+  
   useEffect(() => {
     const ably = assertConfiguration();
     const models = new Models({ ably });
@@ -59,6 +64,5 @@ export const usePost = (id: number) => {
     //   model?.$dispose()
     // };
   });
-
   return model;
 };
