@@ -355,7 +355,7 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
     }, 0);
   }
 
-  private async applyUpdates(initialData: T, event: Event): Promise<T> {
+  private async applyUpdates(initialData: T, event: OptimisticEvent | ConfirmedEvent): Promise<T> {
     this.logger.trace({ ...this.baseLogContext, action: 'applyUpdates()', initialData, event });
     let data = initialData;
     const updates = this.updatesRegistry.get({ channel: event.channel, event: event.name });
