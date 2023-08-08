@@ -39,7 +39,7 @@ function Post({ model }: { model: ModelType }) {
       model.unsubscribe(onUpdate);
     };
   });
-  
+
   async function onAdd(author: AuthorType, postId: number, content: string) {
     if (!model) return;
     const [, update, confirmation] = await model.mutations.addComment.$expect(
@@ -52,10 +52,10 @@ function Post({ model }: { model: ModelType }) {
       await confirmation;
       setAlert('Add comment confirmed!', 'success');
     } catch (err) {
-      setAlert(`Error adding comment: ${err}`, 'error')
+      setAlert(`Error adding comment: ${err}`, 'error');
     }
   }
-  
+
   async function onEdit(id: number, content: string) {
     if (!model) return;
     const [, update, confirmation] = await model.mutations.editComment.$expect(
@@ -68,10 +68,10 @@ function Post({ model }: { model: ModelType }) {
       await confirmation;
       setAlert('Edit comment confirmed!', 'success');
     } catch (err) {
-      setAlert(`Error editing comment: ${err}`, 'error')
+      setAlert(`Error editing comment: ${err}`, 'error');
     }
   }
-  
+
   async function onDelete(id: number) {
     if (!model) return;
     const [, update, confirmation] = await model.mutations.deleteComment.$expect(
@@ -84,7 +84,7 @@ function Post({ model }: { model: ModelType }) {
       await confirmation;
       setAlert('Delete comment confirmed!', 'success');
     } catch (err) {
-      setAlert(`Error deleting comment: ${err}`, 'error')
+      setAlert(`Error deleting comment: ${err}`, 'error');
     }
   }
 
@@ -107,7 +107,7 @@ function Post({ model }: { model: ModelType }) {
   );
 }
 
-export default function PostWrapper({ user, post: initialPost }: { user: AuthorType, post: PostType }) {
+export default function PostWrapper({ user, post: initialPost }: { user: AuthorType; post: PostType }) {
   const model = useModel(initialPost.id);
   if (!model) {
     return <PostPlaceholder />;
@@ -119,5 +119,5 @@ export default function PostWrapper({ user, post: initialPost }: { user: AuthorT
         <Post model={model} />
       </AlertProvider>
     </AuthorProvider>
-  )
+  );
 }

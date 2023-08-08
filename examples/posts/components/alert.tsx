@@ -12,12 +12,10 @@ const typeToColour = (type: Alert['type']): string => {
     return 'bg-red-500';
   }
   return 'bg-gray-500';
-}
+};
 
 const Alert = ({ alert }: { alert: Alert }) => (
-  <div className={`${typeToColour(alert.type)} text-white px-4 py-2 rounded mt-4 shadow`}>
-    {alert.message}
-  </div>
+  <div className={`${typeToColour(alert.type)} text-white px-4 py-2 rounded mt-4 shadow`}>{alert.message}</div>
 );
 
 const AlertContainer = () => {
@@ -25,7 +23,10 @@ const AlertContainer = () => {
   return (
     <div className="fixed bottom-0 left-0 z-50 flex flex-col items-start space-y-4 p-4">
       {alerts.map((alert) => (
-        <Alert key={alert.id} alert={alert} />
+        <Alert
+          key={alert.id}
+          alert={alert}
+        />
       ))}
     </div>
   );

@@ -23,8 +23,8 @@ export async function getPost(id: number) {
 }
 
 export const useModel = (id: number) => {
-  const [model, setModel] = useState<ModelType>();  
-  
+  const [model, setModel] = useState<ModelType>();
+
   useEffect(() => {
     const ably = assertConfiguration();
     const models = new Models({ ably });
