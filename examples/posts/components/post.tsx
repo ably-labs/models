@@ -1,13 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { User } from '@prisma/client';
+import type { Event } from '@ably-labs/models';
+import { configureAbly } from '@ably-labs/react-hooks';
 import type { Post as PostType, Author as AuthorType } from '@/lib/prisma/api';
 import { AuthorProvider } from '@/context/author';
 import Comments from '@/components/comments';
-import { configureAbly } from '@ably-labs/react-hooks';
-import { usePost } from '@/lib/hooks';
-import { Event } from '@ably-labs/models';
+import { usePost } from '@/lib/models/hook';
 
 configureAbly({ key: process.env.NEXT_PUBLIC_ABLY_API_KEY });
 
@@ -41,7 +40,7 @@ export default function Post({ user, post: initialPost }: { user: AuthorType, po
     };
   });
 
-  async function onAdd(author: User, postId: number, content: string) {
+  async function onAdd(author: AuthorType, postId: number, content: string) {
     if (!model) return;
     const [result, update, confirmation] = await model.mutations.addComment.$expect(
       [{ channel: 'comments', name: 'add', data: { author, content } }],
@@ -53,7 +52,7 @@ export default function Post({ user, post: initialPost }: { user: AuthorType, po
     await confirmation;
     console.log('onAdd: confirmed');
   }
-
+  
   async function onEdit(id: number, content: string) {
     if (!model) return;
     const [result, update, confirmation] = await model.mutations.editComment.$expect(
@@ -66,7 +65,7 @@ export default function Post({ user, post: initialPost }: { user: AuthorType, po
     await confirmation;
     console.log('onEdit: confirmed');
   }
-
+  
   async function onDelete(id: number) {
     if (!model) return;
     const [result, update, confirmation] = await model.mutations.deleteComment.$expect(

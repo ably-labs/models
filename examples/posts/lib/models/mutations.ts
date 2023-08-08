@@ -1,18 +1,6 @@
-import type { Post, Comment, Author } from '@/lib/prisma/api';
+import type { Comment as CommentType, Author as AuthorType } from '@/lib/prisma/api';
 
-export async function getPost(id: number) {
-  const response = await fetch(`/api/posts/${id}`, {
-    method: 'GET',
-    headers: { 'Content-Type': 'application/json' },
-  });
-  if (!response.ok) {
-    throw new Error(`GET /api/posts/:id: ${response.status} ${JSON.stringify(await response.json())}`);
-  }
-  const { data } = (await response.json()) as { data: Post };
-  return { data, version: 1 }; // TODO remove version requirement
-}
-
-export async function addComment(author: Author, postId: number, content: string) {
+export async function addComment(author: AuthorType, postId: number, content: string) {
   const response = await fetch('/api/comments', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -21,7 +9,7 @@ export async function addComment(author: Author, postId: number, content: string
   if (!response.ok) {
     throw new Error(`POST /api/comments: ${response.status} ${JSON.stringify(await response.json())}`);
   }
-  return (await response.json()) as { data: Comment };
+  return (await response.json()) as { data: CommentType };
 }
 
 export async function editComment(id: number, content: string) {
@@ -33,7 +21,7 @@ export async function editComment(id: number, content: string) {
   if (!response.ok) {
     throw new Error(`PUT /api/comments/:id: ${response.status} ${JSON.stringify(await response.json())}`);
   }
-  return (await response.json()) as { data: Comment };
+  return (await response.json()) as { data: CommentType };
 }
 
 export async function deleteComment(id: number) {
@@ -43,3 +31,9 @@ export async function deleteComment(id: number) {
   }
   return await response.json();
 }
+
+export type Mutations = {
+  addComment: (...args: Parameters<typeof addComment>) => Promise<void>;
+  editComment: (...args: Parameters<typeof editComment>) => Promise<void>;
+  deleteComment: (...args: Parameters<typeof deleteComment>) => Promise<void>;
+};
