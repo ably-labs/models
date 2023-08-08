@@ -19,7 +19,6 @@ export default function Comments({ postId, comments, onAdd, onEdit, onDelete }: 
   return (
     <>
       <div className="divide-y divide-gray-900/5">
-        {/* TODO: comment.id is undefined when optimistic */}
         {comments.map((comment) => (
           <Suspense
             key={comment.id}

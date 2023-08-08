@@ -3,7 +3,7 @@ import { UpdateFunc } from '@ably-labs/models/dist/mjs/UpdatesRegistry';
 
 export const addComment: UpdateFunc<PostType> = async (state, event) => ({
 	...state,
-	comments: state.comments.concat([{ ...event.data, optimistic: !event.confirmed }]),
+	comments: state.comments.concat([{ id: Math.random(), ...event.data, optimistic: !event.confirmed }]),
 });
 
 export const editComment: UpdateFunc<PostType> = async (state, event) => ({
