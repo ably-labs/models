@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { User } from '@prisma/client';
-import type { CommentWithAuthor, PostWithComments } from '@/lib/prisma/api';
-import { UserProvider } from '@/context/user';
+import type { Post as PostType, Author as AuthorType } from '@/lib/prisma/api';
+import { AuthorProvider } from '@/context/author';
 import Comments from '@/components/comments';
 import { configureAbly } from '@ably-labs/react-hooks';
 import { usePost } from '@/lib/hooks';
@@ -21,12 +21,12 @@ function compareComments(optimistic: Event, confirmed: Event) {
   );
 }
 
-export default function Post({ post: initialPost }: { post: PostWithComments }) {
-  const [post, setPost] = useState<PostWithComments>(initialPost);
+export default function Post({ user, post: initialPost }: { user: AuthorType, post: PostType }) {
+  const [post, setPost] = useState<PostType>(initialPost);
   const model = usePost(initialPost.id);
 
   useEffect(() => {
-    const onUpdate = (err: Error | null, post?: PostWithComments) => {
+    const onUpdate = (err: Error, post: PostType) => {
       console.log('subscribe: ', err, post);
       if (err) {
         console.error(err);
@@ -81,7 +81,7 @@ export default function Post({ post: initialPost }: { post: PostWithComments }) 
   }
 
   return (
-    <UserProvider>
+    <AuthorProvider author={user}>
       <main className="relative flex min-h-screen flex-col items-center justify-center">
         <h1 className="pt-4 pb-8 bg-gradient-to-br from-black via-[#171717] to-[#575757] bg-clip-text text-center text-xl font-medium tracking-tight text-transparent md:text-4xl">
           {post.title}
@@ -97,6 +97,6 @@ export default function Post({ post: initialPost }: { post: PostWithComments }) 
           onDelete={onDelete}
         ></Comments>
       </main>
-    </UserProvider>
+    </AuthorProvider>
   );
 }

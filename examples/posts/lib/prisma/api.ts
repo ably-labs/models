@@ -2,20 +2,40 @@ import * as runtime from '@prisma/client/runtime/library';
 import { Prisma, PrismaClient } from '@prisma/client';
 import prisma from '@/lib/prisma';
 
-export async function getPosts() {
+export type Author = {
+  id: number;
+  username: string;
+  image: string;
+};
+
+export type Comment = {
+  id: number;
+  postId: number;
+  author: Author;
+  content: string;
+  optimistic?: boolean;
+};
+
+export type Post = {
+  id: number;
+  title: string;
+  content: string;
+  comments: Comment[];
+};
+
+export async function getPosts(): Promise<Post[]> {
   return await prisma.post.findMany({
     include: {
-      comments: true,
+      comments: {
+        include: {
+          author: true,
+        },
+      },
     },
   });
 }
 
-export type PostWithComments = Prisma.PromiseReturnType<typeof getPost>;
-export type CommentsWithAuthor = Prisma.PromiseReturnType<typeof getPost>['comments'];
-export type CommentWithAuthor = PostWithComments['comments'][number];
-export type TxClient = Omit<PrismaClient, runtime.ITXClientDenyList>;
-
-export async function getPost(id: number) {
+export async function getPost(id: number): Promise<Post> {
   return await prisma.post.findUniqueOrThrow({
     where: { id },
     include: {
@@ -34,6 +54,8 @@ export async function getRandomUser() {
     skip: Math.floor(Math.random() * count),
   });
 }
+
+export type TxClient = Omit<PrismaClient, runtime.ITXClientDenyList>;
 
 export async function addComment(
   tx: TxClient,

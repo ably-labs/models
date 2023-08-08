@@ -2,23 +2,19 @@
 
 import { useContext, useState, FormEvent } from 'react';
 import Image from 'next/image';
-import type { Prisma } from '@prisma/client';
 import { TrashIcon, PencilIcon } from '@heroicons/react/24/solid';
-import { getPost } from '@/lib/prisma/api';
 import { DEFAULT_AVATAR_URL } from '@/lib/image';
-import { UserContext } from '@/context/user';
-import type { CommentWithAuthor } from '@/lib/prisma/api';
-
-type postWithComments = Prisma.PromiseReturnType<typeof getPost>;
+import { AuthorContext } from '@/context/author';
+import type { Comment as CommentType } from '@/lib/prisma/api';
 
 type CommentProps = {
-  comment: postWithComments['comments'][number];
+  comment: CommentType;
   onEdit: (content: string) => void;
   onDelete: () => void;
 };
 
 export default function Comment({ comment, onEdit, onDelete }: CommentProps) {
-  const user = useContext(UserContext);
+  const user = useContext(AuthorContext);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editedComment, setEditedComment] = useState(comment.content);
 
@@ -35,7 +31,7 @@ export default function Comment({ comment, onEdit, onDelete }: CommentProps) {
   }
 
   return (
-    <div className="bg-white/30 px-4 pb-4 mb-2 shadow-xl ring-1 ring-gray-900/5 rounded-lg backdrop-blur-lg max-w-xl mx-auto w-full">
+    <div className={`${comment.optimistic ? 'opacity-25' : ''} bg-white/30 px-4 pb-4 mb-2 shadow-xl ring-1 ring-gray-900/5 rounded-lg backdrop-blur-lg max-w-xl mx-auto w-full`}>
       <div className="flex flex-col">
         <div className="flex items-center py-3">
           <div className="flex flex-col space-x-4 pr-3">
@@ -49,7 +45,7 @@ export default function Comment({ comment, onEdit, onDelete }: CommentProps) {
           </div>
           <p className="text-sm font-semibold">{comment.author.username}</p>
           <p className="ml-auto text-sm text-gray-500">TODO date</p>
-          {comment.authorId === user?.id && (
+          {comment.author.id === user?.id && (
             <>
               <PencilIcon
                 className="ml-4 h-6 w-6 text-blue-300 hover:text-blue-500 hover:cursor-pointer"

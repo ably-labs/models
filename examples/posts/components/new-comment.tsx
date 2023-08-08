@@ -2,20 +2,20 @@
 
 import { useState, useContext, FormEvent } from 'react';
 import Image from 'next/image';
-import { UserContext } from '@/context/user';
+import { AuthorContext } from '@/context/author';
 import { DEFAULT_AVATAR_URL } from '@/lib/image';
-import { User } from '@prisma/client';
+import { Author as AuthorType } from '@/lib/prisma/api';
 
-export default function NewComment({ onAdd }: { onAdd: (author: User, content: string) => void }) {
-  const user = useContext(UserContext);
+export default function NewComment({ onAdd }: { onAdd: (author: AuthorType, content: string) => void }) {
+  const author = useContext(AuthorContext);
   const [comment, setComment] = useState('');
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!user) {
+    if (!author) {
       throw new Error('user is not set');
     }
-    onAdd(user, comment);
+    onAdd(author, comment);
     setComment('');
   }
 
@@ -29,14 +29,14 @@ export default function NewComment({ onAdd }: { onAdd: (author: User, content: s
           <div className="flex items-center py-3">
             <div className="flex flex-col space-x-4 pr-3">
               <Image
-                src={user?.image || DEFAULT_AVATAR_URL}
-                alt={user?.username || 'avatar'}
+                src={author?.image || DEFAULT_AVATAR_URL}
+                alt={author?.username || 'avatar'}
                 width={36}
                 height={36}
                 className="rounded-full ring-1 ring-gray-900/5"
               />
             </div>
-            <p className="text-sm font-semibold">{user?.username}</p>
+            <p className="text-sm font-semibold">{author?.username}</p>
           </div>
           <label
             htmlFor="comment"
