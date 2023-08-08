@@ -1,7 +1,7 @@
-import type { Event } from './Model.js';
+import type { ConfirmedEvent, OptimisticEvent } from './Model.js';
 import { UpdateRegistrationError } from './Errors.js';
 
-export type UpdateFunc<T> = (state: T, event: Event) => Promise<T>;
+export type UpdateFunc<T> = (state: T, event: OptimisticEvent | ConfirmedEvent) => Promise<T>;
 
 export type UpdateFuncs<T> = {
   [channel: string]: {
