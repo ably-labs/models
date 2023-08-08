@@ -407,25 +407,22 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
 
     this.confirmPendingEvents(event);
 
-    // if the incoming confirmed event confirms the next expected optimistic event for the stream, it is
-    // discarded without applying it to the speculative state because its effect has already been optimistically applied
-    let unexpectedEvent = true;
+    // If the incoming confirmed event confirms the next expected optimistic event for the stream,
+    // the optimistic event is discarded before rolling back to the last-confirmed state, applying
+    // the confirmed event and re-basing remaining optimistic events on top, so that we include any
+    // additional data on the confirmed event in the updated data.
     for (let i = 0; i < this.optimisticEvents.length; i++) {
       let e = this.optimisticEvents[i];
       if (e.params.comparator(e, event)) {
         this.optimisticEvents.splice(i, 1);
-        await this.applyConfirmedUpdates(this.confirmedData, event);
-        unexpectedEvent = false;
-        break;
+        await this.applyWithRebase(event, this.optimisticEvents);
+        return;
       }
     }
 
-    // if the incoming confirmed event doesn't match any optimistic event,
-    // we need to roll back to the last-confirmed state, apply the incoming event,
-    // and rebase the optimistic updates on top
-    if (unexpectedEvent) {
-      await this.applyWithRebase(event, this.optimisticEvents);
-    }
+    // If the incoming confirmed event doesn't match any optimistic event, we roll back to the
+    // last-confirmed state, apply the incoming event, and rebase the optimistic updates on top.
+    await this.applyWithRebase(event, this.optimisticEvents);
   }
 
   private async applyWithRebase(confirmedEvent: ConfirmedEvent, optimisticEvents: OptimisticEvent[]) {
