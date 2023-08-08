@@ -9,10 +9,7 @@ export default async function Page({ params }: { params: { id: number } }) {
   const user = await getRandomUser();
   return (
     <Suspense fallback={<PostPlaceholder />}>
-      <Post
-        user={user}
-        post={post}
-      />
+      <Post user={user} post={post} />
     </Suspense>
   );
 }
