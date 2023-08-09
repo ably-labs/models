@@ -1,4 +1,9 @@
 import type { UpdateTargets } from './UpdatesRegistry.js';
+import toString from 'lodash/toString';
+
+export function toError(err: any) {
+  return err instanceof Error ? err : new Error(toString(err));
+}
 
 export class RegistrationError extends Error {
   constructor(message: string) {

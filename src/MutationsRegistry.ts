@@ -1,6 +1,6 @@
 import isEqual from 'lodash/isEqual.js';
 import { Event, OptimisticEventWithParams } from './Model.js';
-import { toError } from './utilities/Errors.js';
+import { toError } from './Errors.js';
 
 /**
  * A MutationFunc is a function that mutates the actual data, typically via an API request to the backend.
