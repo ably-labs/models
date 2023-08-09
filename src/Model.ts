@@ -60,7 +60,7 @@ export type OptimisticEventWithParams = OptimisticEvent & {
   params: EventParams;
 };
 
-export type SyncFunc<T> = () => Promise<Versioned<T>>;
+export type SyncFunc<T> = () => Promise<T>;
 
 export type Streams = {
   [name: string]: Stream;
@@ -75,11 +75,6 @@ export type ModelStateChange = {
   current: ModelState;
   previous: ModelState;
   reason?: Error;
-};
-
-export type Versioned<T> = {
-  version: number;
-  data: T;
 };
 
 export type SubscriptionOptions = {
@@ -313,7 +308,7 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
       this.addStream(channel);
     }
 
-    const { data } = await this.sync();
+    const data = await this.sync();
     this.setOptimisticData(data);
     this.setConfirmedData(data);
     this.setState(ModelState.READY);
