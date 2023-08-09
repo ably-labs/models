@@ -26,13 +26,13 @@ export default function Post({ post: initialPost }: { post: PostWithComments }) 
   const model = usePost(initialPost.id);
 
   useEffect(() => {
-    const onUpdate = (err: Error, post: PostWithComments) => {
+    const onUpdate = (err: Error | null, post?: PostWithComments) => {
       console.log('subscribe: ', err, post);
       if (err) {
         console.error(err);
         return;
       }
-      setPost(post);
+      setPost(post!);
     };
     if (!model) return;
     model.subscribe(onUpdate);

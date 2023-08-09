@@ -224,7 +224,7 @@ describe('Model', () => {
     let subscription = new Subject<void>();
     const subscriptionCalls = getEventPromises(subscription, 5);
 
-    const subscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() => subscription.next());
+    const subscriptionSpy = vi.fn<[Error | null, string?]>(() => subscription.next());
     model.subscribe(subscriptionSpy);
 
     // initial data
@@ -289,7 +289,7 @@ describe('Model', () => {
     let subscription = new Subject<void>();
     const subscriptionCall = getNthEventPromise(subscription, 1);
 
-    const subscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() => subscription.next());
+    const subscriptionSpy = vi.fn<[Error | null, string?]>(() => subscription.next());
     model.subscribe(subscriptionSpy);
 
     // initial data
@@ -400,16 +400,12 @@ describe('Model', () => {
 
     let optimisticSubscription = new Subject<void>();
     const optimisticSubscriptionCalls = getEventPromises(optimisticSubscription, 2);
-    const optimisticSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() =>
-      optimisticSubscription.next(),
-    );
+    const optimisticSubscriptionSpy = vi.fn<[Error | null, string?]>(() => optimisticSubscription.next());
     model.subscribe(optimisticSubscriptionSpy);
 
     let confirmedSubscription = new Subject<void>();
     const confirmedSubscriptionCalls = getEventPromises(confirmedSubscription, 2);
-    const confirmedSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() =>
-      confirmedSubscription.next(),
-    );
+    const confirmedSubscriptionSpy = vi.fn<[Error | null, string?]>(() => confirmedSubscription.next());
     model.subscribe(confirmedSubscriptionSpy, { optimistic: false });
 
     await optimisticSubscriptionCalls[0];
@@ -454,16 +450,12 @@ describe('Model', () => {
 
     let optimisticSubscription = new Subject<void>();
     const optimisticSubscriptionCalls = getEventPromises(optimisticSubscription, 2);
-    const optimisticSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() =>
-      optimisticSubscription.next(),
-    );
+    const optimisticSubscriptionSpy = vi.fn<[Error | null, string?]>(() => optimisticSubscription.next());
     model.subscribe(optimisticSubscriptionSpy);
 
     let confirmedSubscription = new Subject<void>();
     const confirmedSubscriptionCalls = getEventPromises(confirmedSubscription, 2);
-    const confirmedSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() =>
-      confirmedSubscription.next(),
-    );
+    const confirmedSubscriptionSpy = vi.fn<[Error | null, string?]>(() => confirmedSubscription.next());
     model.subscribe(confirmedSubscriptionSpy, { optimistic: false });
 
     await optimisticSubscriptionCalls[0];
@@ -512,16 +504,12 @@ describe('Model', () => {
 
     let optimisticSubscription = new Subject<void>();
     const optimisticSubscriptionCalls = getEventPromises(optimisticSubscription, 2);
-    const optimisticSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() =>
-      optimisticSubscription.next(),
-    );
+    const optimisticSubscriptionSpy = vi.fn<[Error | null, string?]>(() => optimisticSubscription.next());
     model.subscribe(optimisticSubscriptionSpy);
 
     let confirmedSubscription = new Subject<void>();
     const confirmedSubscriptionCalls = getEventPromises(confirmedSubscription, 2);
-    const confirmedSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() =>
-      confirmedSubscription.next(),
-    );
+    const confirmedSubscriptionSpy = vi.fn<[Error | null, string?]>(() => confirmedSubscription.next());
     model.subscribe(confirmedSubscriptionSpy, { optimistic: false });
 
     await optimisticSubscriptionCalls[0];
@@ -576,16 +564,12 @@ describe('Model', () => {
 
     let optimisticSubscription = new Subject<void>();
     const optimisticSubscriptionCalls = getEventPromises(optimisticSubscription, 4);
-    const optimisticSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() =>
-      optimisticSubscription.next(),
-    );
+    const optimisticSubscriptionSpy = vi.fn<[Error | null, string?]>(() => optimisticSubscription.next());
     model.subscribe(optimisticSubscriptionSpy);
 
     let confirmedSubscription = new Subject<void>();
     const confirmedSubscriptionCalls = getEventPromises(confirmedSubscription, 3);
-    const confirmedSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() =>
-      confirmedSubscription.next(),
-    );
+    const confirmedSubscriptionSpy = vi.fn<[Error | null, string?]>(() => confirmedSubscription.next());
     model.subscribe(confirmedSubscriptionSpy, { optimistic: false });
 
     await optimisticSubscriptionCalls[0];
@@ -669,16 +653,12 @@ describe('Model', () => {
 
     let optimisticSubscription = new Subject<void>();
     const optimisticSubscriptionCalls = getEventPromises(optimisticSubscription, 6);
-    const optimisticSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() =>
-      optimisticSubscription.next(),
-    );
+    const optimisticSubscriptionSpy = vi.fn<[Error | null, string?]>(() => optimisticSubscription.next());
     model.subscribe(optimisticSubscriptionSpy);
 
     let confirmedSubscription = new Subject<void>();
     const confirmedSubscriptionCalls = getEventPromises(confirmedSubscription, 4);
-    const confirmedSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() =>
-      confirmedSubscription.next(),
-    );
+    const confirmedSubscriptionSpy = vi.fn<[Error | null, string?]>(() => confirmedSubscription.next());
     model.subscribe(confirmedSubscriptionSpy, { optimistic: false });
 
     await optimisticSubscriptionCalls[0];
@@ -768,16 +748,12 @@ describe('Model', () => {
 
     let optimisticSubscription = new Subject<void>();
     const optimisticSubscriptionCalls = getEventPromises(optimisticSubscription, 5);
-    const optimisticSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() =>
-      optimisticSubscription.next(),
-    );
+    const optimisticSubscriptionSpy = vi.fn<[Error | null, string?]>(() => optimisticSubscription.next());
     model.subscribe(optimisticSubscriptionSpy);
 
     let confirmedSubscription = new Subject<void>();
     const confirmedSubscriptionCalls = getEventPromises(confirmedSubscription, 4);
-    const confirmedSubscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() =>
-      confirmedSubscription.next(),
-    );
+    const confirmedSubscriptionSpy = vi.fn<[Error | null, string?]>(() => confirmedSubscription.next());
     model.subscribe(confirmedSubscriptionSpy, { optimistic: false });
 
     await optimisticSubscriptionCalls[0];
@@ -919,7 +895,7 @@ describe('Model', () => {
 
     let subscription = new Subject<void>();
     const subscriptionCalls = getEventPromises(subscription, 5);
-    const subscriptionSpy = vi.fn<[Error | null | undefined, string | undefined]>(() => {
+    const subscriptionSpy = vi.fn<[Error | null, string?]>(() => {
       subscription.next();
     });
     model.subscribe(subscriptionSpy);

@@ -243,7 +243,10 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
     }
   }
 
-  public subscribe(callback: StandardCallback<T>, options: SubscriptionOptions = { optimistic: true }) {
+  public subscribe(
+    callback: (err: Error | null, result?: T) => void,
+    options: SubscriptionOptions = { optimistic: true },
+  ) {
     this.logger.trace({ ...this.baseLogContext, action: 'subscribe()', options });
 
     let timeout: NodeJS.Timeout;
@@ -280,7 +283,7 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
     timeout = setTimeout(() => callback(null, this.confirmedData), 0);
   }
 
-  public unsubscribe(callback: StandardCallback<T>) {
+  public unsubscribe(callback: (err: Error | null, result?: T) => void) {
     this.logger.trace({ ...this.baseLogContext, action: 'unsubscribe()' });
     const subscription = this.subscriptionMap.get(callback);
     if (subscription) {
@@ -329,7 +332,7 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
 
   private addStream(channel: string) {
     this.streamRegistry.streams[channel] = this.streamRegistry.getOrCreate({ channel });
-    const callback: StandardCallback<AblyTypes.Message> = async (err, event) => {
+    const callback: StandardCallback<AblyTypes.Message> = async (err: Error | null, event?: AblyTypes.Message) => {
       try {
         if (err) {
           throw err;
