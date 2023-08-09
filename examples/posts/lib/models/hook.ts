@@ -19,7 +19,7 @@ export async function getPost(id: number) {
     throw new Error(`GET /api/posts/:id: ${response.status} ${JSON.stringify(await response.json())}`);
   }
   const { data } = (await response.json()) as { data: PostType };
-  return { data, version: 1 }; // TODO remove version requirement
+  return data;
 }
 
 export const useModel = (id: number) => {
