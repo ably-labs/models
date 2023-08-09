@@ -7,8 +7,7 @@ import EventEmitter from './utilities/EventEmitter.js';
 import type { StandardCallback } from './types/callbacks';
 import UpdatesRegistry, { UpdateFunc } from './UpdatesRegistry.js';
 import MutationsRegistry, { MutationRegistration, MutationMethods, EventComparator } from './MutationsRegistry.js';
-import { UpdateRegistrationError } from './Errors.js';
-import { toError } from './utilities/Errors.js';
+import { toError, UpdateRegistrationError } from './Errors.js';
 
 export enum ModelState {
   /**
