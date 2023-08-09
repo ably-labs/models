@@ -5,7 +5,7 @@ import { take } from 'rxjs';
 import pino from 'pino';
 
 import { createMessage, customMessage } from './utilities/test/messages.js';
-import Model, { ModelState, ModelStateChange, Versioned, ModelOptions, Event } from './Model.js';
+import Model, { ModelState, ModelStateChange, ModelOptions, Event } from './Model.js';
 import { StreamOptions, IStream, StreamState } from './Stream.js';
 import { IStreamRegistry } from './StreamRegistry.js';
 import { MutationMethods, EventComparator } from './MutationsRegistry.js';
@@ -57,13 +57,10 @@ type TestData = {
   };
 };
 
-const simpleTestData: Versioned<TestData> = {
-  version: 1,
-  data: {
-    foo: 'foobar',
-    bar: {
-      baz: 1,
-    },
+const simpleTestData: TestData = {
+  foo: 'foobar',
+  bar: {
+    baz: 1,
   },
 };
 
@@ -115,8 +112,8 @@ describe('Model', () => {
     await ready;
     await modelStatePromise(model, ModelState.READY);
     expect(sync).toHaveBeenCalledOnce();
-    expect(model.optimistic).toEqual(simpleTestData.data);
-    expect(model.confirmed).toEqual(simpleTestData.data);
+    expect(model.optimistic).toEqual(simpleTestData);
+    expect(model.confirmed).toEqual(simpleTestData);
   });
 
   it<ModelTestContext>('pauses and resumes the model', async ({ ably, logger, streams }) => {
@@ -186,11 +183,6 @@ describe('Model', () => {
   });
 
   it<ModelTestContext>('subscribes to updates', async ({ ably, logger, streams }) => {
-    const data: Versioned<any> = {
-      version: 0,
-      data: 'data_0',
-    };
-
     // event subjects used to invoke the stream subscription callbacks
     // registered by the model, to simulate stream data
     const events = {
@@ -205,7 +197,7 @@ describe('Model', () => {
       events.e2.subscribe((message) => callback(null, message)),
     );
 
-    const sync = vi.fn(async () => data); // defines initial version of model
+    const sync = vi.fn(async () => 'data_0'); // defines initial version of model
     const model = new Model<string, {}>('test', { ably, logger });
 
     const update1 = vi.fn(async (state, event) => event.data);
@@ -270,12 +262,7 @@ describe('Model', () => {
   });
 
   it<ModelTestContext>('subscribes after initialisation', async ({ ably, logger }) => {
-    const data: Versioned<any> = {
-      version: 0,
-      data: 'data_0',
-    };
-
-    const sync = vi.fn(async () => data); // defines initial version of model
+    const sync = vi.fn(async () => 'data_0'); // defines initial version of model
     const model = new Model<string, {}>('test', { ably, logger });
 
     await model.$register({ $sync: sync });
@@ -309,7 +296,7 @@ describe('Model', () => {
 
     const mutation = vi.fn(async () => 'test');
     await model.$register({
-      $sync: async () => ({ version: 1, data: 'foobar' }),
+      $sync: async () => 'foobar',
       $mutate: { foo: mutation },
     });
 
@@ -326,7 +313,7 @@ describe('Model', () => {
     const model = new Model<string, { foo: () => Promise<void> }>('test', { ably, logger });
 
     const mutation = vi.fn();
-    const sync = async () => ({ version: 1, data: 'foobar' });
+    const sync = async () => 'foobar';
     model.$register({
       $sync: sync,
       $mutate: { foo: mutation },
@@ -357,7 +344,7 @@ describe('Model', () => {
     const model = new ModelWithSetState<string, { foo: () => Promise<void> }>('test', { ably, logger });
 
     const mutation = vi.fn();
-    const sync = async () => ({ version: 1, data: 'foobar' });
+    const sync = async () => 'foobar';
 
     model.setState(ModelState.READY);
 
@@ -375,7 +362,7 @@ describe('Model', () => {
 
     const mutation = vi.fn(async () => 'test');
     await model.$register({
-      $sync: async () => ({ version: 1, data: 'foobar' }),
+      $sync: async () => 'foobar',
       $mutate: { foo: mutation },
     });
     await expect(model.mutations.foo.$expect([{ channel: 'unknown', name: 'foo' }])()).rejects.toThrow(
@@ -393,7 +380,7 @@ describe('Model', () => {
     const update1 = vi.fn(async (state, event) => event.data);
     const mutation = vi.fn(async () => 'test');
     await model.$register({
-      $sync: async () => ({ version: 1, data: 'data_0' }),
+      $sync: async () => 'data_0',
       $update: { s1: { testEvent: update1 } },
       $mutate: { foo: mutation },
     });
@@ -443,7 +430,7 @@ describe('Model', () => {
     const update1 = vi.fn(async (state, event) => event.data);
     const mutation = vi.fn(async () => 'test');
     await model.$register({
-      $sync: async () => ({ version: 1, data: 'data_0' }),
+      $sync: async () => 'data_0',
       $update: { s1: { testEvent: update1 } },
       $mutate: { foo: mutation },
     });
@@ -497,7 +484,7 @@ describe('Model', () => {
     const update1 = vi.fn(async (state, event) => event.data);
     const mutation = vi.fn(async () => 'test');
     await model.$register({
-      $sync: async () => ({ version: 1, data: 'data_0' }),
+      $sync: async () => 'data_0',
       $update: { s1: { testEvent: update1 } },
       $mutate: { foo: mutation },
     });
@@ -557,7 +544,7 @@ describe('Model', () => {
     const update1 = vi.fn(async (state, event) => state + event.data);
     const mutation = vi.fn(async () => 'test');
     await model.$register({
-      $sync: async () => ({ version: 1, data: '0' }),
+      $sync: async () => '0',
       $update: { s1: { testEvent: update1 } },
       $mutate: { foo: mutation },
     });
@@ -646,7 +633,7 @@ describe('Model', () => {
     const update1 = vi.fn(async (state, event) => state + event.data);
     const mutation = vi.fn(async () => 'test');
     await model.$register({
-      $sync: async () => ({ version: 1, data: '0' }),
+      $sync: async () => '0',
       $update: { s1: { testEvent: update1 }, s2: { testEvent: update1 } },
       $mutate: { foo: mutation },
     });
@@ -741,7 +728,7 @@ describe('Model', () => {
     const update1 = vi.fn(async (state, event) => state + event.data);
     const mutation = vi.fn(async () => 'test');
     await model.$register({
-      $sync: async () => ({ version: 1, data: '0' }),
+      $sync: async () => '0',
       $update: { s1: { testEvent: update1 } },
       $mutate: { foo: mutation },
     });
@@ -834,7 +821,7 @@ describe('Model', () => {
     });
 
     await model.$register({
-      $sync: async () => ({ version: 1, data: '0' }),
+      $sync: async () => '0',
       $update: { s1: { testEvent: update1 } },
       $mutate: { mutation1, mutation2 },
     });
@@ -880,7 +867,7 @@ describe('Model', () => {
 
     let counter = 0;
 
-    const sync = vi.fn(async () => ({ version: counter + 1, data: String(counter) }));
+    const sync = vi.fn(async () => `${counter}`);
     const model = new Model<string, {}>('test', { ably, logger });
 
     const update1 = vi.fn(async (state, event) => {
@@ -941,7 +928,7 @@ describe('Model', () => {
     });
     const mutation = vi.fn(async () => 'test');
     await model.$register({
-      $sync: async () => ({ version: 1, data: '0' }),
+      $sync: async () => '0',
       $update: { s1: { testEvent: update1 } },
       $mutate: { mutation },
     });
@@ -978,7 +965,7 @@ describe('Model', () => {
     const update1 = vi.fn(async (state, event) => state + event.data);
     const mutation = vi.fn(async () => 'test');
     await model.$register({
-      $sync: async () => ({ version: 1, data: '0' }),
+      $sync: async () => '0',
       $update: { s1: { testEvent: update1 } },
       $mutate: {
         foo: {
@@ -1020,7 +1007,7 @@ describe('Model', () => {
     const update1 = vi.fn(async (state, event) => state + event.data);
     const mutation = vi.fn(async () => 'test');
     await model.$register({
-      $sync: async () => ({ version: 1, data: '0' }),
+      $sync: async () => '0',
       $update: { s1: { testEvent: update1 } },
       $mutate: {
         foo: {
