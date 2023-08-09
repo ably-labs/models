@@ -42,15 +42,15 @@ export const useModel = (id: number) => {
         $mutate: {
           addComment: {
             func: Mutations.addComment,
-            options: { timeout: 2000 },
+            options: { timeout: 5000 },
           },
           editComment: {
             func: Mutations.editComment,
-            options: { timeout: 2000 },
+            options: { timeout: 5000 },
           },
           deleteComment: {
             func: Mutations.deleteComment,
-            options: { timeout: 2000 },
+            options: { timeout: 5000 },
           },
         },
       });
