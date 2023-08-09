@@ -25,7 +25,7 @@ function Post({ model }: { model: ModelType }) {
   const [post, setPost] = useState<PostType>(model.confirmed);
 
   useEffect(() => {
-    const onUpdate = (err: Error, post: PostType) => {
+    const onUpdate = (err: Error | null, post?: PostType) => {
       console.log('subscribe: ', err, post);
       if (err) {
         console.error(err);
