@@ -8,6 +8,7 @@
     "strict": true,
     "alwaysStrict": true,
     "noImplicitThis": true,
+    "noImplicitAny": true,
     "esModuleInterop": true,
     "declaration": true,
     "moduleResolution": "node",
