@@ -1,145 +1,26 @@
-import type { Logger } from 'pino';
 import type { Types as AblyTypes } from 'ably/promises.js';
+import type { Logger } from 'pino';
 import { Subject, Subscription } from 'rxjs';
+
+import { toError, UpdateRegistrationError } from './Errors.js';
+import MutationsRegistry from './MutationsRegistry.js';
 import { IStream } from './Stream.js';
 import StreamRegistry from './StreamRegistry.js';
-import EventEmitter from './utilities/EventEmitter.js';
 import type { StandardCallback } from './types/callbacks';
-import UpdatesRegistry, { UpdateFunc } from './UpdatesRegistry.js';
-import MutationsRegistry, { MutationRegistration, MutationMethods, EventComparator } from './MutationsRegistry.js';
-import { toError, UpdateRegistrationError } from './Errors.js';
-
-/**
- * ModelState represents the possible lifecycle states of a model.
- */
-export enum ModelState {
-  /**
-   * The model has been initialized but no attach has yet been attempted.
-   */
-  INITIALIZED = 'initialized',
-  /**
-   * The model is attempting to synchronise its state via a synchronisation call.
-   * The preparing state is entered as soon as the library has completed initialization,
-   * and is reentered each time there is a discontinuity in one of the underlying streams,
-   * or if there is an error updating the model.
-   */
-  PREPARING = 'preparing',
-  /**
-   * The model's underlying streams are in the READY state and the model is operating correctly.
-   */
-  READY = 'ready',
-  /**
-   * The user has paused the model and its' underlying streams.
-   */
-  PAUSED = 'paused',
-  /**
-   * The model has been disposed, either by the user disposing it or an unrecoverable error,
-   * and its resources are available for garbage collection.
-   */
-  DISPOSED = 'disposed',
-}
-
-/**
- * Represents a change event that can be applied to a model via an {@link UpdateFunc}.
- */
-export type Event = {
-  channel: string;
-  name: string;
-  data?: any;
-};
-
-/**
- * Parameters which can be used to decorate a specific event.
- */
-export type EventParams = {
-  /**
-   * The time within which an optimistic event should be confirmed.
-   */
-  timeout: number;
-  /**
-   * A function used to correlate optimistic events with the confirmed counterparts.
-   */
-  comparator: EventComparator;
-};
-
-/**
- * An event that is emitted locally only in order to apply local optimistic updates to the model state.
- */
-export type OptimisticEvent = Event & {
-  confirmed: false;
-};
-
-/**
- * An event received from the backend over Ably that represents a confirmed mutation on the underlying state in the database.
- */
-export type ConfirmedEvent = Event & {
-  confirmed: true;
-};
-
-/**
- * Decorates an optimistic event with event-specific parameters.
- */
-export type OptimisticEventWithParams = OptimisticEvent & {
-  params: EventParams;
-};
-
-/**
- * Defines a function which the library will use to pull the latest state of the model from the backend.
- * Invoked on initialisation and whenever some discontinuity occurs that requires a re-sync.
- */
-export type SyncFunc<T> = () => Promise<T>;
-
-/**
- * Options used to configure a model instance.
- */
-export type ModelOptions = {
-  ably: AblyTypes.RealtimePromise;
-  logger: Logger;
-};
-
-/**
- * A state transition emitted as an event from the model describing a change to the model's lifecycle.
- */
-export type ModelStateChange = {
-  current: ModelState;
-  previous: ModelState;
-  reason?: Error;
-};
-
-/**
- * Options used to configure a subscription to model data changes.
- */
-export type SubscriptionOptions = {
-  /**
-   * If true, the subscription callback is invoked for local optimistic updates.
-   * If false, it is invoked only with confirmed changes to the model data.
-   */
-  optimistic: boolean;
-};
-
-/**
- * A type used to capture the bulk registration of the required methods on the model.
- */
-export type Registration<T, M extends MutationMethods> = {
-  /**
-   * The sync function used to pull the latest state of the model.
-   */
-  $sync: SyncFunc<T>;
-  /**
-   * A mapping of channel name to event to an update function that is invoked when a message
-   * is received matching that channel and event name.
-   */
-  $update?: {
-    [channel: string]: {
-      [event: string]: UpdateFunc<T>;
-    };
-  };
-  /**
-   * A mapping of method names to mutations describing the mutations that are available on the model that
-   * can be invoked to mutate the underlying state of the model in the backend database.
-   */
-  $mutate?: { [K in keyof M]: MutationRegistration<M[K]> };
-};
+import type {
+  OptimisticEventWithParams,
+  ModelState,
+  ModelStateChange,
+  ModelOptions,
+  SyncFunc,
+  Registration,
+  SubscriptionOptions,
+  OptimisticEvent,
+  ConfirmedEvent,
+} from './types/model.js';
+import type { MutationMethods } from './types/mutations.js';
+import UpdatesRegistry from './UpdatesRegistry.js';
+import EventEmitter from './utilities/EventEmitter.js';
 
 type PendingConfirmation = {
   unconfirmedEvents: OptimisticEventWithParams[];
@@ -151,22 +32,22 @@ type PendingConfirmation = {
 /**
  * A Model encapsulates an observable, collaborative data model backed by a transactional database in your backend.
  *
- * It allows you to define a set of {@link MutationsRegistry.MutationFunc} on the model which typically trigger some backend endpoint
+ * It allows you to define a set of mutation functions on the model which typically trigger some backend endpoint
  * to mutate the model state in the database. Your backend is expected to emit ordered events that confirm this mutation.
- * The model will receive these events as {@link ConfirmedEvent}s and update the model's state in accordance with
- * some matching {@link UpdateFunc}.
+ * The model will receive these events as confirmed events and update the model's state in accordance with
+ * some matching update functions.
  *
- * Additionally, mutations may emit {@link OptimisticEvent}s which are applied locally to generate an optimistic
+ * Additionally, mutations may emit optimistic events which are applied locally to generate an optimistic
  * view of your data, which must be confirmed within the configured timeout.
  *
  * @template T - The type of your data model.
- * @template M - The type of the mutation methods. This should be a map from method names to {@link MutationsRegistry.MutationFunc}.
+ * @template M - The type of the mutation methods. This should be a map from method names to mutations.
  *
- * @extends {EventEmitter<Record<ModelState, ModelStateChange>>} Allows you to listen for {@link ModelStateChange} events to hook into the model lifecycle.
+ * @extends {EventEmitter<Record<ModelState, ModelStateChange>>} Allows you to listen for model state changes to hook into the model lifecycle.
  */
 export default class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   private wasRegistered = false;
-  private currentState: ModelState = ModelState.INITIALIZED;
+  private currentState: ModelState = 'initialized';
   private optimisticData!: T;
   private confirmedData!: T;
 
@@ -236,7 +117,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
    */
   public async $pause() {
     this.logger.trace({ ...this.baseLogContext, action: 'pause()' });
-    this.setState(ModelState.PAUSED);
+    this.setState('paused');
     await Promise.all(Object.values(this.streamRegistry.streams).map((stream) => stream.pause()));
   }
 
@@ -247,7 +128,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
   public async $resume() {
     this.logger.trace({ ...this.baseLogContext, action: 'resume()' });
     await Promise.all(Object.values(this.streamRegistry.streams).map((stream) => stream.resume()));
-    this.setState(ModelState.READY);
+    this.setState('ready');
   }
 
   /**
@@ -258,7 +139,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
    */
   public $dispose(reason?: Error) {
     this.logger.trace({ ...this.baseLogContext, action: 'dispose()', reason });
-    this.setState(ModelState.DISPOSED, reason);
+    this.setState('disposed', reason);
     this.subscriptions.unsubscribe();
     for (const streamName in this.streamRegistry.streams) {
       const stream = this.streamRegistry.streams[streamName];
@@ -277,11 +158,11 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
     }
     this.subscriptionMap = new WeakMap();
     this.streamSubscriptionsMap = new WeakMap();
-    return new Promise((resolve) => this.whenState(ModelState.DISPOSED, this.state, resolve));
+    return new Promise((resolve) => this.whenState('disposed', this.state, resolve));
   }
 
   /**
-   * Registers a {@link SyncFunc}, a set of {@link UpdateFunc}s and {@link MutationsRegistry.MutationFunc}s for use by this model.
+   * Registers a sync function, a set of update functions and mutations for use by this model.
    * This should be called once by your application before you subscribe to the model state.
    * @param {Registration<T, M>} registration - The set of methods to register.
    * @returns A promise that resolves when the model has completed the registrtion and is ready to start emitting updates.
@@ -290,9 +171,9 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
     if (this.wasRegistered) {
       throw new Error('$register was already called');
     }
-    if (this.state !== ModelState.INITIALIZED) {
+    if (this.state !== 'initialized') {
       throw new Error(
-        `$register can only be called when the model is in the ${ModelState.INITIALIZED} state (current: ${this.state})`,
+        `$register can only be called when the model is in the ${'initialized'} state (current: ${this.state})`,
       );
     }
     this.wasRegistered = true;
@@ -309,7 +190,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
       this.mutationsRegistry.register(registration.$mutate);
     }
     this.init();
-    return new Promise((resolve) => this.whenState(ModelState.READY, this.state, resolve));
+    return new Promise((resolve) => this.whenState('ready', this.state, resolve));
   }
 
   /**
@@ -412,7 +293,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
 
   private async init(reason?: Error) {
     this.logger.trace({ ...this.baseLogContext, action: 'init()', reason });
-    this.setState(ModelState.PREPARING, reason);
+    this.setState('preparing', reason);
 
     this.removeStreams();
 
@@ -423,7 +304,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
     const data = await this.sync();
     this.setOptimisticData(data);
     this.setConfirmedData(data);
-    this.setState(ModelState.READY);
+    this.setState('ready');
   }
 
   private removeStreams() {
@@ -458,7 +339,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
     this.optimisticData = data;
     setTimeout(() => {
       // allow other updates to finish before invoking subscription callback
-      if (this.state !== ModelState.DISPOSED) {
+      if (this.state !== 'disposed') {
         this.subscriptions.next({ confirmed: false, data });
       }
     }, 0);
@@ -469,7 +350,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
     this.confirmedData = data;
     setTimeout(() => {
       // allow other updates to finish before invoking subscription callback
-      if (this.state !== ModelState.DISPOSED) {
+      if (this.state !== 'disposed') {
         this.subscriptions.next({ confirmed: true, data });
       }
     }, 0);

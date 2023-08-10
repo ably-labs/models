@@ -1,5 +1,6 @@
-import type { UpdateTargets } from './UpdatesRegistry.js';
 import toString from 'lodash/toString';
+
+import type { UpdateTargets } from './UpdatesRegistry.js';
 
 export function toError(err: any) {
   return err instanceof Error ? err : new Error(toString(err));

@@ -1,5 +1,5 @@
-import Ably from 'ably/promises';
 import Models from '@ably-labs/models';
+import Ably from 'ably/promises';
 import pino from 'pino';
 
 const logger = pino();

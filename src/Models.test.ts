@@ -1,5 +1,5 @@
-import { vi, it, describe, expect, expectTypeOf, beforeEach } from 'vitest';
 import { Realtime, Types } from 'ably/promises';
+import { vi, it, describe, expect, expectTypeOf, beforeEach } from 'vitest';
 
 import Models from './Models.js';
 

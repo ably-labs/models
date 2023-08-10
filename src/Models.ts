@@ -1,8 +1,13 @@
 import type { Types } from 'ably/promises';
-import Model, { ModelOptions } from './Model.js';
 import pino, { LevelWithSilent } from 'pino';
-import { MutationMethods } from './MutationsRegistry.js';
 
+import Model from './Model.js';
+import type { ModelOptions } from './types/model.js';
+import type { MutationMethods } from './types/mutations.js';
+
+/**
+ * Options used to configure all model instances.
+ */
 export type ModelsOptions = {
   ably: Types.RealtimePromise;
   logLevel?: LevelWithSilent;
@@ -30,7 +35,7 @@ export default class Models {
   }
 
   /**
-   * @returns {Types.RealtimePromise} The Ably client shared by all models and registered via the {@link ModelsOptions}.
+   * @returns {Types.RealtimePromise} The Ably client shared by all models.
    */
   get ably() {
     return this.options.ably;

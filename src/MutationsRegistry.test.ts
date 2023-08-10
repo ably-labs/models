@@ -1,12 +1,8 @@
 import { it, describe, expect, vi } from 'vitest';
-import MutationsRegistry, {
-  MutationMethods,
-  MutationFunc,
-  defaultComparator,
-  DEFAULT_OPTIONS,
-  EventComparator,
-} from './MutationsRegistry.js';
-import type { Event, EventParams, OptimisticEventWithParams } from './Model.js';
+
+import MutationsRegistry, { defaultComparator, DEFAULT_OPTIONS } from './MutationsRegistry.js';
+import type { Event, EventParams, OptimisticEventWithParams } from './types/model.js';
+import type { MutationMethods, MutationFunc, EventComparator } from './types/mutations.js';
 
 interface Methods extends MutationMethods {
   one: MutationFunc<[string], string>;

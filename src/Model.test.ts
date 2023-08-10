@@ -1,14 +1,15 @@
-import { it, describe, expect, afterEach, vi, beforeEach } from 'vitest';
 import { Realtime, Types } from 'ably/promises';
-import { Subject, lastValueFrom } from 'rxjs';
-import { take } from 'rxjs';
 import pino from 'pino';
+import { take } from 'rxjs';
+import { Subject, lastValueFrom } from 'rxjs';
+import { it, describe, expect, afterEach, vi, beforeEach } from 'vitest';
 
-import { createMessage, customMessage } from './utilities/test/messages.js';
-import Model, { ModelState, ModelStateChange, ModelOptions, Event } from './Model.js';
+import Model from './Model.js';
 import { StreamOptions, IStream, StreamState } from './Stream.js';
 import { IStreamRegistry } from './StreamRegistry.js';
-import { MutationMethods, EventComparator } from './MutationsRegistry.js';
+import type { ModelState, ModelStateChange, ModelOptions, Event } from './types/model.d.ts';
+import type { MutationMethods, EventComparator } from './types/mutations.d.ts';
+import { createMessage, customMessage } from './utilities/test/messages.js';
 
 vi.mock('ably/promises');
 
@@ -107,10 +108,10 @@ describe('Model', () => {
     });
     const model = new Model<TestData, { foo: (val: string) => Promise<number> }>('test', { ably, logger });
     const ready = model.$register({ $sync: sync });
-    await modelStatePromise(model, ModelState.PREPARING);
+    await modelStatePromise(model, 'preparing');
     completeSync();
     await ready;
-    await modelStatePromise(model, ModelState.READY);
+    await modelStatePromise(model, 'ready');
     expect(sync).toHaveBeenCalledOnce();
     expect(model.optimistic).toEqual(simpleTestData);
     expect(model.confirmed).toEqual(simpleTestData);
@@ -142,12 +143,12 @@ describe('Model', () => {
     expect(s2.subscribe).toHaveBeenCalledOnce();
 
     await model.$pause();
-    expect(model.state).toBe(ModelState.PAUSED);
+    expect(model.state).toBe('paused');
     expect(s1.pause).toHaveBeenCalledOnce();
     expect(s2.pause).toHaveBeenCalledOnce();
 
     await model.$resume();
-    expect(model.state).toBe(ModelState.READY);
+    expect(model.state).toBe('ready');
     expect(s1.resume).toHaveBeenCalledOnce();
     expect(s2.resume).toHaveBeenCalledOnce();
   });
@@ -177,7 +178,7 @@ describe('Model', () => {
     expect(s2.subscribe).toHaveBeenCalledOnce();
 
     await model.$dispose();
-    expect(model.state).toBe(ModelState.DISPOSED);
+    expect(model.state).toBe('disposed');
     expect(s1.unsubscribe).toHaveBeenCalledOnce();
     expect(s2.unsubscribe).toHaveBeenCalledOnce();
   });
@@ -346,7 +347,7 @@ describe('Model', () => {
     const mutation = vi.fn();
     const sync = async () => 'foobar';
 
-    model.setState(ModelState.READY);
+    model.setState('ready');
 
     expect(() => model.$register({ $sync: sync, $mutate: { foo: mutation } })).toThrow(
       `$register can only be called when the model is in the initialized state`,
@@ -900,14 +901,14 @@ describe('Model', () => {
 
     // The 3rd event throws when applying the update, which should
     // trigger a resync and get the latest counter value.
-    const preparingPromise = modelStatePromise(model, ModelState.PREPARING);
+    const preparingPromise = modelStatePromise(model, 'preparing');
     events.e1.next(customMessage('id_3', 'testEvent', String(++counter)));
     const { reason } = (await preparingPromise) as ModelStateChange;
     expect(reason).to.toBeDefined();
     expect(reason!.message).toEqual('test');
     await subscriptionCalls[3];
     expect(subscriptionSpy).toHaveBeenNthCalledWith(4, null, '3');
-    expect(model.state).toEqual(ModelState.READY);
+    expect(model.state).toEqual('ready');
   });
 
   // Tests if applying optimistic events throws an exception, mutate fails
