@@ -1,6 +1,6 @@
 {
   "include": ["./src/**/*.ts"],
-  "exclude": ["./src/**/*.test.tsx", "./src/fakes/**/*.ts"],
+  "exclude": ["./src/**/*.test.ts"],
   "compilerOptions": {
     "target": "es6",
     "rootDir": "./src",
@@ -16,5 +16,15 @@
     "allowJs": true,
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "types": []
+  },
+  "typedocOptions": {
+    "entryPoints": ["./src/**/*.ts"],
+    "exclude": ["./src/**/*.test.ts"],
+    "out": "docs",
+    "excludePrivate": true,
+    "excludeProtected": true,
+    "excludeExternals": true,
+    "excludeInternal": true,
+    "excludeReferences": true
   }
 }

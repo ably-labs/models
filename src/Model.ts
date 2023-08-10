@@ -1,7 +1,7 @@
 import type { Logger } from 'pino';
 import type { Types as AblyTypes } from 'ably/promises.js';
 import { Subject, Subscription } from 'rxjs';
-import Stream, { IStream } from './Stream.js';
+import { IStream } from './Stream.js';
 import StreamRegistry from './StreamRegistry.js';
 import EventEmitter from './utilities/EventEmitter.js';
 import type { StandardCallback } from './types/callbacks';
@@ -9,6 +9,9 @@ import UpdatesRegistry, { UpdateFunc } from './UpdatesRegistry.js';
 import MutationsRegistry, { MutationRegistration, MutationMethods, EventComparator } from './MutationsRegistry.js';
 import { toError, UpdateRegistrationError } from './Errors.js';
 
+/**
+ * ModelState represents the possible lifecycle states of a model.
+ */
 export enum ModelState {
   /**
    * The model has been initialized but no attach has yet been attempted.
@@ -36,48 +39,106 @@ export enum ModelState {
   DISPOSED = 'disposed',
 }
 
+/**
+ * Represents a change event that can be applied to a model via an {@link UpdateFunc}.
+ */
 export type Event = {
   channel: string;
   name: string;
   data?: any;
 };
 
+/**
+ * Parameters which can be used to decorate a specific event.
+ */
 export type EventParams = {
+  /**
+   * The time within which an optimistic event should be confirmed.
+   */
   timeout: number;
+  /**
+   * A function used to correlate optimistic events with the confirmed counterparts.
+   */
   comparator: EventComparator;
 };
 
+/**
+ * An event that is emitted locally only in order to apply local optimistic updates to the model state.
+ */
 export type OptimisticEvent = Event & {
   confirmed: false;
 };
 
+/**
+ * An event received from the backend over Ably that represents a confirmed mutation on the underlying state in the database.
+ */
 export type ConfirmedEvent = Event & {
   confirmed: true;
 };
 
+/**
+ * Decorates an optimistic event with event-specific parameters.
+ */
 export type OptimisticEventWithParams = OptimisticEvent & {
   params: EventParams;
 };
 
+/**
+ * Defines a function which the library will use to pull the latest state of the model from the backend.
+ * Invoked on initialisation and whenever some discontinuity occurs that requires a re-sync.
+ */
 export type SyncFunc<T> = () => Promise<T>;
 
-export type Streams = {
-  [name: string]: Stream;
-};
-
+/**
+ * Options used to configure a model instance.
+ */
 export type ModelOptions = {
   ably: AblyTypes.RealtimePromise;
   logger: Logger;
 };
 
+/**
+ * A state transition emitted as an event from the model describing a change to the model's lifecycle.
+ */
 export type ModelStateChange = {
   current: ModelState;
   previous: ModelState;
   reason?: Error;
 };
 
+/**
+ * Options used to configure a subscription to model data changes.
+ */
 export type SubscriptionOptions = {
+  /**
+   * If true, the subscription callback is invoked for local optimistic updates.
+   * If false, it is invoked only with confirmed changes to the model data.
+   */
   optimistic: boolean;
+};
+
+/**
+ * A type used to capture the bulk registration of the required methods on the model.
+ */
+export type Registration<T, M extends MutationMethods> = {
+  /**
+   * The sync function used to pull the latest state of the model.
+   */
+  $sync: SyncFunc<T>;
+  /**
+   * A mapping of channel name to event to an update function that is invoked when a message
+   * is received matching that channel and event name.
+   */
+  $update?: {
+    [channel: string]: {
+      [event: string]: UpdateFunc<T>;
+    };
+  };
+  /**
+   * A mapping of method names to mutations describing the mutations that are available on the model that
+   * can be invoked to mutate the underlying state of the model in the backend database.
+   */
+  $mutate?: { [K in keyof M]: MutationRegistration<M[K]> };
 };
 
 type PendingConfirmation = {
@@ -87,17 +148,23 @@ type PendingConfirmation = {
   reject: (err?: Error) => void;
 };
 
-type Registration<T, M extends MutationMethods> = {
-  $sync: SyncFunc<T>;
-  $update?: {
-    [channel: string]: {
-      [event: string]: UpdateFunc<T>;
-    };
-  };
-  $mutate?: { [K in keyof M]: MutationRegistration<M[K]> };
-};
-
-class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState, ModelStateChange>> {
+/**
+ * A Model encapsulates an observable, collaborative data model backed by a transactional database in your backend.
+ *
+ * It allows you to define a set of {@link MutationsRegistry.MutationFunc} on the model which typically trigger some backend endpoint
+ * to mutate the model state in the database. Your backend is expected to emit ordered events that confirm this mutation.
+ * The model will receive these events as {@link ConfirmedEvent}s and update the model's state in accordance with
+ * some matching {@link UpdateFunc}.
+ *
+ * Additionally, mutations may emit {@link OptimisticEvent}s which are applied locally to generate an optimistic
+ * view of your data, which must be confirmed within the configured timeout.
+ *
+ * @template T - The type of your data model.
+ * @template M - The type of the mutation methods. This should be a map from method names to {@link MutationsRegistry.MutationFunc}.
+ *
+ * @extends {EventEmitter<Record<ModelState, ModelStateChange>>} Allows you to listen for {@link ModelStateChange} events to hook into the model lifecycle.
+ */
+export default class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   private wasRegistered = false;
   private currentState: ModelState = ModelState.INITIALIZED;
   private optimisticData!: T;
@@ -120,6 +187,10 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
   private readonly logger: Logger;
   private readonly baseLogContext: Partial<{ scope: string; action: string }>;
 
+  /**
+   * @param {string} name - A unique name used to identify this model in your application.
+   * @param {ModelOptions} options - Options used to configure this model instance.
+   */
   constructor(readonly name: string, options: ModelOptions) {
     super();
     this.logger = options.logger;
@@ -131,34 +202,60 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
     });
   }
 
+  /**
+   * @returns {ModelState} The current state of the model.
+   */
   public get state() {
     return this.currentState;
   }
 
+  /**
+   * @returns {T} The optimistic view of this model's data.
+   */
   public get optimistic() {
     return this.optimisticData;
   }
 
+  /**
+   * @returns {T} The confirmed view of this model's data.
+   */
   public get confirmed() {
     return this.confirmedData;
   }
 
+  /**
+   * @returns {MethodWithExpect<M>} The mutations handler that can be used to invoke the registered mutations on this model.
+   */
   public get mutations() {
     return this.mutationsRegistry.handler;
   }
 
+  /**
+   * Pauses the current model by detaching from the underlying channels and pausing processing of updates.
+   * @returns A promise that resolves when the model has been paused.
+   */
   public async $pause() {
     this.logger.trace({ ...this.baseLogContext, action: 'pause()' });
     this.setState(ModelState.PAUSED);
     await Promise.all(Object.values(this.streamRegistry.streams).map((stream) => stream.pause()));
   }
 
+  /**
+   * Resumes the current model by re-synchronising and re-attaching to the underlying channels and resuming processing of updates.
+   * @returns A promise that resolves when the model has been resumed.
+   */
   public async $resume() {
     this.logger.trace({ ...this.baseLogContext, action: 'resume()' });
     await Promise.all(Object.values(this.streamRegistry.streams).map((stream) => stream.resume()));
     this.setState(ModelState.READY);
   }
 
+  /**
+   * Disposes of the model by detaching from the underlying channels and allowing all resources to be garbage collected.
+   * After disposal, this model instance can no longer be used.
+   * @param {Error?} reason - The optional reason for disposing the model.
+   * @returns A promise that resolves when the model has been disposed.
+   */
   public $dispose(reason?: Error) {
     this.logger.trace({ ...this.baseLogContext, action: 'dispose()', reason });
     this.setState(ModelState.DISPOSED, reason);
@@ -183,6 +280,12 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
     return new Promise((resolve) => this.whenState(ModelState.DISPOSED, this.state, resolve));
   }
 
+  /**
+   * Registers a {@link SyncFunc}, a set of {@link UpdateFunc}s and {@link MutationsRegistry.MutationFunc}s for use by this model.
+   * This should be called once by your application before you subscribe to the model state.
+   * @param {Registration<T, M>} registration - The set of methods to register.
+   * @returns A promise that resolves when the model has completed the registrtion and is ready to start emitting updates.
+   */
   public $register(registration: Registration<T, M>) {
     if (this.wasRegistered) {
       throw new Error('$register was already called');
@@ -209,34 +312,12 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
     return new Promise((resolve) => this.whenState(ModelState.READY, this.state, resolve));
   }
 
-  private async onMutationEvents(events: OptimisticEventWithParams[]) {
-    if (events.length === 0) {
-      return [];
-    }
-    if (!events.every((event) => event.params.timeout === events[0].params.timeout)) {
-      throw new Error('expected every optimistic event in batch to have the same timeout');
-    }
-    for (const event of events) {
-      if (!this.streamRegistry.streams[event.channel]) {
-        throw new Error(`stream with name '${event.channel}' not registered on model '${this.name}'`);
-      }
-    }
-    const optimistic = this.onStreamEvents(events);
-    let confirmation = this.addPendingConfirmation(events, events[0].params.timeout);
-    return [
-      optimistic,
-      // if optimistically applying an update fails, the confirmation promise should also reject
-      Promise.all([optimistic, confirmation]).then(() => undefined),
-    ];
-  }
-
-  private async onMutationError(err: Error, events: OptimisticEventWithParams[]) {
-    this.logger.error({ ...this.baseLogContext, action: 'onMutationError()', err, events });
-    if (events) {
-      await this.revertOptimisticEvents(events);
-    }
-  }
-
+  /**
+   * Subscribes to changes to the data.
+   * @param {(err: Error | null, result?: T) => void} callback - The callback to invoke with the latest data, or an error.
+   * @param {SubscriptionOptions} options - Optional subscription options that can be used to specify whether to subscribe to
+   * optimistic or only confirmed updates. Defaults to optimistic.
+   */
   public subscribe(
     callback: (err: Error | null, result?: T) => void,
     options: SubscriptionOptions = { optimistic: true },
@@ -277,12 +358,44 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
     timeout = setTimeout(() => callback(null, this.confirmedData), 0);
   }
 
+  /**
+   * Unsubscribes the given callback to changes to the data.
+   * @param {(err: Error | null, result?: T) => void} callback - The callback to unsubscribe.
+   */
   public unsubscribe(callback: (err: Error | null, result?: T) => void) {
     this.logger.trace({ ...this.baseLogContext, action: 'unsubscribe()' });
     const subscription = this.subscriptionMap.get(callback);
     if (subscription) {
       subscription.unsubscribe();
       this.subscriptionMap.delete(callback);
+    }
+  }
+
+  private async onMutationEvents(events: OptimisticEventWithParams[]) {
+    if (events.length === 0) {
+      return [];
+    }
+    if (!events.every((event) => event.params.timeout === events[0].params.timeout)) {
+      throw new Error('expected every optimistic event in batch to have the same timeout');
+    }
+    for (const event of events) {
+      if (!this.streamRegistry.streams[event.channel]) {
+        throw new Error(`stream with name '${event.channel}' not registered on model '${this.name}'`);
+      }
+    }
+    const optimistic = this.onStreamEvents(events);
+    let confirmation = this.addPendingConfirmation(events, events[0].params.timeout);
+    return [
+      optimistic,
+      // if optimistically applying an update fails, the confirmation promise should also reject
+      Promise.all([optimistic, confirmation]).then(() => undefined),
+    ];
+  }
+
+  private async onMutationError(err: Error, events: OptimisticEventWithParams[]) {
+    this.logger.error({ ...this.baseLogContext, action: 'onMutationError()', err, events });
+    if (events) {
+      await this.revertOptimisticEvents(events);
     }
   }
 
@@ -495,5 +608,3 @@ class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState
     this.setOptimisticData(nextData);
   }
 }
-
-export default Model;

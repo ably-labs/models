@@ -85,9 +85,9 @@ export type EventListener<T> = (params: T) => void;
 
 export default class EventEmitter<T extends EventMap> {
   any: Array<Function>;
-  events: Record<string, Function[]>;
-  anyOnce: Array<Function>;
-  eventsOnce: Record<string, Function[]>;
+  private events: Record<string, Function[]>;
+  private anyOnce: Array<Function>;
+  private eventsOnce: Record<string, Function[]>;
 
   constructor() {
     this.any = [];
@@ -185,7 +185,7 @@ export default class EventEmitter<T extends EventMap> {
    * @param event (optional) the name of the event, or none for 'any'
    * @return array of events, or null if none
    */
-  listeners<K extends EventKey<T>>(event: K): Function[] | null {
+  protected listeners<K extends EventKey<T>>(event: K): Function[] | null {
     if (event) {
       const listeners = [...(this.events[event] ?? [])];
 
@@ -204,7 +204,7 @@ export default class EventEmitter<T extends EventMap> {
    * @param event the event name
    * @param args the arguments to pass to the listener
    */
-  emit<K extends EventKey<T>>(event: K, ...args: unknown[] /* , args... */) {
+  protected emit<K extends EventKey<T>>(event: K, ...args: unknown[] /* , args... */) {
     const eventThis = { event };
     const listeners: Function[] = [];
 
