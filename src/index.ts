@@ -1,4 +1,4 @@
-export type * as Models from './Models.js';
-export type * as Model from './Model.js';
+import * as Models from './Models.js';
 
-export * from './Models.js';
+export type * as Model from './Model.js';
+export default Models;

@@ -1,25 +1,11 @@
-import type { ConfirmedEvent, OptimisticEvent } from './Model.js';
 import { UpdateRegistrationError } from './Errors.js';
+import type { UpdateFunc, UpdateFuncs } from './types/updates.js';
 
-export type UpdateFunc<T> = (state: T, event: OptimisticEvent | ConfirmedEvent) => Promise<T>;
-
-export type UpdateFuncs<T> = {
-  [channel: string]: {
-    [event: string]: UpdateFunc<T>[];
-  };
-};
-
-/**
- * @internal
- */
 export type UpdateTargets = {
   channel: string;
   event: string;
 };
 
-/**
- * @internal
- */
 export default class UpdatesRegistry<T> {
   private registry: UpdateFuncs<T> = {};
 

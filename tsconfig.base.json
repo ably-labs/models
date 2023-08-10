@@ -18,7 +18,7 @@
     "types": []
   },
   "typedocOptions": {
-    "entryPoints": ["./src/**/*.ts"],
+    "entryPoints": ["./src/**/index.ts", "./src/types/*.d.ts"],
     "exclude": ["./src/**/*.test.ts"],
     "out": "docs",
     "excludePrivate": true,

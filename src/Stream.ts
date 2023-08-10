@@ -1,11 +1,11 @@
-import { Subject, Subscription } from 'rxjs';
 import { Types as AblyTypes } from 'ably';
 import { Logger } from 'pino';
-import EventEmitter from './utilities/EventEmitter.js';
+import { Subject, Subscription } from 'rxjs';
+
 import type { StandardCallback } from './types/callbacks';
+import EventEmitter from './utilities/EventEmitter.js';
 
 /**
- * @internal
  * StreamState represents the possible lifecycle states of a stream.
  */
 export enum StreamState {
@@ -35,7 +35,6 @@ export enum StreamState {
 }
 
 /**
- * @internal
  * Options used to configure a stream instance.
  */
 export type StreamOptions = {
@@ -45,7 +44,6 @@ export type StreamOptions = {
 };
 
 /**
- * @internal
  * A state transition emitted as an event from the stream describing a change to the stream's lifecycle.
  */
 export type StreamStateChange = {
@@ -54,9 +52,6 @@ export type StreamStateChange = {
   reason?: AblyTypes.ErrorInfo | string;
 };
 
-/**
- * @internal
- */
 export interface IStream {
   get state(): StreamState;
   get channel(): string;
@@ -68,8 +63,6 @@ export interface IStream {
 }
 
 /**
- * @internal
- *
  * A Stream is an abstraction over an Ably channel which handles the channel lifecycle.
  */
 export default class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> implements IStream {

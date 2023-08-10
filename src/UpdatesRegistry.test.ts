@@ -1,6 +1,8 @@
 import { it, describe, expect, beforeEach } from 'vitest';
-import UpdatesRegistry, { UpdateFunc } from './UpdatesRegistry.js';
+
 import { UpdateRegistrationError } from './Errors.js';
+import type { UpdateFunc } from './types/updates.js';
+import UpdatesRegistry from './UpdatesRegistry.js';
 
 describe('UpdatesRegistry', () => {
   let registry: UpdatesRegistry<{ value: number }>;

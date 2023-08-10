@@ -1,29 +1,15 @@
 import isEqual from 'lodash/isEqual.js';
-import { Event, OptimisticEventWithParams } from './Model.js';
+
 import { toError } from './Errors.js';
-
-/**
- * A MutationFunc is a function that mutates the actual data, typically via an API request to the backend.
- * @template T - An array of input argument types
- * @template R - The return type of the mutation
- */
-export type MutationFunc<T extends any[] = any[], R = any> = (...args: T) => Promise<R>;
-
-/**
- * EventComparator compares an optimistic event with a confirmed event and returns
- * true if the confirmed event corresponds to the optimistic event (i.e. it confirms it).
- */
-export type EventComparator = (optimistic: Event, confirmed: Event) => boolean;
-
-/**
- * MutationOptions can be used to configure options on individual mutations.
- * @property timeout - The timeout to receive a confirmation for optimistic mutation events in milliseconds.
- * If the timeout is reached without being confirmed the optimistic events are rolled back.
- * If unset there is a 2 minutes default timeout to avoid leaking unconfirmed events.
- */
-export type MutationOptions = {
-  timeout: number;
-};
+import type { Event, OptimisticEventWithParams } from './types/model.js';
+import type {
+  MutationFunc,
+  EventComparator,
+  MutationOptions,
+  MutationRegistration,
+  MutationMethods,
+  MethodWithExpect,
+} from './types/mutations.js';
 
 /**
  * Default options applied to all registered mutations.
@@ -33,24 +19,7 @@ export const DEFAULT_OPTIONS: MutationOptions = {
 };
 
 /**
- * MutationRegistration represents either a MutationFunc itself or an object containing a MutationFunc and its options.
- * It's used when registering a mutation method on a model.
- * @template T - A MutationFunc
- */
-export type MutationRegistration<T extends MutationFunc = MutationFunc> =
-  | T
-  | {
-      func: T;
-      options: MutationOptions;
-    };
-
-/**
- * MutationMethods is a mapping of method names to mutation functions. Users must provide a type which extends this
- * when specifying the mutations on a model via the second type parameter `M` on the `Model<T, M>`.
- */
-export type MutationMethods = { [K: string]: MutationFunc<any[], any> };
-
-/**
+ * @internal
  * @template T - A mutation function
  * @param {MutationRegistration<T>} method - A method registration
  * @returns {boolean} - Whether the given mutation registration is a function object with 'func' and 'options' properties.
@@ -60,26 +29,6 @@ function isMethodObject<T extends MutationFunc>(
 ): method is { func: T; options: MutationOptions } {
   return (method as { func: T; options: MutationOptions }).func !== undefined;
 }
-
-/**
- * Type `MethodWithExpect` represents the mutation methods along with a special `$expect` method.
- * For each method in M, it defines a corresponding method in `MethodWithExpect<M>`. In addition,
- * it also defines a special `$expect` method, which when invoked with a list of expected events,
- * returns a function that takes the same parameters as the original method and returns a Promise that
- * resolves to a tuple. The first element of the tuple is the result of invoking the original method;
- * the second element is a Promise<void> which gets resolved when the updates have been optimistically
- * applied; and the third element is a Promise<void> which gets resolved when the mutation is confirmed.
- *
- * @template M The mutation methods type.
- */
-export type MethodWithExpect<M extends MutationMethods> = {
-  [K in keyof M]: M[K] & {
-    $expect: (
-      expectedEvents: Event[],
-      comparator?: EventComparator,
-    ) => (...args: Parameters<M[K]>) => Awaited<[ReturnType<M[K]>, Promise<void>, Promise<void>]>;
-  };
-};
 
 /**
  * MutationsCallbacks facilitates custom handling of expected events emitted by mutations.
@@ -96,7 +45,8 @@ export type MutationsCallbacks = {
 };
 
 /**
- * The default {@link EventComparator} used by all registered mutation functions, unless an override option is provided.
+ * The default event comparator used by all registered mutation functions, unless an override option is provided.
+ *
  * @param optimistic - The optimistic event to compare.
  * @param confirmed - The confirmed event to compare.
  * @returns {boolean} Whether the two events are equal by channel, event name and deep equality on the event data.
@@ -114,8 +64,7 @@ export const defaultComparator: EventComparator = (optimistic: Event, confirmed:
  * It allows you to register mutation methods, handle expected events during a mutation, and handle errors
  * that might occur during a mutation.
  *
- * @internal
- * @template M - The type of the mutation methods. This should be a map from method names to {@link MutationFunc}.
+ * @template M - The type of the mutation methods. This should be a map from method names to mutations.
  */
 export default class MutationsRegistry<M extends MutationMethods> {
   private methods: Partial<{ [K in keyof M]: MutationRegistration<M[K]> }> = {};

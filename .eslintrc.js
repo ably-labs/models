@@ -35,6 +35,24 @@ module.exports = {
             ignorePackages: true,
           },
         ],
+        // Enforce a convention in module import order
+        'import/order': ['error', {
+          'newlines-between': 'always', // or 'never' or 'always-and-inside-groups'
+          'groups': [
+            'builtin',
+            'external',
+            'internal',
+            ['parent', 'sibling'],
+            'index',
+          ],
+          'alphabetize': {
+            'order': 'asc', // or 'desc'
+            'caseInsensitive': true,
+          },
+        }],
+
+        // Enforce a newline after import statements
+        'import/newline-after-import': 'error',
       },
     },
     {
