@@ -5,6 +5,13 @@ export function toError(err: any) {
   return err instanceof Error ? err : new Error(toString(err));
 }
 
+/**
+ * Represents an error that occurs when registering or using
+ * sync, update and mutation methods.
+ *
+ * @internal
+ * @extends {Error}
+ */
 export class RegistrationError extends Error {
   constructor(message: string) {
     super(message);
@@ -12,6 +19,13 @@ export class RegistrationError extends Error {
   }
 }
 
+/**
+ * Represents an error that occurs when a given update function specified by
+ * the target is not registered on the model.
+ *
+ * @internal
+ * @extends {RegistrationError}
+ */
 export class UpdateRegistrationError extends RegistrationError {
   constructor(targets: Partial<UpdateTargets>) {
     let message = 'update not registered';

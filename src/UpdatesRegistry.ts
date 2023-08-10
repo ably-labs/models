@@ -9,11 +9,17 @@ export type UpdateFuncs<T> = {
   };
 };
 
+/**
+ * @internal
+ */
 export type UpdateTargets = {
   channel: string;
   event: string;
 };
 
+/**
+ * @internal
+ */
 export default class UpdatesRegistry<T> {
   private registry: UpdateFuncs<T> = {};
 

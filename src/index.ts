@@ -1,10 +1,4 @@
-import Models from './Models.js';
+export type * as Models from './Models.js';
+export type * as Model from './Model.js';
 
-export type * from './Model.js';
-import Model, { ModelState } from './Model.js';
-
-export type * from './Stream.js';
-export type * from './MutationsRegistry.js';
-
-export { Model, ModelState };
-export default Models;
+export * from './Models.js';

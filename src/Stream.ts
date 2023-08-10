@@ -4,6 +4,10 @@ import { Logger } from 'pino';
 import EventEmitter from './utilities/EventEmitter.js';
 import type { StandardCallback } from './types/callbacks';
 
+/**
+ * @internal
+ * StreamState represents the possible lifecycle states of a stream.
+ */
 export enum StreamState {
   /**
    * The stream has been initialized but no attach has yet been attempted.
@@ -30,18 +34,29 @@ export enum StreamState {
   DISPOSED = 'disposed',
 }
 
+/**
+ * @internal
+ * Options used to configure a stream instance.
+ */
 export type StreamOptions = {
   channel: string;
   ably: AblyTypes.RealtimePromise;
   logger: Logger;
 };
 
+/**
+ * @internal
+ * A state transition emitted as an event from the stream describing a change to the stream's lifecycle.
+ */
 export type StreamStateChange = {
   current: StreamState;
   previous: StreamState;
   reason?: AblyTypes.ErrorInfo | string;
 };
 
+/**
+ * @internal
+ */
 export interface IStream {
   get state(): StreamState;
   get channel(): string;
@@ -52,6 +67,11 @@ export interface IStream {
   dispose(reason?: AblyTypes.ErrorInfo | string): Promise<void>;
 }
 
+/**
+ * @internal
+ *
+ * A Stream is an abstraction over an Ably channel which handles the channel lifecycle.
+ */
 export default class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> implements IStream {
   private readonly ably: AblyTypes.RealtimePromise;
   private currentState: StreamState = StreamState.INITIALIZED;

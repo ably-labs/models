@@ -15,7 +15,8 @@
     "build": "npm run build:cjs && npm run build:mjs",
     "build:mjs": "tsc --project tsconfig.mjs.json && cp res/package.mjs.json dist/mjs/package.json",
     "build:cjs": "tsc --project tsconfig.cjs.json && cp res/package.cjs.json dist/cjs/package.json",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "docs": "npx typedoc --tsconfig ./tsconfig.base.json"
   },
   "exports": {
     "import": "./dist/mjs/index.js",
