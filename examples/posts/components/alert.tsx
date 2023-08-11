@@ -8,6 +8,9 @@ const typeToColour = (type: Alert['type']): string => {
   if (type === 'info') {
     return 'bg-blue-500';
   }
+  if (type === 'warning') {
+    return 'bg-yellow-500';
+  }
   if (type === 'error') {
     return 'bg-red-500';
   }
