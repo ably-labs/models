@@ -1,17 +1,8 @@
-import type { Types } from 'ably/promises';
-import pino, { LevelWithSilent } from 'pino';
+import pino from 'pino';
 
 import Model from './Model.js';
-import type { ModelOptions } from './types/model.js';
+import type { ModelsOptions, ModelOptions } from './types/model.js';
 import type { MutationMethods } from './types/mutations.js';
-
-/**
- * Options used to configure all model instances.
- */
-export type ModelsOptions = {
-  ably: Types.RealtimePromise;
-  logLevel?: LevelWithSilent;
-};
 
 /**
  * Models captures the set of named Model instances used by your application.

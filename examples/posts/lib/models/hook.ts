@@ -3,7 +3,7 @@ import { assertConfiguration } from '@ably-labs/react-hooks';
 import type { Post as PostType } from '@/lib/prisma/api';
 import * as Mutations from '@/lib/models/mutations';
 import * as Updates from './updates';
-import Models, { Model } from '@ably-labs/models';
+import Models, { type Model } from '@ably-labs/models';
 import { configureAbly } from '@ably-labs/react-hooks';
 
 configureAbly({ key: process.env.NEXT_PUBLIC_ABLY_API_KEY });

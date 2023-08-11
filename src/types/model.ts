@@ -1,8 +1,16 @@
 import type { Types as AblyTypes } from 'ably/promises';
-import type { Logger } from 'pino';
+import type { Logger, LevelWithSilent } from 'pino';
 
 import type { EventComparator, MutationMethods, MutationRegistration } from './mutations';
 import type { UpdateFunc } from './updates';
+
+/**
+ * Options used to configure all model instances.
+ */
+export type ModelsOptions = {
+  ably: AblyTypes.RealtimePromise;
+  logLevel?: LevelWithSilent;
+};
 
 /**
  * Options used to configure a model instance.

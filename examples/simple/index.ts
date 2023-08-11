@@ -27,12 +27,9 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
   async function sync() {
     return {
-      version: 1,
-      data: {
-        id: 123,
-        text: 'initial state',
-        comments: [],
-      },
+      id: 123,
+      text: 'initial state',
+      comments: [],
     };
   }
 
