@@ -11,7 +11,7 @@
 
 The [Ably](https://ably.com) Realtime Data Models SDK enables you to build collaborative, stateful applications by defining *live, observable data models* in your client applications, backed by your database. It allows you to render live changes to data stored in your database in realtime.
 
-![Models SDK Diagram](/assets/models-diagram.png "Models SDK Diagram")
+![Models SDK Diagram](/docs/images/models-diagram.png "Models SDK Diagram")
 
 Try out a [live demo](https://models.ably.dev) of a collaborative comment thread application for an example of realtime, stateful collaboration in action.
 

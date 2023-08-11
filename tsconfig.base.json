@@ -20,7 +20,7 @@
   "typedocOptions": {
     "entryPoints": ["./src/**/index.ts", "./src/types/*.ts"],
     "exclude": ["./src/**/*.test.ts"],
-    "out": "docs",
+    "out": "docs/generated",
     "excludePrivate": true,
     "excludeProtected": true,
     "excludeExternals": true,
