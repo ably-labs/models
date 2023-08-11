@@ -121,12 +121,12 @@ i.e it can be any function that returns a promise with the latest state of your 
 
 ```ts
 async function sync() {
-	const result = await fetch('/api/post');
-	return result.json();
+  const result = await fetch('/api/post');
+  return result.json();
 }
 
 await model.$register({
-	$sync: sync,
+  $sync: sync,
   /* other registrations */
 });
 ```
@@ -154,31 +154,31 @@ Confirmed events are emitted from your backend over Ably *[channels](https://abl
 
 An update function is associated with a *channel name* and an *event name*; the model will invoke the update function whenever it receives an event with that name on the associated channel.
 
-For example, we might define an update function which runs when we get an `update` event on the `posts` channel, where the payload is the new value of the post's `text` field.
+For example, we might define an update function which runs when we get an `update` event on the `posts` channel, where the payload is the new value of the post's `text` field:
 
 ```ts
 async function onPostUpdated(state, event) {
-	return {
-		...state,
-		text: event.data, // replace the previous post text field with the new value
-	}
+  return {
+    ...state,
+    text: event.data, // replace the previous post text field with the new value
+  }
 }
 
 await model.$register({
-	// update functions are registered on the model using a
-	// mapping of channel_name -> event_name -> update_function
-	$update: {
-		'posts': {
-			'update': onPostUpdated,
-		},
-	},
+  // update functions are registered on the model using a
+  // mapping of channel_name -> event_name -> update_function
+  $update: {
+    'posts': {
+      'update': onPostUpdated,
+    },
+  },
   /* other registrations */
 });
 ```
 
 ##### Mutation Functions
 
-> *Mutation functions* allows you to make changes to your data in your backend and tells your model what changes to expect.
+> *Mutation functions* allow you to make changes to your data in your backend and tell your model what changes to expect.
 
 In order to make changes to your data, you can register a set of *mutations* on the data model. A mutation has the following type:
 
@@ -194,13 +194,13 @@ async function updatePost(content: string) {
     method: 'PUT',
     body: JSON.stringify({ content }),
   });
-	return result.json();
+  return result.json();
 }
 
 await model.$register({
-	$mutate: {
-		updatePost,
-	},
+  $mutate: {
+    updatePost,
+  },
   /* other registrations */
 });
 ```
@@ -211,12 +211,12 @@ It is possible to configure options on each mutation, for example to set a speci
 
 ```ts
 await model.$register({
-	$mutate: {
-		updatePost: {
-			func: updatePost,
-			options: { timeout: 5000 },
-		}
-	},
+  $mutate: {
+    updatePost: {
+      func: updatePost,
+      options: { timeout: 5000 },
+    }
+  },
   /* other registrations */
 });
 ```
@@ -231,7 +231,7 @@ The Models SDK supports *optimistic updates* which allows you to render the late
 
 ```ts
 const [result, updated, confirmed] = await model.mutations.updatePost.$expect([
-	{ channel: 'post', name: 'update', text: 'new value' },	// optimistic event
+  { channel: 'post', name: 'update', text: 'new value' },	// optimistic event
 ])('new value');
 
 await updated;
@@ -248,10 +248,10 @@ Once our registrations are complete, we can now subscribe to our data model to g
 
 ```ts
 model.subscribe((err, post) => {
-	if (err) {
-		throw err;
-	}
-	console.log('post updated:', post);
+  if (err) {
+    throw err;
+  }
+  console.log('post updated:', post);
 })
 ```
 
@@ -274,9 +274,17 @@ await model.$resume();
 // processing of events has resumed and new changes will be made available to subscribers
 ```
 
+When we're done with the model, we can dispose of it to release all its resources:
+
+```ts
+await model.$dispose();
+// model disposed and can no longer be used
+```
+
 It is also possible to hook into the model lifecycle by listening directly for model state change events on the model instance (which itself is an event emitter):
 
 ```ts
 model.on('paused', () => { /* model paused*/ });
 model.on('ready', () => { /* model resumed */ });
+model.on('disposed', () => { /* model disposed */ });
 ```
