@@ -49,7 +49,7 @@ To begin, you will need the following:
 
 * An Ably account. You can [sign up](https://ably.com/signup) for free.
 * An Ably API key. You can create API keys in an app within your [Ably account](https://ably.com/dashboard).
-  * The API key needs the following [capabilities](https://ably.com/docs/auth/capabilities): `publish`, `subscribe`.
+  * The API key needs `subscribe` [capabilities](https://ably.com/docs/auth/capabilities).
 
 You can use [basic authentication](https://ably.com/docs/auth/basic) for testing purposes, however it is strongly recommended that you use [token authentication](https://ably.com/docs/auth/token) in production environments.
 
