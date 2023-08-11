@@ -140,7 +140,7 @@ The model will invoke this function at the start of its lifecycle to initialise 
 When changes occur to your data model in your backend, your backend is expected to emit *events* which describe the mutation that occurred. The Models SDK will consume these events and apply them to its local copy of the model state to produce the next updated version. The way the next state is calculated is expressed as an *update function*, which has the following type:
 
 ```ts
-export type UpdateFunc<T> = (state: T, event: OptimisticEvent | ConfirmedEvent) => Promise<T>;
+type UpdateFunc<T> = (state: T, event: OptimisticEvent | ConfirmedEvent) => Promise<T>;
 ```
 
 i.e. it is a function that accepts the previous model state and the event and returns the next model state.
@@ -189,7 +189,7 @@ type MutationFunc<T extends any[] = any[], R = any> = (...args: T) => Promise<R>
 i.e. it is a simple function which accepts any input arguments you like and returns a promise of a given type. Typically, you would implement this as a function which updates the model state in your backend over the network. For example, we might have a REST HTTP API endpoint which updates the data for our post:
 
 ```ts
-export async function updatePost(content: string) {
+async function updatePost(content: string) {
   const result = await fetch(`/api/post`, {
     method: 'PUT',
     body: JSON.stringify({ content }),
