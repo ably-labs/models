@@ -45,8 +45,9 @@ function Post({ model }: { model: ModelType }) {
       compareComments,
     )(author, postId, content);
     try {
+      setAlert('Adding comment...', 'default');
       await update;
-      setAlert('Optimistically adding comment', 'info');
+      setAlert('Optimistically added comment', 'info');
       await confirmation;
       setAlert('Add comment confirmed!', 'success');
     } catch (err) {
@@ -60,6 +61,7 @@ function Post({ model }: { model: ModelType }) {
       compareComments,
     )(id, content);
     try {
+      setAlert('Editing comment', 'default');
       await update;
       setAlert('Optimistically edited comment', 'info');
       await confirmation;
@@ -75,6 +77,7 @@ function Post({ model }: { model: ModelType }) {
       compareComments,
     )(id);
     try {
+      setAlert('Deleting comment...', 'default');
       await update;
       setAlert('Optimistically deleted comment', 'info');
       await confirmation;

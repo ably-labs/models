@@ -1,6 +1,6 @@
 import React, { ReactNode, createContext, useContext, useState } from 'react';
 
-type AlertType = 'success' | 'info' | 'error';
+type AlertType = 'success' | 'info' | 'warning' | 'error' | 'default';
 
 export type Alert = {
   id: number;
