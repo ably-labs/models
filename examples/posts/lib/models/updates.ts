@@ -1,5 +1,5 @@
 import type { Post as PostType } from '@/lib/prisma/api';
-import { UpdateFunc } from '@ably-labs/models/dist/mjs/UpdatesRegistry';
+import { UpdateFunc } from '@ably-labs/models';
 
 export const addComment: UpdateFunc<PostType> = async (state, event) => ({
   ...state,

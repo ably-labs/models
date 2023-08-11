@@ -1,4 +1,9 @@
-import * as Models from './Models.js';
+import Model from './Model.js';
+import Models from './Models.js';
 
-export type * as Model from './Model.js';
+export type * from './types/callbacks.js';
+export type * from './types/model.js';
+export type * from './types/mutations.js';
+export type * from './types/updates.js';
+export { Model };
 export default Models;
