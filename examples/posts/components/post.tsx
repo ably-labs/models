@@ -37,7 +37,7 @@ function Post({ model }: { model: ModelType }) {
     return () => {
       model.unsubscribe(onUpdate);
     };
-  });
+  }, []);
 
   async function onAdd(author: AuthorType, postId: number, content: string) {
     const [, update, confirmation] = await model.mutations.addComment.$expect(
