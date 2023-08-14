@@ -106,7 +106,7 @@ export default class MutationsRegistry<M extends MutationMethods> {
           Promise.resolve(),
         ];
         if (events && events.length > 0) {
-          callbackResult = await this.callbacks.onEvents(events); // TODO this doesn't need awaiting, but tests fail if not awaited
+          callbackResult = await this.callbacks.onEvents(events);
         }
         return expectedEvents ? [result, ...callbackResult] : result;
       } catch (err) {
