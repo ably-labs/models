@@ -35,12 +35,27 @@ Leverages Ably’s low-latency, global message distribution network to keep a la
 
 The Realtime Data Models SDK is currently under development. If you are interested in being an early adopter and providing feedback then you can [sign up](https://go.ably.com/models-early-access) for early access and are welcome to [provide us with feedback](https://go.ably.com/models-feedback).
 
+## Overview
+
+The Models SDK aims to make it easier to synchronise this application state from the database to the client in realtime. This allows changes made concurrently by other users or other parts of the system to be continually rendered to the user as part of a reactive, realtime, multiplayer application.
+
+The Models SDK is a JavaScript (TypeScript) library that allows you to define live, observable data models in your frontend application that are kept up-to-date with the true state of the model in your database, in realtime. It is framework-agnostic, allowing you to integrate it with whatever frontend framework prefer (for example, see the [examples](./examples/posts) for usage in React/Next.js app).
+
+The Models SDK consumes "mutation" events published to Ably by your backend to update the local state in your frontend apps. This library can be used in conjunction with Ably's [Database Connector](https://github.com/ably-labs/adbc), which makes it easy to reliably emit change events over Ably transactionally with mutations to your data in your database.
+
+By integrating with Ably's realtime messaging platform, the Models SDK benefits from a low-latency, fault-tolerant, highly scalable, global distribution network and seamless connection recovery.
+
+
+### How it works
+
+For a detailed description of how the Models SDK works, see the [docs](./docs/concepts).
+
 ## Quickstart
 
 Get started quickly using this section, or take a look at:
 
-* Detailed [usage instructions](/docs/usage.md)
-* [API docs](/docs/generated/index.html)
+* Read the Concept [docs](/docs/concepts/)
+* Browse the [API docs](/docs/generated/index.html)
 * Explore the [examples](/examples)
 
 ### Prerequisites
