@@ -47,7 +47,7 @@ describe('MutationsRegistry', () => {
       },
     });
 
-    await expect(mutations.handler.one('foo')).rejects.toEqual('foo');
+    await expect(mutations.handler.one('foo')).rejects.toEqual(new Error('foo'));
     expect(onEvents).not.toHaveBeenCalled();
     expect(onError).toHaveBeenCalledTimes(1);
     expect(onError).toHaveBeenNthCalledWith(1, new Error('foo'), []);
@@ -171,7 +171,7 @@ describe('MutationsRegistry', () => {
     });
 
     const events: Event[] = [{ channel: 'channel', name: 'foo', data: { bar: 123 } }];
-    await expect(mutations.handler.one.$expect(events)('foo')).rejects.toEqual('foo');
+    await expect(mutations.handler.one.$expect(events)('foo')).rejects.toEqual(new Error('foo'));
     expect(onEvents).toHaveBeenCalledTimes(1);
     expect(onEvents).toHaveBeenNthCalledWith(
       1,
@@ -184,7 +184,7 @@ describe('MutationsRegistry', () => {
       toExpectedEvents(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: defaultComparator }),
     );
 
-    await expect(mutations.handler.two.$expect(events)(123)).rejects.toEqual(123);
+    await expect(mutations.handler.two.$expect(events)(123)).rejects.toEqual(new Error('123'));
     expect(onEvents).toHaveBeenCalledTimes(2);
     expect(onEvents).toHaveBeenNthCalledWith(
       2,
