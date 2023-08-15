@@ -112,7 +112,7 @@ export default class MutationsRegistry<M extends MutationMethods> {
         let result = await method(...args);
         return expectedEvents ? [result, ...callbackResult] : result;
       } catch (mutationErr) {
-        let returnErr: Error | AggregateError = mutationErr;
+        let returnErr: Error | AggregateError = toError(mutationErr);
         try {
           // wait for callback logic to complete before we roll back
           await Promise.all(callbackResult);
