@@ -40,11 +40,11 @@ function Post({ model }: { model: ModelType }) {
   }, []);
 
   async function onAdd(author: AuthorType, postId: number, content: string) {
-    const [, update, confirmation] = await model.mutations.addComment.$expect(
-      [{ channel: 'comments', name: 'add', data: { author, content } }],
-      compareComments,
-    )(author, postId, content);
     try {
+      const [, update, confirmation] = await model.mutations.addComment.$expect(
+        [{ channel: 'comments', name: 'add', data: { author, content } }],
+        compareComments,
+      )(author, postId, content);
       setAlert('Adding comment...', 'default');
       await update;
       setAlert('Optimistically added comment', 'info');
@@ -56,11 +56,11 @@ function Post({ model }: { model: ModelType }) {
   }
 
   async function onEdit(id: number, content: string) {
-    const [, update, confirmation] = await model.mutations.editComment.$expect(
-      [{ channel: 'comments', name: 'edit', data: { id, content } }],
-      compareComments,
-    )(id, content);
     try {
+      const [, update, confirmation] = await model.mutations.editComment.$expect(
+        [{ channel: 'comments', name: 'edit', data: { id, content } }],
+        compareComments,
+      )(id, content);
       setAlert('Editing comment', 'default');
       await update;
       setAlert('Optimistically edited comment', 'info');
@@ -72,11 +72,11 @@ function Post({ model }: { model: ModelType }) {
   }
 
   async function onDelete(id: number) {
-    const [, update, confirmation] = await model.mutations.deleteComment.$expect(
-      [{ channel: 'comments', name: 'delete', data: { id } }],
-      compareComments,
-    )(id);
     try {
+      const [, update, confirmation] = await model.mutations.deleteComment.$expect(
+        [{ channel: 'comments', name: 'delete', data: { id } }],
+        compareComments,
+      )(id);
       setAlert('Deleting comment...', 'default');
       await update;
       setAlert('Optimistically deleted comment', 'info');
