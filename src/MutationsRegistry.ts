@@ -72,6 +72,43 @@ export default class MutationsRegistry<M extends MutationMethods> {
   constructor(readonly callbacks: MutationsCallbacks) {}
 
   /**
+   * Processes optimistic events and waits for them to be applied before returning.
+   * If applying the events fails, roll back the changes before surfacing the error to the caller.
+   * @param events the optimistic events to apply
+   * @throws any error encountered applying the optimistic events
+   * @returns {{ confirmation: Promise<void> }} the confirmation promise which resolves when the optimistic events are eventually confirmed, or rejects if they are not confirmed (e.g. due to timeout)
+   */
+  private async processOptimistic(events: OptimisticEventWithParams[]) {
+    let optimistic = Promise.resolve();
+    let confirmation = Promise.resolve();
+    try {
+      [optimistic, confirmation] = await this.callbacks.onEvents(events);
+      await optimistic;
+      return { confirmation };
+    } catch (err) {
+      confirmation.catch(() => {}); // the confirmation will reject after the rollback, so ensure we have a handler
+      await this.callbacks.onError(toError(err), events); // rollback the events
+      throw toError(err);
+    }
+  }
+
+  /**
+   * Wraps the confirmation promise so that we roll back the optimistic events when the confirmation rejects (e.g. due to timeout).
+   * @param confirmation the original confirmation promise
+   * @param events the optimistic events associated with the confirmation promise
+   * @throws any error returned from the original confirmation promise
+   * @returns the result from the original confirmation promise
+   */
+  private async wrapConfirmation(confirmation: Promise<void>, events: OptimisticEventWithParams[]) {
+    try {
+      return await confirmation;
+    } catch (err) {
+      await this.callbacks.onError(toError(err), events);
+      throw err;
+    }
+  }
+
+  /**
    * @method handleMutation - Returns an async function handles invoking a given mutation.
    * This function will return the awaited result of the mutation method.
    * If the mutation is invoked using $expect, it will first call the onEvents callback
@@ -98,33 +135,19 @@ export default class MutationsRegistry<M extends MutationMethods> {
           },
         }))
       : [];
+
     const callMethod = async (...args: any[]) => {
-      let callbackResult: Awaited<ReturnType<MutationsCallbacks['onEvents']>> = [Promise.resolve(), Promise.resolve()];
+      let confirmation = Promise.resolve();
       if (events && events.length > 0) {
-        try {
-          callbackResult = await this.callbacks.onEvents(events);
-        } catch (err) {
-          await this.callbacks.onError(toError(err), events);
-          return Promise.reject(toError(err));
-        }
+        ({ confirmation } = await this.processOptimistic(events));
       }
       try {
         let result = await method(...args);
-        return expectedEvents ? [result, ...callbackResult] : result;
+        return expectedEvents ? [result, this.wrapConfirmation(confirmation, events)] : result;
       } catch (mutationErr) {
-        let returnErr: Error | AggregateError = toError(mutationErr);
-        try {
-          // wait for callback logic to complete before we roll back
-          await Promise.all(callbackResult);
-        } catch (callbackErr) {
-          // optimistic updates failed as well as the mutation, so we roll the errors into one
-          returnErr = new AggregateError([mutationErr, callbackErr], 'both mutation and events handler failed');
-        } finally {
-          await this.callbacks.onError(toError(returnErr), events);
-        }
-        if (returnErr) {
-          throw returnErr;
-        }
+        confirmation.catch(() => {}); // the confirmation will reject after the rollback, so ensure we have a handler
+        await this.callbacks.onError(toError(mutationErr), events);
+        throw toError(mutationErr);
       }
     };
 

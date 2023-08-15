@@ -64,19 +64,15 @@ describe('MutationsRegistry', () => {
     });
 
     const events: Event[] = [{ channel: 'channel', name: 'foo', data: { bar: 123 } }];
-    const expectedErr = new AggregateError(
-      ['foo', 'optimistic update failed'],
-      'both mutation and events handler failed',
-    );
     const expectedEvents = toExpectedEvents(events, {
       timeout: DEFAULT_OPTIONS.timeout,
       comparator: defaultComparator,
     });
-    await expect(mutations.handler.one.$expect(events)('foo')).rejects.toEqual(expectedErr);
+    await expect(mutations.handler.one.$expect(events)('foo')).rejects.toEqual(new Error('optimistic update failed'));
     expect(onEvents).toHaveBeenCalledTimes(1);
     expect(onEvents).toHaveBeenNthCalledWith(1, expectedEvents);
     expect(onError).toHaveBeenCalledTimes(1);
-    expect(onError).toHaveBeenNthCalledWith(1, expectedErr, expectedEvents);
+    expect(onError).toHaveBeenNthCalledWith(1, new Error('optimistic update failed'), expectedEvents);
   });
 
   it<MutationsTestContext>('invokes mutation methods with expectations (default comparator) and options', async () => {
@@ -95,7 +91,6 @@ describe('MutationsRegistry', () => {
     const result1 = await mutations.handler.one.$expect(events)('foo');
     expect(result1[0]).toEqual('foo');
     await expect(result1[1]).resolves.toBeUndefined();
-    await expect(result1[2]).resolves.toBeUndefined();
     expect(onEvents).toHaveBeenCalledTimes(1);
     expect(onEvents).toHaveBeenNthCalledWith(
       1,
@@ -106,7 +101,6 @@ describe('MutationsRegistry', () => {
     const result2 = await mutations.handler.two.$expect(events)(123);
     expect(result2[0]).toEqual({ x: 123 });
     await expect(result2[1]).resolves.toBeUndefined();
-    await expect(result2[2]).resolves.toBeUndefined();
     expect(onEvents).toHaveBeenCalledTimes(2);
     expect(onEvents).toHaveBeenNthCalledWith(
       2,
@@ -134,7 +128,6 @@ describe('MutationsRegistry', () => {
     const result1 = await mutations.handler.one.$expect(events, nameOnlyComparator)('foo');
     expect(result1[0]).toEqual('foo');
     await expect(result1[1]).resolves.toBeUndefined();
-    await expect(result1[2]).resolves.toBeUndefined();
     expect(onEvents).toHaveBeenCalledTimes(1);
     expect(onEvents).toHaveBeenNthCalledWith(
       1,
@@ -145,7 +138,6 @@ describe('MutationsRegistry', () => {
     const result2 = await mutations.handler.two.$expect(events, nameOnlyComparator)(123);
     expect(result2[0]).toEqual({ x: 123 });
     await expect(result2[1]).resolves.toBeUndefined();
-    await expect(result2[2]).resolves.toBeUndefined();
     expect(onEvents).toHaveBeenCalledTimes(2);
     expect(onEvents).toHaveBeenNthCalledWith(
       2,
@@ -199,7 +191,8 @@ describe('MutationsRegistry', () => {
   });
 
   it<MutationsTestContext>('apply updates fails', async () => {
-    let onEvents = vi.fn(async () => [Promise.reject(), Promise.resolve()]);
+    const expectedErr = new Error('optimistic update failed');
+    let onEvents = vi.fn(async () => [Promise.reject(expectedErr), Promise.resolve()]);
     let onError = vi.fn();
     const mutations = new MutationsRegistry<Methods>({ onEvents, onError });
     mutations.register({
@@ -211,32 +204,36 @@ describe('MutationsRegistry', () => {
     });
 
     const events: Event[] = [{ channel: 'channel', name: 'foo', data: { bar: 123 } }];
-    const result1 = await mutations.handler.one.$expect(events)('foo');
-    expect(result1[0]).toEqual('foo');
-    await expect(result1[1]).rejects.toBeUndefined();
-    await expect(result1[2]).resolves.toBeUndefined();
+    await expect(mutations.handler.one.$expect(events)('foo')).rejects.toThrow(expectedErr);
     expect(onEvents).toHaveBeenCalledTimes(1);
     expect(onEvents).toHaveBeenNthCalledWith(
       1,
       toExpectedEvents(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: defaultComparator }),
     );
-    expect(onError).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenNthCalledWith(
+      1,
+      expectedErr,
+      toExpectedEvents(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: defaultComparator }),
+    );
 
-    const result2 = await mutations.handler.two.$expect(events)(123);
-    expect(result2[0]).toEqual({ x: 123 });
-    await expect(result2[1]).rejects.toBeUndefined();
-    await expect(result2[2]).resolves.toBeUndefined();
+    await expect(mutations.handler.two.$expect(events)(123)).rejects.toThrow(expectedErr);
     expect(onEvents).toHaveBeenCalledTimes(2);
     expect(onEvents).toHaveBeenNthCalledWith(
       2,
       toExpectedEvents(events, { timeout: 1000, comparator: defaultComparator }),
     );
-    expect(onError).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenNthCalledWith(
+      2,
+      expectedErr,
+      toExpectedEvents(events, { timeout: 1000, comparator: defaultComparator }),
+    );
   });
 
   it<MutationsTestContext>('methods not confirmed', async () => {
-    let onEvents = vi.fn(async () => [Promise.resolve(), Promise.reject()]);
-    let onError = vi.fn();
+    const expectedErr = new Error('optimistic update failed');
+    let onEvents = vi.fn(async () => [Promise.resolve(), Promise.reject(expectedErr)]);
+    let onError = vi.fn(async () => {});
     const mutations = new MutationsRegistry<Methods>({ onEvents, onError });
     mutations.register({
       one: async (x: string) => x,
@@ -249,24 +246,32 @@ describe('MutationsRegistry', () => {
     const events: Event[] = [{ channel: 'channel', name: 'foo', data: { bar: 123 } }];
     const result1 = await mutations.handler.one.$expect(events)('foo');
     expect(result1[0]).toEqual('foo');
-    await expect(result1[1]).resolves.toBeUndefined();
-    await expect(result1[2]).rejects.toBeUndefined();
+    await expect(result1[1]).rejects.toThrow(expectedErr);
     expect(onEvents).toHaveBeenCalledTimes(1);
     expect(onEvents).toHaveBeenNthCalledWith(
       1,
       toExpectedEvents(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: defaultComparator }),
     );
-    expect(onError).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenNthCalledWith(
+      1,
+      expectedErr,
+      toExpectedEvents(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: defaultComparator }),
+    );
 
     const result2 = await mutations.handler.two.$expect(events)(123);
     expect(result2[0]).toEqual({ x: 123 });
-    await expect(result2[1]).resolves.toBeUndefined();
-    await expect(result2[2]).rejects.toBeUndefined();
+    await expect(result2[1]).rejects.toThrow(expectedErr);
     expect(onEvents).toHaveBeenCalledTimes(2);
     expect(onEvents).toHaveBeenNthCalledWith(
       2,
       toExpectedEvents(events, { timeout: 1000, comparator: defaultComparator }),
     );
-    expect(onError).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledTimes(2);
+    expect(onError).toHaveBeenNthCalledWith(
+      2,
+      expectedErr,
+      toExpectedEvents(events, { timeout: 1000, comparator: defaultComparator }),
+    );
   });
 });

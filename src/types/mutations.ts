@@ -57,6 +57,6 @@ export type MethodWithExpect<M extends MutationMethods> = {
     $expect: (
       expectedEvents: Event[],
       comparator?: EventComparator,
-    ) => (...args: Parameters<M[K]>) => Promise<[Awaited<ReturnType<M[K]>>, Promise<void>, Promise<void>]>;
+    ) => (...args: Parameters<M[K]>) => Promise<[Awaited<ReturnType<M[K]>>, Promise<void>]>;
   };
 };
