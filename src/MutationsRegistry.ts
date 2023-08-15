@@ -76,8 +76,8 @@ export default class MutationsRegistry<M extends MutationMethods> {
    * This function will return the awaited result of the mutation method.
    * If the mutation is invoked using $expect, it will first call the onEvents callback
    * with the expected events and any options configured on the mutation. The callback should
-   * return a promise that can be used to await confirmation of the event, which is returned
-   * along with the mutation result.
+   * return an array of two promises that can be used to await optimistic update and the confirmation
+   * of the event, which is returned along with the mutation result.
    * If the mutation or the onEvents callback throws, it calls the onError callback before re-throwing.
    */
   private handleMutation<K extends keyof M>(
@@ -99,19 +99,32 @@ export default class MutationsRegistry<M extends MutationMethods> {
         }))
       : [];
     const callMethod = async (...args: any[]) => {
+      let callbackResult: Awaited<ReturnType<MutationsCallbacks['onEvents']>> = [Promise.resolve(), Promise.resolve()];
+      if (events && events.length > 0) {
+        try {
+          callbackResult = await this.callbacks.onEvents(events);
+        } catch (err) {
+          await this.callbacks.onError(toError(err), events);
+          return Promise.reject(toError(err));
+        }
+      }
       try {
         let result = await method(...args);
-        let callbackResult: Awaited<ReturnType<MutationsCallbacks['onEvents']>> = [
-          Promise.resolve(),
-          Promise.resolve(),
-        ];
-        if (events && events.length > 0) {
-          callbackResult = await this.callbacks.onEvents(events);
-        }
         return expectedEvents ? [result, ...callbackResult] : result;
-      } catch (err) {
-        await this.callbacks.onError(toError(err), events);
-        throw err;
+      } catch (mutationErr) {
+        let returnErr: Error | AggregateError = mutationErr;
+        try {
+          // wait for callback logic to complete before we roll back
+          await Promise.all(callbackResult);
+        } catch (callbackErr) {
+          // optimistic updates failed as well as the mutation, so we roll the errors into one
+          returnErr = new AggregateError([mutationErr, callbackErr], 'both mutation and events handler failed');
+        } finally {
+          await this.callbacks.onError(toError(returnErr), events);
+        }
+        if (returnErr) {
+          throw returnErr;
+        }
       }
     };
 

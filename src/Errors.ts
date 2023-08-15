@@ -3,7 +3,7 @@ import toString from 'lodash/toString';
 import type { UpdateTargets } from './UpdatesRegistry.js';
 
 export function toError(err: any) {
-  return err instanceof Error ? err : new Error(toString(err));
+  return err instanceof Error || err instanceof AggregateError ? err : new Error(toString(err));
 }
 
 /**

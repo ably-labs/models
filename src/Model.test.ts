@@ -911,8 +911,7 @@ describe('Model', () => {
     expect(model.state).toEqual('ready');
   });
 
-  // Tests if applying optimistic events throws an exception, mutate fails
-  // the the optimistic events are reverted.
+  // Tests if applying optimistic events throws, the the optimistic events are reverted.
   it<ModelTestContext>('revert optimistic events if apply update fails', async ({ ably, logger, streams }) => {
     const s1 = streams.getOrCreate({ channel: 's1' });
     const s2 = streams.getOrCreate({ channel: 's2' });
@@ -948,6 +947,44 @@ describe('Model', () => {
     await expect(confirmation).rejects.toThrow('update error'); // confirmation should fail by proxy
     // The failed mutation should have been reverted.
     expect(model.optimistic).toEqual('0123');
+  });
+
+  // Tests if applying optimistic events throws *and* the mutation throws, the the optimistic events are reverted.
+  it.only<ModelTestContext>('revert optimistic events if the mutation fails and apply update fails', async ({
+    ably,
+    logger,
+    streams,
+  }) => {
+    const s1 = streams.getOrCreate({ channel: 's1' });
+    s1.subscribe = vi.fn();
+
+    const model = new Model<string, { mutation: () => Promise<string> }>('test', { ably, logger });
+
+    const update1 = async (state, event) => {
+      if (event.data === '3') {
+        throw new Error('update error');
+      }
+      return state + event.data;
+    };
+    const mutation = async () => {
+      throw new Error('mutation failed');
+    };
+    await model.$register({
+      $sync: async () => '0',
+      $update: { s1: { testEvent: update1 } },
+      $mutate: { mutation },
+    });
+    await expect(
+      model.mutations.mutation.$expect([
+        { channel: 's1', name: 'testEvent', data: '1' },
+        { channel: 's1', name: 'testEvent', data: '2' },
+        { channel: 's1', name: 'testEvent', data: '3' },
+      ])(),
+    ).rejects.toThrow(
+      new AggregateError(['mutation failed', 'update error'], 'both mutation and events handler failed'),
+    );
+    // The failed mutation should have been reverted.
+    expect(model.optimistic).toEqual('0');
   });
 
   it<ModelTestContext>('optimistic event confirmation confirmed before timeout', async ({ ably, logger, streams }) => {
