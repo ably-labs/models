@@ -4,6 +4,7 @@ import { Subject, Subscription } from 'rxjs';
 
 import { toError, UpdateRegistrationError } from './Errors.js';
 import MutationsRegistry from './MutationsRegistry.js';
+import PendingConfirmationRegistry from './PendingConfirmationRegistry.js';
 import { IStream } from './Stream.js';
 import StreamRegistry from './StreamRegistry.js';
 import type { StandardCallback } from './types/callbacks';
@@ -21,13 +22,6 @@ import type {
 import type { MutationMethods } from './types/mutations.js';
 import UpdatesRegistry from './UpdatesRegistry.js';
 import EventEmitter from './utilities/EventEmitter.js';
-
-type PendingConfirmation = {
-  unconfirmedEvents: OptimisticEventWithParams[];
-  timeout: ReturnType<typeof setTimeout>;
-  resolve: () => void;
-  reject: (err?: Error) => void;
-};
 
 /**
  * A Model encapsulates an observable, collaborative data model backed by a transactional database in your backend.
@@ -59,7 +53,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
   private readonly mutationsRegistry: MutationsRegistry<M>;
 
   private optimisticEvents: OptimisticEventWithParams[] = [];
-  private pendingConfirmations: PendingConfirmation[] = [];
+  private pendingConfirmationsRegistry: PendingConfirmationRegistry = new PendingConfirmationRegistry();
 
   private readonly subscriptions = new Subject<{ confirmed: boolean; data: T }>();
   private subscriptionMap: WeakMap<StandardCallback<T>, Subscription> = new WeakMap();
@@ -137,7 +131,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
    * @param {Error?} reason - The optional reason for disposing the model.
    * @returns A promise that resolves when the model has been disposed.
    */
-  public $dispose(reason?: Error) {
+  public async $dispose(reason?: Error) {
     this.logger.trace({ ...this.baseLogContext, action: 'dispose()', reason });
     this.setState('disposed', reason);
     this.subscriptions.unsubscribe();
@@ -148,14 +142,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
         stream.unsubscribe(callback);
       }
     }
-    for (const pendingConfirmation of this.pendingConfirmations) {
-      if (pendingConfirmation.timeout) {
-        clearTimeout(pendingConfirmation.timeout);
-      }
-      if (pendingConfirmation.reject) {
-        pendingConfirmation.reject(reason);
-      }
-    }
+    await this.pendingConfirmationsRegistry.finalise(reason);
     this.subscriptionMap = new WeakMap();
     this.streamSubscriptionsMap = new WeakMap();
     return new Promise((resolve) => this.whenState('disposed', this.state, resolve));
@@ -264,20 +251,14 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
         throw new Error(`stream with name '${event.channel}' not registered on model '${this.name}'`);
       }
     }
+    const pendingConfirmation = await this.pendingConfirmationsRegistry.add(events);
     const optimistic = this.onStreamEvents(events);
-    let confirmation = this.addPendingConfirmation(events, events[0].params.timeout);
-    return [
-      optimistic,
-      // if optimistically applying an update fails, the confirmation promise should also reject
-      Promise.all([optimistic, confirmation]).then(() => undefined),
-    ];
+    return [optimistic, pendingConfirmation.promise];
   }
 
   private async onMutationError(err: Error, events: OptimisticEventWithParams[]) {
     this.logger.error({ ...this.baseLogContext, action: 'onMutationError()', err, events });
-    if (events) {
-      await this.revertOptimisticEvents(events);
-    }
+    await this.revertOptimisticEvents(events, err);
   }
 
   protected setState(state: ModelState, reason?: Error) {
@@ -406,7 +387,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
       return;
     }
 
-    this.confirmPendingEvents(event);
+    await this.confirmPendingEvents(event);
 
     // If the incoming confirmed event confirms the next expected optimistic event for the stream,
     // the optimistic event is discarded before rolling back to the last-confirmed state, applying
@@ -435,47 +416,15 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
     this.setOptimisticData(base);
   }
 
-  private addPendingConfirmation(events: OptimisticEvent[], timeout: number): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
-      this.logger.trace({ ...this.baseLogContext, action: 'addPendingConfirmation()', events, timeout });
-      let pendingConfirmation = {
-        unconfirmedEvents: [...events],
-        resolve: resolve,
-        reject: reject,
-      } as PendingConfirmation;
-      this.pendingConfirmations.push(pendingConfirmation);
-
-      pendingConfirmation.timeout = setTimeout(async () => {
-        await this.revertOptimisticEvents(pendingConfirmation.unconfirmedEvents);
-        // Remove the pending confirmation.
-        this.pendingConfirmations = this.pendingConfirmations.filter((p) => p !== pendingConfirmation);
-        reject(new Error('timed out waiting for event confirmation'));
-      }, timeout);
-    });
-  }
-
-  private confirmPendingEvents(event: ConfirmedEvent) {
+  private async confirmPendingEvents(event: ConfirmedEvent) {
     this.logger.trace({ ...this.baseLogContext, action: 'confirmPendingEvents()', event });
-    for (let pendingConfirmation of this.pendingConfirmations) {
-      // Remove any unconfirmed events that have now been confirmed.
-      pendingConfirmation.unconfirmedEvents = pendingConfirmation.unconfirmedEvents.filter(
-        (e) => !e.params.comparator(e, event),
-      );
-
-      // If the pending confirmation no longer has any pending optimistic events
-      // it can be resolved.
-      if (pendingConfirmation.unconfirmedEvents.length === 0) {
-        clearTimeout(pendingConfirmation.timeout);
-        pendingConfirmation.resolve();
-      }
-    }
-
-    // If the pending confirmation no longer has any pending optimistic
-    // events it can be removed.
-    this.pendingConfirmations = this.pendingConfirmations.filter((p) => p.unconfirmedEvents.length !== 0);
+    await this.pendingConfirmationsRegistry.confirmEvents([event]);
   }
 
-  private async revertOptimisticEvents(events: OptimisticEvent[]) {
+  private async revertOptimisticEvents(events: OptimisticEvent[], err: Error) {
+    if (events.length === 0) {
+      return;
+    }
     this.logger.trace({ ...this.baseLogContext, action: 'revertOptimisticEvents()', events });
     // Remove any events from optimisticEvents and re-apply any unconfirmed
     // optimistic events.
@@ -487,5 +436,6 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
       nextData = await this.applyUpdates(nextData, e);
     }
     this.setOptimisticData(nextData);
+    await this.pendingConfirmationsRegistry.rejectEvents(events, err);
   }
 }
