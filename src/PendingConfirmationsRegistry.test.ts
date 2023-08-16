@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi, Mock } from 'vitest';
 
-import { defaultComparator, DEFAULT_OPTIONS } from './MutationsRegistry.js';
 import PendingConfirmation from './PendingConfirmation.js';
 import PendingConfirmationRegistry from './PendingConfirmationRegistry.js';
 import type { Event } from './types/model.js';
@@ -9,10 +8,6 @@ import { toOptimisticEvents, toOptimisticEventsWithParams, toConfirmedEvents } f
 vi.mock('./PendingConfirmation.js');
 
 describe('PendingConfirmationRegistry', () => {
-  const params = {
-    timeout: DEFAULT_OPTIONS.timeout,
-    comparator: defaultComparator,
-  };
   const events: Event[] = [
     {
       channel: 'channel1',
@@ -32,13 +27,13 @@ describe('PendingConfirmationRegistry', () => {
 
   it('adds pending confirmations', async () => {
     const registry = new PendingConfirmationRegistry();
-    await registry.add(toOptimisticEventsWithParams(events, params));
+    await registry.add(toOptimisticEventsWithParams(events));
     expect(registry['pendingConfirmations'].length).toBe(1);
   });
 
   it('confirms events and affects pending confirmations', async () => {
     const registry = new PendingConfirmationRegistry();
-    await registry.add(toOptimisticEventsWithParams(events, params));
+    await registry.add(toOptimisticEventsWithParams(events));
     await registry.confirmEvents(toConfirmedEvents(events));
     expect(registry['pendingConfirmations'][0].removeMatchingEvents).toHaveBeenCalled();
   });
@@ -55,7 +50,7 @@ describe('PendingConfirmationRegistry', () => {
     (PendingConfirmation as Mock).mockImplementation(() => mockPendingConfirmationInstance);
 
     const registry = new PendingConfirmationRegistry();
-    await registry.add(toOptimisticEventsWithParams(events, params));
+    await registry.add(toOptimisticEventsWithParams(events));
     const err = new Error('rejected events');
     await registry.rejectEvents(toOptimisticEvents(events), err);
 
@@ -66,14 +61,14 @@ describe('PendingConfirmationRegistry', () => {
 
   it('finalizes all pending confirmations without error', async () => {
     const registry = new PendingConfirmationRegistry();
-    await registry.add(toOptimisticEventsWithParams(events, params));
+    await registry.add(toOptimisticEventsWithParams(events));
     await registry.finalise();
     expect(registry['pendingConfirmations'][0].finalise).toHaveBeenCalled();
   });
 
   it('finalizes all pending confirmations with an error', async () => {
     const registry = new PendingConfirmationRegistry();
-    await registry.add(toOptimisticEventsWithParams(events, params));
+    await registry.add(toOptimisticEventsWithParams(events));
     const err = new Error('error finalizing');
     await registry.finalise(err);
     expect(registry['pendingConfirmations'][0].finalise).toHaveBeenCalledWith(err);
