@@ -20,7 +20,7 @@ export default class PendingConfirmationRegistry {
     }
   }
 
-  async rejectEvents(events: OptimisticEvent[], err: Error) {
+  async rejectEvents(err: Error, events: OptimisticEvent[]) {
     for (let i = this.pendingConfirmations.length - 1; i >= 0; i--) {
       let pendingConfirmation = this.pendingConfirmations[i];
       await pendingConfirmation.removeMatchingEvents(events, err);
