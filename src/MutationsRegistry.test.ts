@@ -57,10 +57,7 @@ describe('MutationsRegistry', () => {
     });
 
     const events: Event[] = [{ channel: 'channel', name: 'foo', data: { bar: 123 } }];
-    const expectedEvents = toOptimisticEventsWithParams(events, {
-      timeout: DEFAULT_OPTIONS.timeout,
-      comparator: defaultComparator,
-    });
+    const expectedEvents = toOptimisticEventsWithParams(events);
     await expect(mutations.handler.one.$expect(events)('foo')).rejects.toEqual(new Error('optimistic update failed'));
     expect(onEvents).toHaveBeenCalledTimes(1);
     expect(onEvents).toHaveBeenNthCalledWith(1, expectedEvents);
@@ -85,10 +82,7 @@ describe('MutationsRegistry', () => {
     expect(result1[0]).toEqual('foo');
     await expect(result1[1]).resolves.toBeUndefined();
     expect(onEvents).toHaveBeenCalledTimes(1);
-    expect(onEvents).toHaveBeenNthCalledWith(
-      1,
-      toOptimisticEventsWithParams(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: defaultComparator }),
-    );
+    expect(onEvents).toHaveBeenNthCalledWith(1, toOptimisticEventsWithParams(events));
     expect(onError).not.toHaveBeenCalled();
 
     const result2 = await mutations.handler.two.$expect(events)(123);
@@ -158,16 +152,9 @@ describe('MutationsRegistry', () => {
     const events: Event[] = [{ channel: 'channel', name: 'foo', data: { bar: 123 } }];
     await expect(mutations.handler.one.$expect(events)('foo')).rejects.toEqual(new Error('foo'));
     expect(onEvents).toHaveBeenCalledTimes(1);
-    expect(onEvents).toHaveBeenNthCalledWith(
-      1,
-      toOptimisticEventsWithParams(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: defaultComparator }),
-    );
+    expect(onEvents).toHaveBeenNthCalledWith(1, toOptimisticEventsWithParams(events));
     expect(onError).toHaveBeenCalledTimes(1);
-    expect(onError).toHaveBeenNthCalledWith(
-      1,
-      new Error('foo'),
-      toOptimisticEventsWithParams(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: defaultComparator }),
-    );
+    expect(onError).toHaveBeenNthCalledWith(1, new Error('foo'), toOptimisticEventsWithParams(events));
 
     await expect(mutations.handler.two.$expect(events)(123)).rejects.toEqual(new Error('123'));
     expect(onEvents).toHaveBeenCalledTimes(2);
@@ -199,16 +186,9 @@ describe('MutationsRegistry', () => {
     const events: Event[] = [{ channel: 'channel', name: 'foo', data: { bar: 123 } }];
     await expect(mutations.handler.one.$expect(events)('foo')).rejects.toThrow(expectedErr);
     expect(onEvents).toHaveBeenCalledTimes(1);
-    expect(onEvents).toHaveBeenNthCalledWith(
-      1,
-      toOptimisticEventsWithParams(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: defaultComparator }),
-    );
+    expect(onEvents).toHaveBeenNthCalledWith(1, toOptimisticEventsWithParams(events));
     expect(onError).toHaveBeenCalledTimes(1);
-    expect(onError).toHaveBeenNthCalledWith(
-      1,
-      expectedErr,
-      toOptimisticEventsWithParams(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: defaultComparator }),
-    );
+    expect(onError).toHaveBeenNthCalledWith(1, expectedErr, toOptimisticEventsWithParams(events));
 
     await expect(mutations.handler.two.$expect(events)(123)).rejects.toThrow(expectedErr);
     expect(onEvents).toHaveBeenCalledTimes(2);
@@ -241,16 +221,9 @@ describe('MutationsRegistry', () => {
     expect(result1[0]).toEqual('foo');
     await expect(result1[1]).rejects.toThrow(expectedErr);
     expect(onEvents).toHaveBeenCalledTimes(1);
-    expect(onEvents).toHaveBeenNthCalledWith(
-      1,
-      toOptimisticEventsWithParams(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: defaultComparator }),
-    );
+    expect(onEvents).toHaveBeenNthCalledWith(1, toOptimisticEventsWithParams(events));
     expect(onError).toHaveBeenCalledTimes(1);
-    expect(onError).toHaveBeenNthCalledWith(
-      1,
-      expectedErr,
-      toOptimisticEventsWithParams(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: defaultComparator }),
-    );
+    expect(onError).toHaveBeenNthCalledWith(1, expectedErr, toOptimisticEventsWithParams(events));
 
     const result2 = await mutations.handler.two.$expect(events)(123);
     expect(result2[0]).toEqual({ x: 123 });

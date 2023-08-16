@@ -1,6 +1,13 @@
+import { defaultComparator, DEFAULT_OPTIONS } from '../../MutationsRegistry.js';
 import type { ConfirmedEvent, Event, EventParams, OptimisticEvent, OptimisticEventWithParams } from '../../types/model';
 
-export function toOptimisticEventsWithParams(events: Event[], params: EventParams): OptimisticEventWithParams[] {
+export function toOptimisticEventsWithParams(
+  events: Event[],
+  params: EventParams = {
+    timeout: DEFAULT_OPTIONS.timeout,
+    comparator: defaultComparator,
+  },
+): OptimisticEventWithParams[] {
   return events.map((event) => ({
     ...event,
     confirmed: false,
