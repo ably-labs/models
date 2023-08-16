@@ -47,8 +47,7 @@ export type MutationMethods = { [K: string]: MutationFunc<any[], any> };
  * it also defines a special `$expect` method, which when invoked with a list of expected events,
  * returns a function that takes the same parameters as the original method and returns a Promise that
  * resolves to a tuple. The first element of the tuple is the result of invoking the original method;
- * the second element is a Promise<void> which gets resolved when the updates have been optimistically
- * applied; and the third element is a Promise<void> which gets resolved when the mutation is confirmed.
+ * the second element is a Promise<void> which gets resolved the expected events are confirmed.
  *
  * @template M The mutation methods type.
  */

@@ -22,8 +22,7 @@ For each method in M, it defines a corresponding method in <code>MethodWithExpec
 it also defines a special <code>$expect</code> method, which when invoked with a list of expected events,
 returns a function that takes the same parameters as the original method and returns a Promise that
 resolves to a tuple. The first element of the tuple is the result of invoking the original method;
-the second element is a Promise<void> which gets resolved when the updates have been optimistically
-applied; and the third element is a Promise<void> which gets resolved when the mutation is confirmed.</p>
+the second element is a Promise<void> which gets resolved the expected events are confirmed.</p>
 </div>
 <section class="tsd-panel">
 <h4>Type Parameters</h4>
@@ -35,7 +34,7 @@ applied; and the third element is a Promise<void> which gets resolved when the m
 <div class="tsd-comment tsd-typography"></div></li></ul></section>
 <div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ably-labs/models/blob/bb985fb/src/types/mutations.ts#L55">types/mutations.ts:55</a></li></ul></aside></div>
+<li>Defined in <a href="https://github.com/ably-labs/models/blob/4062d63/src/types/mutations.ts#L54">types/mutations.ts:54</a></li></ul></aside></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
