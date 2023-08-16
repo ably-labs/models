@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 
 import PendingConfirmation from './PendingConfirmation.js';
 import type { Event, EventParams } from './types/model.js';
-import { toExpectedEvents } from './utilities/test/events.js';
+import { toOptimisticEventsWithParams } from './utilities/test/events.js';
 
 describe('PendingConfirmation', () => {
   const defaultTimeout = 3000;
@@ -14,7 +14,7 @@ describe('PendingConfirmation', () => {
     { channel: 'channel2', name: 'baz', data: { qux: 456 } },
   ];
 
-  const expectedEvents = toExpectedEvents(events, params);
+  const expectedEvents = toOptimisticEventsWithParams(events, params);
 
   it('initializes with the correct default values', () => {
     const pc = new PendingConfirmation(defaultTimeout, expectedEvents);

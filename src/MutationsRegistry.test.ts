@@ -3,7 +3,7 @@ import { it, describe, expect, vi } from 'vitest';
 import MutationsRegistry, { defaultComparator, DEFAULT_OPTIONS } from './MutationsRegistry.js';
 import type { Event } from './types/model.js';
 import type { MutationMethods, MutationFunc, EventComparator } from './types/mutations.js';
-import { toExpectedEvents } from './utilities/test/events.js';
+import { toOptimisticEventsWithParams } from './utilities/test/events.js';
 
 interface Methods extends MutationMethods {
   one: MutationFunc<[string], string>;
@@ -57,7 +57,7 @@ describe('MutationsRegistry', () => {
     });
 
     const events: Event[] = [{ channel: 'channel', name: 'foo', data: { bar: 123 } }];
-    const expectedEvents = toExpectedEvents(events, {
+    const expectedEvents = toOptimisticEventsWithParams(events, {
       timeout: DEFAULT_OPTIONS.timeout,
       comparator: defaultComparator,
     });
@@ -87,7 +87,7 @@ describe('MutationsRegistry', () => {
     expect(onEvents).toHaveBeenCalledTimes(1);
     expect(onEvents).toHaveBeenNthCalledWith(
       1,
-      toExpectedEvents(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: defaultComparator }),
+      toOptimisticEventsWithParams(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: defaultComparator }),
     );
     expect(onError).not.toHaveBeenCalled();
 
@@ -97,7 +97,7 @@ describe('MutationsRegistry', () => {
     expect(onEvents).toHaveBeenCalledTimes(2);
     expect(onEvents).toHaveBeenNthCalledWith(
       2,
-      toExpectedEvents(events, { timeout: 1000, comparator: defaultComparator }),
+      toOptimisticEventsWithParams(events, { timeout: 1000, comparator: defaultComparator }),
     );
     expect(onError).not.toHaveBeenCalled();
   });
@@ -124,7 +124,7 @@ describe('MutationsRegistry', () => {
     expect(onEvents).toHaveBeenCalledTimes(1);
     expect(onEvents).toHaveBeenNthCalledWith(
       1,
-      toExpectedEvents(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: nameOnlyComparator }),
+      toOptimisticEventsWithParams(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: nameOnlyComparator }),
     );
     expect(onError).not.toHaveBeenCalled();
 
@@ -134,7 +134,7 @@ describe('MutationsRegistry', () => {
     expect(onEvents).toHaveBeenCalledTimes(2);
     expect(onEvents).toHaveBeenNthCalledWith(
       2,
-      toExpectedEvents(events, { timeout: 1000, comparator: nameOnlyComparator }),
+      toOptimisticEventsWithParams(events, { timeout: 1000, comparator: nameOnlyComparator }),
     );
     expect(onError).not.toHaveBeenCalled();
   });
@@ -160,26 +160,26 @@ describe('MutationsRegistry', () => {
     expect(onEvents).toHaveBeenCalledTimes(1);
     expect(onEvents).toHaveBeenNthCalledWith(
       1,
-      toExpectedEvents(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: defaultComparator }),
+      toOptimisticEventsWithParams(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: defaultComparator }),
     );
     expect(onError).toHaveBeenCalledTimes(1);
     expect(onError).toHaveBeenNthCalledWith(
       1,
       new Error('foo'),
-      toExpectedEvents(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: defaultComparator }),
+      toOptimisticEventsWithParams(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: defaultComparator }),
     );
 
     await expect(mutations.handler.two.$expect(events)(123)).rejects.toEqual(new Error('123'));
     expect(onEvents).toHaveBeenCalledTimes(2);
     expect(onEvents).toHaveBeenNthCalledWith(
       2,
-      toExpectedEvents(events, { timeout: 1000, comparator: defaultComparator }),
+      toOptimisticEventsWithParams(events, { timeout: 1000, comparator: defaultComparator }),
     );
     expect(onError).toHaveBeenCalledTimes(2);
     expect(onError).toHaveBeenNthCalledWith(
       2,
       new Error('123'),
-      toExpectedEvents(events, { timeout: 1000, comparator: defaultComparator }),
+      toOptimisticEventsWithParams(events, { timeout: 1000, comparator: defaultComparator }),
     );
   });
 
@@ -201,25 +201,25 @@ describe('MutationsRegistry', () => {
     expect(onEvents).toHaveBeenCalledTimes(1);
     expect(onEvents).toHaveBeenNthCalledWith(
       1,
-      toExpectedEvents(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: defaultComparator }),
+      toOptimisticEventsWithParams(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: defaultComparator }),
     );
     expect(onError).toHaveBeenCalledTimes(1);
     expect(onError).toHaveBeenNthCalledWith(
       1,
       expectedErr,
-      toExpectedEvents(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: defaultComparator }),
+      toOptimisticEventsWithParams(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: defaultComparator }),
     );
 
     await expect(mutations.handler.two.$expect(events)(123)).rejects.toThrow(expectedErr);
     expect(onEvents).toHaveBeenCalledTimes(2);
     expect(onEvents).toHaveBeenNthCalledWith(
       2,
-      toExpectedEvents(events, { timeout: 1000, comparator: defaultComparator }),
+      toOptimisticEventsWithParams(events, { timeout: 1000, comparator: defaultComparator }),
     );
     expect(onError).toHaveBeenNthCalledWith(
       2,
       expectedErr,
-      toExpectedEvents(events, { timeout: 1000, comparator: defaultComparator }),
+      toOptimisticEventsWithParams(events, { timeout: 1000, comparator: defaultComparator }),
     );
   });
 
@@ -243,13 +243,13 @@ describe('MutationsRegistry', () => {
     expect(onEvents).toHaveBeenCalledTimes(1);
     expect(onEvents).toHaveBeenNthCalledWith(
       1,
-      toExpectedEvents(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: defaultComparator }),
+      toOptimisticEventsWithParams(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: defaultComparator }),
     );
     expect(onError).toHaveBeenCalledTimes(1);
     expect(onError).toHaveBeenNthCalledWith(
       1,
       expectedErr,
-      toExpectedEvents(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: defaultComparator }),
+      toOptimisticEventsWithParams(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: defaultComparator }),
     );
 
     const result2 = await mutations.handler.two.$expect(events)(123);
@@ -258,13 +258,13 @@ describe('MutationsRegistry', () => {
     expect(onEvents).toHaveBeenCalledTimes(2);
     expect(onEvents).toHaveBeenNthCalledWith(
       2,
-      toExpectedEvents(events, { timeout: 1000, comparator: defaultComparator }),
+      toOptimisticEventsWithParams(events, { timeout: 1000, comparator: defaultComparator }),
     );
     expect(onError).toHaveBeenCalledTimes(2);
     expect(onError).toHaveBeenNthCalledWith(
       2,
       expectedErr,
-      toExpectedEvents(events, { timeout: 1000, comparator: defaultComparator }),
+      toOptimisticEventsWithParams(events, { timeout: 1000, comparator: defaultComparator }),
     );
   });
 });
