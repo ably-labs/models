@@ -16,7 +16,7 @@ describe('MutationsRegistry', () => {
   it<MutationsTestContext>('invokes mutation methods', async () => {
     let onEvents = vi.fn(async () => [Promise.resolve(), Promise.resolve()]);
     let onError = vi.fn();
-    const mutations = new MutationsRegistry<Methods>({ onEvents, onError });
+    const mutations = new MutationsRegistry<Methods>({ apply: onEvents, rollback: onError });
     mutations.register({
       one: async (x: string) => x,
       two: {
@@ -33,7 +33,7 @@ describe('MutationsRegistry', () => {
   it<MutationsTestContext>('mutation method throws and calls onError', async () => {
     let onEvents = vi.fn(async () => [Promise.resolve(), Promise.resolve()]);
     let onError = vi.fn();
-    const mutations = new MutationsRegistry<Pick<Methods, 'one'>>({ onEvents, onError });
+    const mutations = new MutationsRegistry<Pick<Methods, 'one'>>({ apply: onEvents, rollback: onError });
     mutations.register({
       one: async (x: string) => {
         throw x;
@@ -49,7 +49,7 @@ describe('MutationsRegistry', () => {
   it<MutationsTestContext>('mutation method throws at same time as optimistic update fails', async () => {
     let onEvents = vi.fn(async () => [Promise.reject('optimistic update failed'), Promise.resolve()]);
     let onError = vi.fn();
-    const mutations = new MutationsRegistry<Pick<Methods, 'one'>>({ onEvents, onError });
+    const mutations = new MutationsRegistry<Pick<Methods, 'one'>>({ apply: onEvents, rollback: onError });
     mutations.register({
       one: async (x: string) => {
         throw x;
@@ -68,7 +68,7 @@ describe('MutationsRegistry', () => {
   it<MutationsTestContext>('invokes mutation methods with expectations (default comparator) and options', async () => {
     let onEvents = vi.fn(async () => [Promise.resolve(), Promise.resolve()]);
     let onError = vi.fn();
-    const mutations = new MutationsRegistry<Methods>({ onEvents, onError });
+    const mutations = new MutationsRegistry<Methods>({ apply: onEvents, rollback: onError });
     mutations.register({
       one: async (x: string) => x,
       two: {
@@ -99,7 +99,7 @@ describe('MutationsRegistry', () => {
   it<MutationsTestContext>('invokes mutation methods with expectations (custom comparator) and options', async () => {
     let onEvents = vi.fn(async () => [Promise.resolve(), Promise.resolve()]);
     let onError = vi.fn();
-    const mutations = new MutationsRegistry<Methods>({ onEvents, onError });
+    const mutations = new MutationsRegistry<Methods>({ apply: onEvents, rollback: onError });
     mutations.register({
       one: async (x: string) => x,
       two: {
@@ -136,7 +136,7 @@ describe('MutationsRegistry', () => {
   it<MutationsTestContext>('mutation methods with expectations and options throw and call onError', async () => {
     let onEvents = vi.fn(async () => [Promise.resolve(), Promise.resolve()]);
     let onError = vi.fn();
-    const mutations = new MutationsRegistry<Methods>({ onEvents, onError });
+    const mutations = new MutationsRegistry<Methods>({ apply: onEvents, rollback: onError });
     mutations.register({
       one: async (x: string) => {
         throw x;
@@ -174,7 +174,7 @@ describe('MutationsRegistry', () => {
     const expectedErr = new Error('optimistic update failed');
     let onEvents = vi.fn(async () => [Promise.reject(expectedErr), Promise.resolve()]);
     let onError = vi.fn();
-    const mutations = new MutationsRegistry<Methods>({ onEvents, onError });
+    const mutations = new MutationsRegistry<Methods>({ apply: onEvents, rollback: onError });
     mutations.register({
       one: async (x: string) => x,
       two: {
@@ -207,7 +207,7 @@ describe('MutationsRegistry', () => {
     const expectedErr = new Error('optimistic update failed');
     let onEvents = vi.fn(async () => [Promise.resolve(), Promise.reject(expectedErr)]);
     let onError = vi.fn(async () => {});
-    const mutations = new MutationsRegistry<Methods>({ onEvents, onError });
+    const mutations = new MutationsRegistry<Methods>({ apply: onEvents, rollback: onError });
     mutations.register({
       one: async (x: string) => x,
       two: {

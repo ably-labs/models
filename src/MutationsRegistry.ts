@@ -33,15 +33,16 @@ function isMethodObject<T extends MutationFunc>(
 /**
  * MutationsCallbacks facilitates custom handling of expected events emitted by mutations.
  *
- * @property onEvents - Invoked with a mutation's expected events and configured options.
+ * @property apply - Callback to invoke with a mutation's expected events (and configured options) to
+ * optimistically apply the events to the model.
  * It should return a tuple of Promise<void>, the first of which resolves when the optimistic
  * updates have been applied and the second of which resolves when the mutation has been confirmed.
- * @property onError - Invoked with an error and the mutation's expected events the mutation,
- * or the onEvents handler, throws.
+ * @property rollback - Callback to invoke with an error and the mutation's expected events to rollback
+ * events that were previously applied.
  */
 export type MutationsCallbacks = {
-  onEvents: (events: OptimisticEventWithParams[]) => Promise<Promise<void>[]>;
-  onError: (err: Error, events: OptimisticEventWithParams[]) => Promise<void>;
+  apply: (events: OptimisticEventWithParams[]) => Promise<Promise<void>[]>;
+  rollback: (err: Error, events: OptimisticEventWithParams[]) => Promise<void>;
 };
 
 /**
@@ -82,12 +83,12 @@ export default class MutationsRegistry<M extends MutationMethods> {
     let optimistic = Promise.resolve();
     let confirmation = Promise.resolve();
     try {
-      [optimistic, confirmation] = await this.callbacks.onEvents(events);
+      [optimistic, confirmation] = await this.callbacks.apply(events);
       await optimistic;
       return { confirmation };
     } catch (err) {
       confirmation.catch(() => {}); // the confirmation will reject after the rollback, so ensure we have a handler
-      await this.callbacks.onError(toError(err), events); // rollback the events
+      await this.callbacks.rollback(toError(err), events); // rollback the events
       throw toError(err);
     }
   }
@@ -103,19 +104,18 @@ export default class MutationsRegistry<M extends MutationMethods> {
     try {
       return await confirmation;
     } catch (err) {
-      await this.callbacks.onError(toError(err), events);
+      await this.callbacks.rollback(toError(err), events);
       throw err;
     }
   }
 
   /**
-   * @method handleMutation - Returns an async function handles invoking a given mutation.
+   * @method handleMutation - Returns an async function that handles invoking a given mutation.
    * This function will return the awaited result of the mutation method.
-   * If the mutation is invoked using $expect, it will first call the onEvents callback
-   * with the expected events and any options configured on the mutation. The callback should
-   * return an array of two promises that can be used to await optimistic update and the confirmation
-   * of the event, which is returned along with the mutation result.
-   * If the mutation or the onEvents callback throws, it calls the onError callback before re-throwing.
+   * If the mutation is invoked using $expect, it will first call the apply callback
+   * with the expected events and any options configured on the mutation.
+   * If the mutation or the apply callback throws, it calls the rollback callback before re-throwing.
+   * @returns The mutation result. If invoked with $expect, returns the mutation result and the confirmation promise.
    */
   private handleMutation<K extends keyof M>(
     methodName: K,
@@ -146,7 +146,7 @@ export default class MutationsRegistry<M extends MutationMethods> {
         return expectedEvents ? [result, this.wrapConfirmation(confirmation, events)] : result;
       } catch (mutationErr) {
         confirmation.catch(() => {}); // the confirmation will reject after the rollback, so ensure we have a handler
-        await this.callbacks.onError(toError(mutationErr), events);
+        await this.callbacks.rollback(toError(mutationErr), events);
         throw toError(mutationErr);
       }
     };

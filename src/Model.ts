@@ -72,8 +72,8 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
     this.streamRegistry = new StreamRegistry({ ably: options.ably, logger: options.logger });
     this.baseLogContext = { scope: `Model:${name}` };
     this.mutationsRegistry = new MutationsRegistry<M>({
-      onEvents: this.onMutationEvents.bind(this),
-      onError: this.onMutationError.bind(this),
+      apply: this.applyOptimisticEvents.bind(this),
+      rollback: this.rollbackOptimisticEvents.bind(this),
     });
   }
 
@@ -239,7 +239,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
     }
   }
 
-  private async onMutationEvents(events: OptimisticEventWithParams[]) {
+  private async applyOptimisticEvents(events: OptimisticEventWithParams[]) {
     if (events.length === 0) {
       return [];
     }
@@ -256,9 +256,9 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
     return [optimistic, pendingConfirmation.promise];
   }
 
-  private async onMutationError(err: Error, events: OptimisticEventWithParams[]) {
-    this.logger.error({ ...this.baseLogContext, action: 'onMutationError()', err, events });
-    await this.revertOptimisticEvents(events, err);
+  private async rollbackOptimisticEvents(err: Error, events: OptimisticEventWithParams[]) {
+    this.logger.info({ ...this.baseLogContext, action: 'rollbackOptimisticEvents()', err, events });
+    await this.revertOptimisticEvents(err, events);
   }
 
   protected setState(state: ModelState, reason?: Error) {
@@ -421,13 +421,13 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
     await this.pendingConfirmationsRegistry.confirmEvents([event]);
   }
 
-  private async revertOptimisticEvents(events: OptimisticEvent[], err: Error) {
+  private async revertOptimisticEvents(err: Error, events: OptimisticEvent[]) {
     if (events.length === 0) {
       return;
     }
     this.logger.trace({ ...this.baseLogContext, action: 'revertOptimisticEvents()', events });
-    // Remove any events from optimisticEvents and re-apply any unconfirmed
-    // optimistic events.
+    // remove any matching events from the optimisticEvents and re-apply the remaining events
+    // on top of the latest confirmed state
     for (let event of events) {
       this.optimisticEvents = this.optimisticEvents.filter((e) => !e.params.comparator(e, event));
     }
@@ -436,6 +436,6 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
       nextData = await this.applyUpdates(nextData, e);
     }
     this.setOptimisticData(nextData);
-    await this.pendingConfirmationsRegistry.rejectEvents(events, err);
+    await this.pendingConfirmationsRegistry.rejectEvents(err, events);
   }
 }
