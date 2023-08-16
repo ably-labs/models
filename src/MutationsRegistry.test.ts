@@ -1,8 +1,9 @@
 import { it, describe, expect, vi } from 'vitest';
 
 import MutationsRegistry, { defaultComparator, DEFAULT_OPTIONS } from './MutationsRegistry.js';
-import type { Event, EventParams, OptimisticEventWithParams } from './types/model.js';
+import type { Event } from './types/model.js';
 import type { MutationMethods, MutationFunc, EventComparator } from './types/mutations.js';
+import { toExpectedEvents } from './utilities/test/events.js';
 
 interface Methods extends MutationMethods {
   one: MutationFunc<[string], string>;
@@ -10,14 +11,6 @@ interface Methods extends MutationMethods {
 }
 
 interface MutationsTestContext {}
-
-function toExpectedEvents(events: Event[], params: EventParams): OptimisticEventWithParams[] {
-  return events.map((event) => ({
-    ...event,
-    confirmed: false,
-    params,
-  }));
-}
 
 describe('MutationsRegistry', () => {
   it<MutationsTestContext>('invokes mutation methods', async () => {
