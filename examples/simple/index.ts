@@ -78,7 +78,7 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   );
 
   const postText = 'update post';
-  const [postResult, postUpdate, postConfirmation] = await model.mutations.updatePost.$expect([
+  const [postResult, postConfirmation] = await model.mutations.updatePost.$expect([
     {
       channel: 'posts:123',
       name: 'update',
@@ -86,15 +86,13 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     },
   ])(postText);
   logger.info(postResult, 'mutation: updatePost');
-  await postUpdate;
-  logger.info('mutation: updatePost: optimistically applied');
   setTimeout(() => ably.channels.get('posts:123').publish('update', postText), 5000);
   logger.info('mutation: updatePost: awaiting confirmation...');
   await postConfirmation;
   logger.info('mutation: updatePost: confirmed');
 
   const commentText = 'add comment';
-  const [commentResult, commentUpdate, commentConfirmation] = await model.mutations.addComment.$expect([
+  const [commentResult, commentConfirmation] = await model.mutations.addComment.$expect([
     {
       channel: 'posts:123:comments',
       name: 'add',
@@ -102,8 +100,6 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     },
   ])(commentText);
   logger.info(commentResult, 'mutation: addComment');
-  await commentUpdate;
-  logger.info('mutation: addComment: optimistically applied');
   setTimeout(
     () =>
       ably.channels.get('posts:123:comments').publish({
