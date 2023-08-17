@@ -99,20 +99,29 @@ describe('MutationsRegistry', () => {
   it<MutationsTestContext>('invokes mutation methods with expectations (custom comparator) and options', async () => {
     let onEvents = vi.fn(async () => [Promise.resolve(), Promise.resolve()]);
     let onError = vi.fn();
-    const mutations = new MutationsRegistry<Methods>({ apply: onEvents, rollback: onError });
-    mutations.register({
-      one: async (x: string) => x,
-      two: {
-        func: async (x: number) => ({ x }),
-        options: { timeout: 1000 },
-      },
-    });
 
     const nameOnlyComparator: EventComparator = (optimistic: Event, confirmed: Event) =>
       optimistic.name === confirmed.name;
 
+    const mutations = new MutationsRegistry<Methods>({ apply: onEvents, rollback: onError });
+    mutations.register({
+      one: {
+        func: async (x: string) => x,
+        options: {
+          comparator: nameOnlyComparator,
+        },
+      },
+      two: {
+        func: async (x: number) => ({ x }),
+        options: {
+          timeout: 1000,
+          comparator: nameOnlyComparator,
+        },
+      },
+    });
+
     const events: Event[] = [{ channel: 'channel', name: 'foo', data: { bar: 123 } }];
-    const result1 = await mutations.handler.one.$expect(events, nameOnlyComparator)('foo');
+    const result1 = await mutations.handler.one.$expect(events)('foo');
     expect(result1[0]).toEqual('foo');
     await expect(result1[1]).resolves.toBeUndefined();
     expect(onEvents).toHaveBeenCalledTimes(1);
@@ -122,7 +131,7 @@ describe('MutationsRegistry', () => {
     );
     expect(onError).not.toHaveBeenCalled();
 
-    const result2 = await mutations.handler.two.$expect(events, nameOnlyComparator)(123);
+    const result2 = await mutations.handler.two.$expect(events)(123);
     expect(result2[0]).toEqual({ x: 123 });
     await expect(result2[1]).resolves.toBeUndefined();
     expect(onEvents).toHaveBeenCalledTimes(2);
