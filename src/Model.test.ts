@@ -366,7 +366,6 @@ describe('Model', () => {
       $sync: async () => 'foobar',
       $mutate: { foo: mutation },
     });
-    // TODO catch internal errors thrown by onStreamEvents and reject
     await expect(model.mutations.foo.$expect([{ channel: 'unknown', name: 'foo' }])()).rejects.toThrow(
       "stream with name 'unknown' not registered on model 'test'",
     );
@@ -945,9 +944,45 @@ describe('Model', () => {
         { channel: 's1', name: 'testEvent', data: '6' },
       ])(),
     ).rejects.toThrow('update error');
-    // expect(result2).toBeUndefined(); // applying the optimistic update fails so the mutation is never called, returning undefined
-    // await expect(update).rejects.toThrow('update error');
-    // await expect(confirmation).rejects.toThrow('update error'); // confirmation should fail by proxy
+    // The failed mutation should have been reverted.
+    expect(model.optimistic).toEqual('0123');
+  });
+
+  // Tests if the mutation throws, the the optimistic events are reverted.
+  it<ModelTestContext>('revert optimistic events if apply update fails', async ({ ably, logger, streams }) => {
+    const s1 = streams.getOrCreate({ channel: 's1' });
+    const s2 = streams.getOrCreate({ channel: 's2' });
+    s1.subscribe = vi.fn();
+    s2.subscribe = vi.fn();
+
+    const model = new Model<string, { mutation1: () => Promise<string>; mutation2: () => Promise<string> }>('test', {
+      ably,
+      logger,
+    });
+
+    const updateFn = vi.fn(async (state, event) => state + event.data);
+    const mutation1 = vi.fn(async () => 'test');
+    const mutation2 = async () => {
+      throw new Error('mutation failed');
+    };
+    await model.$register({
+      $sync: async () => '0',
+      $update: { s1: { testEvent: updateFn } },
+      $mutate: { mutation1, mutation2 },
+    });
+    const [result1] = await model.mutations.mutation1.$expect([
+      { channel: 's1', name: 'testEvent', data: '1' },
+      { channel: 's1', name: 'testEvent', data: '2' },
+      { channel: 's1', name: 'testEvent', data: '3' },
+    ])();
+    expect(result1).toEqual('test');
+    await expect(
+      model.mutations.mutation2.$expect([
+        { channel: 's1', name: 'testEvent', data: '4' },
+        { channel: 's1', name: 'testEvent', data: '5' },
+        { channel: 's1', name: 'testEvent', data: '6' },
+      ])(),
+    ).rejects.toThrow('mutation failed');
     // The failed mutation should have been reverted.
     expect(model.optimistic).toEqual('0123');
   });
