@@ -26,5 +26,6 @@ export function toConfirmedEvents(events: Event[]): ConfirmedEvent[] {
   return events.map((event) => ({
     ...event,
     confirmed: true,
+    rejected: false,
   }));
 }

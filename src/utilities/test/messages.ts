@@ -7,7 +7,9 @@ export const baseMessage: Types.Message = {
   clientId: 'RND-CLIENTID',
   connectionId: 'CONNECTION_ID',
   encoding: 'utf-8',
-  extras: {},
+  extras: {
+    headers: {},
+  },
   timestamp: 1,
 };
 
@@ -20,6 +22,18 @@ export function createMessage(i: number): Types.Message {
   };
 }
 
-export function customMessage(id: string, name: string, data: string): Types.Message {
-  return { ...baseMessage, id, name, data };
+export function customMessage(id: string, name: string, data: string, headers?: Record<string, string>): Types.Message {
+  return {
+    ...baseMessage,
+    id,
+    name,
+    data,
+    extras: {
+      ...baseMessage.extras,
+      headers: {
+        ...baseMessage.extras.headers,
+        ...(headers || {}),
+      },
+    },
+  };
 }
