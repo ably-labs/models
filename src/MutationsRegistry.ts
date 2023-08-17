@@ -12,10 +12,26 @@ import type {
 } from './types/mutations.js';
 
 /**
+ * The default event comparator used by all registered mutation functions, unless an override option is provided.
+ *
+ * @param optimistic - The optimistic event to compare.
+ * @param confirmed - The confirmed event to compare.
+ * @returns {boolean} Whether the two events are equal by channel, event name and deep equality on the event data.
+ */
+export const defaultComparator: EventComparator = (optimistic: Event, confirmed: Event) => {
+  return (
+    optimistic.channel === confirmed.channel &&
+    optimistic.name === confirmed.name &&
+    isEqual(optimistic.data, confirmed.data)
+  );
+};
+
+/**
  * Default options applied to all registered mutations.
  */
-export const DEFAULT_OPTIONS: MutationOptions = {
+export const DEFAULT_OPTIONS: Required<MutationOptions> = {
   timeout: 1000 * 60 * 2,
+  comparator: defaultComparator,
 };
 
 /**
@@ -43,21 +59,6 @@ function isMethodObject<T extends MutationFunc>(
 export type MutationsCallbacks = {
   apply: (events: OptimisticEventWithParams[]) => Promise<Promise<void>[]>;
   rollback: (err: Error, events: OptimisticEventWithParams[]) => Promise<void>;
-};
-
-/**
- * The default event comparator used by all registered mutation functions, unless an override option is provided.
- *
- * @param optimistic - The optimistic event to compare.
- * @param confirmed - The confirmed event to compare.
- * @returns {boolean} Whether the two events are equal by channel, event name and deep equality on the event data.
- */
-export const defaultComparator: EventComparator = (optimistic: Event, confirmed: Event) => {
-  return (
-    optimistic.channel === confirmed.channel &&
-    optimistic.name === confirmed.name &&
-    isEqual(optimistic.data, confirmed.data)
-  );
 };
 
 /**
@@ -117,11 +118,7 @@ export default class MutationsRegistry<M extends MutationMethods> {
    * If the mutation or the apply callback throws, it calls the rollback callback before re-throwing.
    * @returns The mutation result. If invoked with $expect, returns the mutation result and the confirmation promise.
    */
-  private handleMutation<K extends keyof M>(
-    methodName: K,
-    expectedEvents?: Event[],
-    comparator?: EventComparator,
-  ): any {
+  private handleMutation<K extends keyof M>(methodName: K, expectedEvents?: Event[]): any {
     const methodItem = this.methods[methodName] as MutationRegistration;
     const method = isMethodObject(methodItem) ? methodItem.func : methodItem;
     let options = isMethodObject(methodItem) ? { ...DEFAULT_OPTIONS, ...methodItem.options } : DEFAULT_OPTIONS;
@@ -131,7 +128,7 @@ export default class MutationsRegistry<M extends MutationMethods> {
           confirmed: false,
           params: {
             timeout: options.timeout,
-            comparator: comparator || defaultComparator,
+            comparator: options.comparator,
           },
         }))
       : [];
@@ -152,9 +149,9 @@ export default class MutationsRegistry<M extends MutationMethods> {
     };
 
     callMethod.$expect =
-      (expectedEvents: Event[], comparator?: EventComparator) =>
+      (expectedEvents: Event[]) =>
       (...args: Parameters<M[K]>) =>
-        this.handleMutation(methodName, expectedEvents, comparator)(...args);
+        this.handleMutation(methodName, expectedEvents)(...args);
 
     return callMethod;
   }

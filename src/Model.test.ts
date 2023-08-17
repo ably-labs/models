@@ -544,12 +544,19 @@ describe('Model', () => {
 
     const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, logger });
 
+    const nameOnlyComparator: EventComparator = (optimistic: Event, confirmed: Event) =>
+      optimistic.name === confirmed.name;
     const update1 = vi.fn(async (state, event) => event.data);
     const mutation = vi.fn(async () => 'test');
     await model.$register({
       $sync: async () => 'data_0',
       $update: { s1: { testEvent: update1 } },
-      $mutate: { foo: mutation },
+      $mutate: {
+        foo: {
+          func: mutation,
+          options: { comparator: nameOnlyComparator },
+        },
+      },
     });
 
     let optimisticSubscription = new Subject<void>();
@@ -571,9 +578,7 @@ describe('Model', () => {
     expect(model.optimistic).toEqual('data_0');
     expect(model.confirmed).toEqual('data_0');
 
-    const nameOnlyComparator: EventComparator = (optimistic: Event, confirmed: Event) =>
-      optimistic.name === confirmed.name;
-    await model.mutations.foo.$expect([{ channel: 's1', name: 'testEvent', data: 'data_1' }], nameOnlyComparator)();
+    await model.mutations.foo.$expect([{ channel: 's1', name: 'testEvent', data: 'data_1' }])();
 
     await optimisticSubscriptionCalls[1];
     expect(model.optimistic).toEqual('data_1');

@@ -15,12 +15,18 @@ export type EventComparator = (optimistic: Event, confirmed: Event) => boolean;
 
 /**
  * MutationOptions can be used to configure options on individual mutations.
- * @property timeout - The timeout to receive a confirmation for optimistic mutation events in milliseconds.
  * If the timeout is reached without being confirmed the optimistic events are rolled back.
  * If unset there is a 2 minutes default timeout to avoid leaking unconfirmed events.
  */
 export type MutationOptions = {
-  timeout: number;
+  /**
+   * The timeout to receive a confirmation for optimistic mutation events in milliseconds.
+   */
+  timeout?: number;
+  /**
+   * An event comparator used to correlate optimistic events with confirmed events.
+   */
+  comparator?: EventComparator;
 };
 
 /**
@@ -55,7 +61,6 @@ export type MethodWithExpect<M extends MutationMethods> = {
   [K in keyof M]: M[K] & {
     $expect: (
       expectedEvents: Event[],
-      comparator?: EventComparator,
     ) => (...args: Parameters<M[K]>) => Promise<[Awaited<ReturnType<M[K]>>, Promise<void>]>;
   };
 };
