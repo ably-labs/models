@@ -1,4 +1,4 @@
-import type { Event, OptimisticEventWithParams } from './types/model';
+import type { ConfirmedEvent, OptimisticEvent, OptimisticEventWithParams } from './types/model';
 
 type ResolveFn<T> = (value: T | PromiseLike<T>) => void;
 type RejectFn = (reason?: Error) => void;
@@ -47,9 +47,20 @@ export default class PendingConfirmation {
     return this.resolve();
   }
 
-  async removeMatchingEvents(events: Event[], err?: Error) {
+  async removeMatchingEvents(events: OptimisticEvent[] | ConfirmedEvent[], err?: Error) {
+    let rejections: ConfirmedEvent[] = [];
     for (const event of events) {
+      if (event.confirmed && event.rejected) {
+        rejections.push(event);
+      }
       this.events = this.events.filter((e) => !e.params.comparator(e, event));
+    }
+    if (rejections.length > 0 && !err) {
+      err = new Error(
+        `events contain rejections: ${rejections
+          .map((event) => `channel:${event.channel} name:${event.name}`)
+          .join('\n')}`,
+      );
     }
     if (this.events.length === 0) {
       await this.finalise(err);

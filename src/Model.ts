@@ -306,7 +306,11 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
         if (err) {
           throw err;
         }
-        await this.onStreamEvent({ ...event!, channel, confirmed: true });
+        let rejected = false;
+        if (event?.extras?.headers && event?.extras?.headers['x-ably-models-reject'] === 'true') {
+          rejected = true;
+        }
+        await this.onStreamEvent({ ...event!, channel, confirmed: true, rejected });
       } catch (err) {
         this.init(toError(err));
       }
@@ -408,6 +412,9 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
   }
 
   private async applyWithRebase(confirmedEvent: ConfirmedEvent, optimisticEvents: OptimisticEvent[]) {
+    if (confirmedEvent.rejected) {
+      return;
+    }
     await this.applyConfirmedUpdates(this.confirmedData, confirmedEvent);
     let base = this.confirmedData;
     for (const event of optimisticEvents) {
