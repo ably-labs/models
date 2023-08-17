@@ -16,17 +16,27 @@
 <li><a href="../modules/types_model.html">types/model</a></li>
 <li><a href="types_model.ConfirmedEvent.html">ConfirmedEvent</a></li></ul>
 <h1>Type alias ConfirmedEvent</h1></div>
-<div class="tsd-signature"><span class="tsd-kind-type-alias">Confirmed<wbr/>Event</span><span class="tsd-signature-symbol">:</span> <a href="types_model.Event.html" class="tsd-signature-type tsd-kind-type-alias">Event</a><span class="tsd-signature-symbol"> &amp; </span><span class="tsd-signature-symbol">{ </span><br/><span>    </span><span class="tsd-kind-property">confirmed</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">true</span><span class="tsd-signature-symbol">; </span><br/><span class="tsd-signature-symbol">}</span></div>
+<div class="tsd-signature"><span class="tsd-kind-type-alias">Confirmed<wbr/>Event</span><span class="tsd-signature-symbol">:</span> <a href="types_model.Event.html" class="tsd-signature-type tsd-kind-type-alias">Event</a><span class="tsd-signature-symbol"> &amp; </span><span class="tsd-signature-symbol">{ </span><br/><span>    </span><span class="tsd-kind-property">confirmed</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">true</span><span class="tsd-signature-symbol">; </span><br/><span>    </span><span class="tsd-kind-property">rejected</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">; </span><br/><span class="tsd-signature-symbol">}</span></div>
 <div class="tsd-comment tsd-typography"><p>An event received from the backend over Ably that represents a confirmed mutation on the underlying state in the database.</p>
 </div>
 <div class="tsd-type-declaration">
 <h4>Type declaration</h4>
 <ul class="tsd-parameters">
 <li class="tsd-parameter">
-<h5><span class="tsd-kind-property">confirmed</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">true</span></h5></li></ul></div>
+<h5><span class="tsd-kind-property">confirmed</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">true</span></h5></li>
+<li class="tsd-parameter">
+<h5><span class="tsd-kind-property">rejected</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">boolean</span></h5>
+<div class="tsd-comment tsd-typography"><p>If true, indicates that the backend is (asynchronously) explicitly rejecting this mutation.
+This is useful if the server cannot reject the mutation synchronously with the mutation request
+(such as if the rejection occurred after the backend sent a response).
+This field is set to <code>true</code> iff. there is an <code>x-ably-models-reject: true</code> header in the message extras.</p>
+</div>
+<div class="tsd-comment tsd-typography">
+<h4>See</h4><p><a href="https://ably.com/docs/api/realtime-sdk/messages?lang=nodejs#extras">https://ably.com/docs/api/realtime-sdk/messages?lang=nodejs#extras</a></p>
+</div></li></ul></div>
 <div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ably-labs/models/blob/4062d63/src/types/model.ts#L85">types/model.ts:85</a></li></ul></aside></div>
+<li>Defined in <a href="https://github.com/ably-labs/models/blob/685a689/src/types/model.ts#L85">types/model.ts:85</a></li></ul></aside></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
