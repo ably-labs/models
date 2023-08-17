@@ -175,13 +175,8 @@ export default class MutationsRegistry<M extends MutationMethods> {
         throw new Error(`mutation with name '${methodName}' already registered`);
       }
       const methodItem = mutations[methodName as keyof M];
-      if (typeof methodItem === 'function') {
-        this.methods[methodName as keyof M] = methodItem;
-        (this.handler as any)[methodName] = this.handleMutation(methodName as keyof M);
-      } else {
-        this.methods[methodName as keyof M] = methodItem;
-        (this.handler as any)[methodName] = this.handleMutation(methodName as keyof M);
-      }
+      this.methods[methodName as keyof M] = methodItem;
+      (this.handler as any)[methodName] = this.handleMutation(methodName as keyof M);
     });
   }
 }
