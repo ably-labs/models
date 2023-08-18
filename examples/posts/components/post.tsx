@@ -41,10 +41,12 @@ function Post({ model }: { model: ModelType }) {
 
   async function onAdd(author: AuthorType, postId: number, content: string) {
     try {
-      const [, confirmation] = await model.mutations.addComment.$expect(
-        [{ channel: 'comments', name: 'add', data: { author, content } }],
-        compareComments,
-      )(author, postId, content);
+      const [, confirmation] = await model.mutations.addComment.$expect({
+        events: [{ channel: 'comments', name: 'add', data: { author, content } }],
+        options: {
+          comparator: compareComments,
+        },
+      })(author, postId, content);
       setAlert('Optimistically added comment', 'info');
       await confirmation;
       setAlert('Add comment confirmed!', 'success');
@@ -55,10 +57,12 @@ function Post({ model }: { model: ModelType }) {
 
   async function onEdit(id: number, content: string) {
     try {
-      const [, confirmation] = await model.mutations.editComment.$expect(
-        [{ channel: 'comments', name: 'edit', data: { id, content } }],
-        compareComments,
-      )(id, content);
+      const [, confirmation] = await model.mutations.editComment.$expect({
+        events: [{ channel: 'comments', name: 'edit', data: { id, content } }],
+        options: {
+          comparator: compareComments,
+        },
+      })(id, content);
       setAlert('Optimistically edited comment', 'info');
       await confirmation;
       setAlert('Edit comment confirmed!', 'success');
@@ -69,10 +73,12 @@ function Post({ model }: { model: ModelType }) {
 
   async function onDelete(id: number) {
     try {
-      const [, confirmation] = await model.mutations.deleteComment.$expect(
-        [{ channel: 'comments', name: 'delete', data: { id } }],
-        compareComments,
-      )(id);
+      const [, confirmation] = await model.mutations.deleteComment.$expect({
+        events: [{ channel: 'comments', name: 'delete', data: { id } }],
+        options: {
+          comparator: compareComments,
+        },
+      })(id);
       setAlert('Optimistically deleted comment', 'info');
       await confirmation;
       setAlert('Delete comment confirmed!', 'success');
