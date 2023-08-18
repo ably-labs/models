@@ -78,13 +78,15 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   );
 
   const postText = 'update post';
-  const [postResult, postConfirmation] = await model.mutations.updatePost.$expect([
-    {
-      channel: 'posts:123',
-      name: 'update',
-      data: postText,
-    },
-  ])(postText);
+  const [postResult, postConfirmation] = await model.mutations.updatePost.$expect({
+    events: [
+      {
+        channel: 'posts:123',
+        name: 'update',
+        data: postText,
+      },
+    ],
+  })(postText);
   logger.info(postResult, 'mutation: updatePost');
   setTimeout(() => ably.channels.get('posts:123').publish('update', postText), 5000);
   logger.info('mutation: updatePost: awaiting confirmation...');
@@ -92,13 +94,15 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   logger.info('mutation: updatePost: confirmed');
 
   const commentText = 'add comment';
-  const [commentResult, commentConfirmation] = await model.mutations.addComment.$expect([
-    {
-      channel: 'posts:123:comments',
-      name: 'add',
-      data: commentText,
-    },
-  ])(commentText);
+  const [commentResult, commentConfirmation] = await model.mutations.addComment.$expect({
+    events: [
+      {
+        channel: 'posts:123:comments',
+        name: 'add',
+        data: commentText,
+      },
+    ],
+  })(commentText);
   logger.info(commentResult, 'mutation: addComment');
   setTimeout(
     () =>
