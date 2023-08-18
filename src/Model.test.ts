@@ -949,7 +949,7 @@ describe('Model', () => {
   });
 
   // Tests if the mutation throws, the the optimistic events are reverted.
-  it<ModelTestContext>('revert optimistic events if apply update fails', async ({ ably, logger, streams }) => {
+  it<ModelTestContext>('revert optimistic events if mutation fails', async ({ ably, logger, streams }) => {
     const s1 = streams.getOrCreate({ channel: 's1' });
     const s2 = streams.getOrCreate({ channel: 's2' });
     s1.subscribe = vi.fn();
