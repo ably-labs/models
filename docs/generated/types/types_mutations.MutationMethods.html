@@ -17,8 +17,8 @@
 <li><a href="types_mutations.MutationMethods.html">MutationMethods</a></li></ul>
 <h1>Type alias MutationMethods</h1></div>
 <div class="tsd-signature"><span class="tsd-kind-type-alias">Mutation<wbr/>Methods</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">{ </span><br/><span>    </span>[<span class="tsd-kind-index-signature">K</span>: <span class="tsd-signature-type">string</span>]<span class="tsd-signature-symbol">: </span><a href="types_mutations.MutationFunc.html" class="tsd-signature-type tsd-kind-type-alias">MutationFunc</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">any</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">, </span><span class="tsd-signature-type">any</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">; </span><br/><span class="tsd-signature-symbol">}</span></div>
-<div class="tsd-comment tsd-typography"><p>MutationMethods is a mapping of method names to mutation functions. Users must provide a type which extends this
-when specifying the mutations on a model via the second type parameter <code>M</code> on the <code>Model&lt;T, M&gt;</code>.</p>
+<div class="tsd-comment tsd-typography"><p>MutationMethods is a mapping of method names to mutation functions. Describes the available muitations on the model.
+Users must provide a type which extends this when specifying the mutations on a model via the second type parameter <code>M</code> on the <code>Model&lt;T, M&gt;</code>.</p>
 </div>
 <div class="tsd-type-declaration">
 <h4>Type declaration</h4>
@@ -27,7 +27,7 @@ when specifying the mutations on a model via the second type parameter <code>M</
 <h5><span class="tsd-signature-symbol">[</span><span class="tsd-kind-parameter">K</span>: <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">]: </span><a href="types_mutations.MutationFunc.html" class="tsd-signature-type tsd-kind-type-alias">MutationFunc</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">any</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">, </span><span class="tsd-signature-type">any</span><span class="tsd-signature-symbol">&gt;</span></h5></li></ul></div>
 <div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ably-labs/models/blob/685a689/src/types/mutations.ts#L42">types/mutations.ts:42</a></li></ul></aside></div>
+<li>Defined in <a href="https://github.com/ably-labs/models/blob/520cda3/src/types/mutations.ts#L37">types/mutations.ts:37</a></li></ul></aside></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
@@ -53,9 +53,13 @@ when specifying the mutations on a model via the second type parameter <code>M</
 <li><a href="types_mutations.EventComparator.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><g id="icon-4194304"><rect fill="var(--color-icon-background)" stroke="var(--color-ts-type-alias)" stroke-width="1.5" x="1" y="1" width="22" height="22" rx="6"></rect><path d="M11.31 16V8.224H8.91V7.24H14.79V8.224H12.39V16H11.31Z" fill="var(--color-text)"></path></g></svg><span>Event<wbr/>Comparator</span></a></li>
 <li><a href="types_mutations.MethodWithExpect.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Method<wbr/>With<wbr/>Expect</span></a></li>
 <li><a href="types_mutations.MutationFunc.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Mutation<wbr/>Func</span></a></li>
+<li><a href="types_mutations.MutationInvocation.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Mutation<wbr/>Invocation</span></a></li>
+<li><a href="types_mutations.MutationInvocationParams.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Mutation<wbr/>Invocation<wbr/>Params</span></a></li>
 <li><a href="types_mutations.MutationMethods.html" class="current"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Mutation<wbr/>Methods</span></a></li>
+<li><a href="types_mutations.MutationOptimisticInvocation.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Mutation<wbr/>Optimistic<wbr/>Invocation</span></a></li>
 <li><a href="types_mutations.MutationOptions.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Mutation<wbr/>Options</span></a></li>
-<li><a href="types_mutations.MutationRegistration.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Mutation<wbr/>Registration</span></a></li></ul></div></details></li>
+<li><a href="types_mutations.MutationRegistration.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Mutation<wbr/>Registration</span></a></li>
+<li><a href="types_mutations.MutationRegistrationWithOptions.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Mutation<wbr/>Registration<wbr/>With<wbr/>Options</span></a></li></ul></div></details></li>
 <li><a href="../modules/types_updates.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4"></use></svg><span>types/updates</span></a></li></ul></nav></div></div></div>
 <div class="tsd-generator">
 <p>Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></div>

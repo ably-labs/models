@@ -1,4 +1,4 @@
-<!DOCTYPE html><html class="default" lang="en"><head><meta charSet="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>MethodWithExpect | @ably-labs/models</title><meta name="description" content="Documentation for @ably-labs/models"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><script defer src="../assets/main.js"></script><script async src="../assets/search.js" id="tsd-search-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os"</script><header class="tsd-page-toolbar">
+<!DOCTYPE html><html class="default" lang="en"><head><meta charSet="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>MutationRegistrationWithOptions | @ably-labs/models</title><meta name="description" content="Documentation for @ably-labs/models"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><script defer src="../assets/main.js"></script><script async src="../assets/search.js" id="tsd-search-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os"</script><header class="tsd-page-toolbar">
 <div class="tsd-toolbar-contents container">
 <div class="table-cell" id="tsd-search" data-base="..">
 <div class="field"><label for="tsd-search-field" class="tsd-widget tsd-toolbar-icon search no-caption"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M15.7824 13.833L12.6666 10.7177C12.5259 10.5771 12.3353 10.499 12.1353 10.499H11.6259C12.4884 9.39596 13.001 8.00859 13.001 6.49937C13.001 2.90909 10.0914 0 6.50048 0C2.90959 0 0 2.90909 0 6.49937C0 10.0896 2.90959 12.9987 6.50048 12.9987C8.00996 12.9987 9.39756 12.4863 10.5008 11.6239V12.1332C10.5008 12.3332 10.5789 12.5238 10.7195 12.6644L13.8354 15.7797C14.1292 16.0734 14.6042 16.0734 14.8948 15.7797L15.7793 14.8954C16.0731 14.6017 16.0731 14.1267 15.7824 13.833ZM6.50048 10.499C4.29094 10.499 2.50018 8.71165 2.50018 6.49937C2.50018 4.29021 4.28781 2.49976 6.50048 2.49976C8.71001 2.49976 10.5008 4.28708 10.5008 6.49937C10.5008 8.70852 8.71314 10.499 6.50048 10.499Z" fill="var(--color-text)"></path></svg></label><input type="text" id="tsd-search-field" aria-label="Search"/></div>
@@ -14,23 +14,35 @@
 <ul class="tsd-breadcrumb">
 <li><a href="../index.html">@ably-labs/models</a></li>
 <li><a href="../modules/types_mutations.html">types/mutations</a></li>
-<li><a href="types_mutations.MethodWithExpect.html">MethodWithExpect</a></li></ul>
-<h1>Type alias MethodWithExpect&lt;M&gt;</h1></div>
-<div class="tsd-signature"><span class="tsd-kind-type-alias">Method<wbr/>With<wbr/>Expect</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type tsd-kind-type-parameter">M</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">{</span><br/><span>    </span><span class="tsd-signature-symbol">[</span><span class="tsd-kind-type-parameter">K</span><span class="tsd-signature-symbol"> in </span><span class="tsd-signature-symbol">keyof </span><span class="tsd-signature-type tsd-kind-type-parameter">M</span><span class="tsd-signature-symbol">]</span><span class="tsd-signature-symbol">: </span><a href="types_mutations.MutationInvocation.html" class="tsd-signature-type tsd-kind-type-alias">MutationInvocation</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type tsd-kind-type-parameter">M</span><span class="tsd-signature-symbol">[</span><span class="tsd-signature-type tsd-kind-type-parameter">K</span><span class="tsd-signature-symbol">]</span><span class="tsd-signature-symbol">&gt;</span><br/><span class="tsd-signature-symbol">}</span></div>
-<div class="tsd-comment tsd-typography"><p>MethodWithExpect represents the set of MutationMethods registered on the model, wrapped in a MutationInvocation
-to order to support invoking each mutation either directly or via $expect.</p>
+<li><a href="types_mutations.MutationRegistrationWithOptions.html">MutationRegistrationWithOptions</a></li></ul>
+<h1>Type alias MutationRegistrationWithOptions&lt;M&gt;</h1></div>
+<div class="tsd-signature"><span class="tsd-kind-type-alias">Mutation<wbr/>Registration<wbr/>With<wbr/>Options</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type tsd-kind-type-parameter">M</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">{ </span><br/><span>    </span><span class="tsd-kind-property">func</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type tsd-kind-type-parameter">M</span><span class="tsd-signature-symbol">; </span><br/><span>    </span><span class="tsd-kind-property">options</span><span class="tsd-signature-symbol">: </span><a href="types_mutations.MutationOptions.html" class="tsd-signature-type tsd-kind-type-alias">MutationOptions</a><span class="tsd-signature-symbol">; </span><br/><span class="tsd-signature-symbol">}</span></div>
+<div class="tsd-comment tsd-typography"><p>MutationRegistrationWithOptions is an object containing a MutationFunc and its options.</p>
 </div>
 <section class="tsd-panel">
 <h4>Type Parameters</h4>
 <ul class="tsd-type-parameter-list">
 <li>
-<h4><span class="tsd-kind-type-parameter">M</span><span class="tsd-signature-symbol"> extends </span><a href="types_mutations.MutationMethods.html" class="tsd-signature-type tsd-kind-type-alias">MutationMethods</a></h4>
-<div class="tsd-comment tsd-typography"><p>The mutation methods type.</p>
+<h4><span class="tsd-kind-type-parameter">M</span><span class="tsd-signature-symbol"> extends </span><a href="types_mutations.MutationFunc.html" class="tsd-signature-type tsd-kind-type-alias">MutationFunc</a></h4>
+<div class="tsd-comment tsd-typography"><p>The type of the MutationFunc to register.</p>
 </div>
 <div class="tsd-comment tsd-typography"></div></li></ul></section>
+<div class="tsd-type-declaration">
+<h4>Type declaration</h4>
+<ul class="tsd-parameters">
+<li class="tsd-parameter">
+<h5><span class="tsd-kind-property">func</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type tsd-kind-type-parameter">M</span></h5>
+<div class="tsd-comment tsd-typography"><p>The mutation function to register.</p>
+</div>
+<div class="tsd-comment tsd-typography"></div></li>
+<li class="tsd-parameter">
+<h5><span class="tsd-kind-property">options</span><span class="tsd-signature-symbol">: </span><a href="types_mutations.MutationOptions.html" class="tsd-signature-type tsd-kind-type-alias">MutationOptions</a></h5>
+<div class="tsd-comment tsd-typography"><p>Default options to apply to this mutation. Can be overridden by invocation-specific options.</p>
+</div>
+<div class="tsd-comment tsd-typography"></div></li></ul></div>
 <div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ably-labs/models/blob/520cda3/src/types/mutations.ts#L107">types/mutations.ts:107</a></li></ul></aside></div>
+<li>Defined in <a href="https://github.com/ably-labs/models/blob/520cda3/src/types/mutations.ts#L52">types/mutations.ts:52</a></li></ul></aside></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
@@ -54,7 +66,7 @@ to order to support invoking each mutation either directly or via $expect.</p>
 <div class="tsd-accordion-details">
 <ul class="tsd-nested-navigation">
 <li><a href="types_mutations.EventComparator.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><g id="icon-4194304"><rect fill="var(--color-icon-background)" stroke="var(--color-ts-type-alias)" stroke-width="1.5" x="1" y="1" width="22" height="22" rx="6"></rect><path d="M11.31 16V8.224H8.91V7.24H14.79V8.224H12.39V16H11.31Z" fill="var(--color-text)"></path></g></svg><span>Event<wbr/>Comparator</span></a></li>
-<li><a href="types_mutations.MethodWithExpect.html" class="current"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Method<wbr/>With<wbr/>Expect</span></a></li>
+<li><a href="types_mutations.MethodWithExpect.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Method<wbr/>With<wbr/>Expect</span></a></li>
 <li><a href="types_mutations.MutationFunc.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Mutation<wbr/>Func</span></a></li>
 <li><a href="types_mutations.MutationInvocation.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Mutation<wbr/>Invocation</span></a></li>
 <li><a href="types_mutations.MutationInvocationParams.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Mutation<wbr/>Invocation<wbr/>Params</span></a></li>
@@ -62,7 +74,7 @@ to order to support invoking each mutation either directly or via $expect.</p>
 <li><a href="types_mutations.MutationOptimisticInvocation.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Mutation<wbr/>Optimistic<wbr/>Invocation</span></a></li>
 <li><a href="types_mutations.MutationOptions.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Mutation<wbr/>Options</span></a></li>
 <li><a href="types_mutations.MutationRegistration.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Mutation<wbr/>Registration</span></a></li>
-<li><a href="types_mutations.MutationRegistrationWithOptions.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Mutation<wbr/>Registration<wbr/>With<wbr/>Options</span></a></li></ul></div></details></li>
+<li><a href="types_mutations.MutationRegistrationWithOptions.html" class="current"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Mutation<wbr/>Registration<wbr/>With<wbr/>Options</span></a></li></ul></div></details></li>
 <li><a href="../modules/types_updates.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4"></use></svg><span>types/updates</span></a></li></ul></nav></div></div></div>
 <div class="tsd-generator">
 <p>Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></div>
