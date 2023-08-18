@@ -8,7 +8,7 @@ export default class PendingConfirmationRegistry {
   constructor() {}
 
   async add(events: OptimisticEventWithParams[]) {
-    let timeout = events[0].params.timeout; // todo pick better timeout? minimum?
+    let timeout = Math.min(...events.map((e) => e.params.timeout));
     const pendingConfirmation = new PendingConfirmation(timeout, events);
     this.pendingConfirmations.push(pendingConfirmation);
     return pendingConfirmation;
