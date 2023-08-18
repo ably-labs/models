@@ -1,4 +1,5 @@
 import isEqual from 'lodash/isEqual.js';
+import toString from 'lodash/toString.js';
 
 import { toError } from './Errors.js';
 import type { Event, OptimisticEventWithParams } from './types/model.js';
@@ -9,14 +10,19 @@ import type {
   MutationRegistration,
   MutationMethods,
   MethodWithExpect,
+  MutationInvocationParams,
+  MutationRegistrationWithOptions,
+  MutationInvocation,
+  MutationOptimisticInvocation,
 } from './types/mutations.js';
 
 /**
  * The default event comparator used by all registered mutation functions, unless an override option is provided.
+ * Compares events by equality of channel, event name and deep equality on the event data.
  *
  * @param optimistic - The optimistic event to compare.
  * @param confirmed - The confirmed event to compare.
- * @returns {boolean} Whether the two events are equal by channel, event name and deep equality on the event data.
+ * @returns {boolean} Whether the two events are equal.
  */
 export const defaultComparator: EventComparator = (optimistic: Event, confirmed: Event) => {
   return (
@@ -35,19 +41,19 @@ export const DEFAULT_OPTIONS: Required<MutationOptions> = {
 };
 
 /**
- * @internal
- * @template T - A mutation function
- * @param {MutationRegistration<T>} method - A method registration
- * @returns {boolean} - Whether the given mutation registration is a function object with 'func' and 'options' properties.
+ * Type-safe helper function to determine whether a mutation is registered directly or along with mutation-specific options.
+ * @template M - The mutation function
+ * @param {MutationRegistration<T>} method - The method registration
+ * @returns {boolean} - Whether the given mutation registration is a MutationFunc or a MutationRegistrationWithOptions.
  */
-function isMethodObject<T extends MutationFunc>(
-  method: MutationRegistration<T>,
-): method is { func: T; options: MutationOptions } {
-  return (method as { func: T; options: MutationOptions }).func !== undefined;
+function isMutationRegistrationWithOptions<M extends MutationFunc<any[], any>>(
+  mutationRegistration: MutationRegistration<M>,
+): mutationRegistration is MutationRegistrationWithOptions<M> {
+  return 'options' in mutationRegistration && 'func' in mutationRegistration;
 }
 
 /**
- * MutationsCallbacks facilitates custom handling of expected events emitted by mutations.
+ * MutationCallbacks facilitates custom handling of expected events emitted by mutations.
  *
  * @property apply - Callback to invoke with a mutation's expected events (and configured options) to
  * optimistically apply the events to the model.
@@ -56,29 +62,29 @@ function isMethodObject<T extends MutationFunc>(
  * @property rollback - Callback to invoke with an error and the mutation's expected events to rollback
  * events that were previously applied.
  */
-export type MutationsCallbacks = {
+export type MutationCallbacks = {
   apply: (events: OptimisticEventWithParams[]) => Promise<Promise<void>[]>;
   rollback: (err: Error, events: OptimisticEventWithParams[]) => Promise<void>;
 };
 
 /**
  * The MutationsRegistry class encapsulates the mutations that can be executed on a given model.
- * It allows you to register mutation methods, handle expected events during a mutation, and handle errors
- * that might occur during a mutation.
+ * It allows you to register mutation methods and invoke them, optionally with a set of expected events.
  *
- * @template M - The type of the mutation methods. This should be a map from method names to mutations.
+ * @template M - The type of the mutation methods. This should be a map from method names to the registered mutation function types.
  */
 export default class MutationsRegistry<M extends MutationMethods> {
   private methods: Partial<{ [K in keyof M]: MutationRegistration<M[K]> }> = {};
 
-  constructor(readonly callbacks: MutationsCallbacks) {}
+  constructor(readonly callbacks: MutationCallbacks) {}
 
   /**
    * Processes optimistic events and waits for them to be applied before returning.
    * If applying the events fails, roll back the changes before surfacing the error to the caller.
-   * @param events the optimistic events to apply
+   * @param events the expected events to apply optimistically
    * @throws any error encountered applying the optimistic events
-   * @returns {{ confirmation: Promise<void> }} the confirmation promise which resolves when the optimistic events are eventually confirmed, or rejects if they are not confirmed (e.g. due to timeout)
+   * @returns {{ confirmation: Promise<void> }} the confirmation promise which resolves when the
+   * optimistic events are eventually confirmed, or rejects if they are not confirmed (e.g. due to timeout)
    */
   private async processOptimistic(events: OptimisticEventWithParams[]) {
     let optimistic = Promise.resolve();
@@ -111,69 +117,120 @@ export default class MutationsRegistry<M extends MutationMethods> {
   }
 
   /**
-   * @method handleMutation - Returns an async function that handles invoking a given mutation.
-   * This function will return the awaited result of the mutation method.
-   * If the mutation is invoked using $expect, it will first call the apply callback
-   * with the expected events and any options configured on the mutation.
-   * If the mutation or the apply callback throws, it calls the rollback callback before re-throwing.
-   * @returns The mutation result. If invoked with $expect, returns the mutation result and the confirmation promise.
+   * Extracts the user's registered MutationFunc implementation from its registration, by determining
+   * whether or not it was registered with options.
+   * @param registration The mutation that was registered on the model.
+   * @template M The type of the MutationFunc that was registered on the model.
+   * @returns {M} The implementation of the MutationFunc.
    */
-  private handleMutation<K extends keyof M>(methodName: K, expectedEvents?: Event[]): any {
-    const methodItem = this.methods[methodName] as MutationRegistration;
-    const method = isMethodObject(methodItem) ? methodItem.func : methodItem;
-    let options = isMethodObject(methodItem) ? { ...DEFAULT_OPTIONS, ...methodItem.options } : DEFAULT_OPTIONS;
-    const events: OptimisticEventWithParams[] = expectedEvents
-      ? expectedEvents.map((event) => ({
-          ...event,
-          confirmed: false,
-          params: {
-            timeout: options.timeout,
-            comparator: options.comparator,
-          },
-        }))
-      : [];
+  private resolveMethod<M extends MutationFunc>(registration: MutationRegistration<M>): M {
+    let method: M;
+    if (isMutationRegistrationWithOptions(registration)) {
+      method = registration.func;
+    } else {
+      method = registration;
+    }
+    return method;
+  }
 
-    const callMethod = async (...args: any[]) => {
-      let confirmation = Promise.resolve();
-      if (events && events.length > 0) {
-        ({ confirmation } = await this.processOptimistic(events));
-      }
-      try {
-        let result = await method(...args);
-        return expectedEvents ? [result, this.wrapConfirmation(confirmation, events)] : result;
-      } catch (mutationErr) {
-        confirmation.catch(() => {}); // the confirmation will reject after the rollback, so ensure we have a handler
-        await this.callbacks.rollback(toError(mutationErr), events);
-        throw toError(mutationErr);
-      }
-    };
-
-    callMethod.$expect =
-      (expectedEvents: Event[]) =>
-      (...args: Parameters<M[K]>) =>
-        this.handleMutation(methodName, expectedEvents)(...args);
-
-    return callMethod;
+  private getOptimisticEvents(
+    params: MutationInvocationParams,
+    options: Required<MutationOptions>,
+  ): OptimisticEventWithParams[] {
+    return (
+      params?.events?.map((event) => ({
+        ...event,
+        confirmed: false,
+        params: {
+          timeout: options.timeout,
+          comparator: options.comparator,
+        },
+      })) || []
+    );
   }
 
   /**
-   * @property handler - Externally exposed map of mutation methods, which are augmented with an additional
-   * $expect method that can be used to register expected events.
+   * Called when invoking the mutation via $expect.
+   * First, it applies the mutation's expected events optimistically.
+   * Next, it invokes the mutation function and awaits the result, rolling back the
+   * optimistic update if the mutation fails.
+   * Finally it returns the result from the mutation function alongside a confirmation
+   * promise that resolves when the expected events have been confirmed by the backend.
+   *
+   * @template M The type of the MutationFunc that was registered on the model.
+   */
+  private async executeMethod<M extends MutationFunc>(
+    method: M,
+    events: OptimisticEventWithParams[],
+    args: Parameters<M>,
+  ): Promise<ReturnType<MutationOptimisticInvocation<M>>> {
+    if (!events.length) {
+      throw new Error('unexpected call to executeMethod without events');
+    }
+    let { confirmation } = await this.processOptimistic(events);
+    try {
+      const result: Awaited<ReturnType<M>> = await method(...args);
+      return [result, this.wrapConfirmation(confirmation, events)];
+    } catch (mutationErr) {
+      confirmation.catch(() => {});
+      await this.callbacks.rollback(toError(mutationErr), events);
+      throw toError(mutationErr);
+    }
+  }
+
+  /**
+   * Entry point when a mutation is invoked either directly or via $expect.
+   * @template K The name of the registered mutation to invoke.
+   * @returns {MutationInvocation<MutationFunc>} The registered mutation function with the given name
+   * which can be invoked directly, but is additionally decorated with a $expect method which can be used
+   * to provide a set of expected events for this mutation.
+   */
+  private handleMutation<K extends keyof M>(methodName: K): MutationInvocation<M[K]> {
+    const registration: MutationRegistration<M[K]> | undefined = this.methods[methodName];
+    if (!registration) {
+      throw new Error(`mutation method '${toString(methodName)}' not registered`);
+    }
+
+    const method = this.resolveMethod(registration);
+
+    let base = method as MutationInvocation<M[K]>; // assertion required as we're gradually constructing the intersection type
+
+    base.$expect =
+      (params: MutationInvocationParams) =>
+      async (...args: Parameters<M[K]>) => {
+        let options = Object.assign({}, DEFAULT_OPTIONS);
+        if (isMutationRegistrationWithOptions(registration)) {
+          options = Object.assign({}, options, registration.options);
+        }
+        if (params.options) {
+          options = Object.assign({}, options, params.options);
+        }
+        const events = this.getOptimisticEvents(params, options);
+        const result = await this.executeMethod(method, events, args);
+        return result;
+      };
+
+    return base;
+  }
+
+  /**
+   * Externally exposed map of mutation methods, which are augmented with an additional
+   * $expect method that can be used to provide expected events when invoking a mutation.
    */
   handler = {} as MethodWithExpect<M>;
 
   /**
-   * @method register - Takes an object that maps method names to registrations,
-   * and sets up mutation handlers for these methods.
+   * Registers a set of mutations by setting up mutation handlers
+   * for each method registered on the model.
    */
-  register(mutations: { [K in keyof M]: MutationRegistration<M[K]> }) {
-    Object.keys(mutations).forEach((methodName: string) => {
-      if ((this.handler as any)[methodName]) {
+  public register(registrations: { [K in keyof M]: MutationRegistration<M[K]> }) {
+    for (const methodName in registrations) {
+      if (this.handler[methodName]) {
         throw new Error(`mutation with name '${methodName}' already registered`);
       }
-      const methodItem = mutations[methodName as keyof M];
-      this.methods[methodName as keyof M] = methodItem;
-      (this.handler as any)[methodName] = this.handleMutation(methodName as keyof M);
-    });
+      const registration = registrations[methodName];
+      this.methods[methodName] = registration;
+      this.handler[methodName] = this.handleMutation(methodName);
+    }
   }
 }
