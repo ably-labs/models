@@ -257,7 +257,6 @@ describe('Model', () => {
     expect(subscriptionSpy).toHaveBeenCalledTimes(5);
     expect(subscriptionSpy).toHaveBeenNthCalledWith(5, null, 'data_3');
 
-    console.log(model.optimistic, model.confirmed);
     expect(model.optimistic).toEqual('data_3');
     expect(model.confirmed).toEqual('data_3');
   });
@@ -366,7 +365,7 @@ describe('Model', () => {
       $sync: async () => 'foobar',
       $mutate: { foo: mutation },
     });
-    await expect(model.mutations.foo.$expect([{ channel: 'unknown', name: 'foo' }])()).rejects.toThrow(
+    await expect(model.mutations.foo.$expect({ events: [{ channel: 'unknown', name: 'foo' }] })()).rejects.toThrow(
       "stream with name 'unknown' not registered on model 'test'",
     );
   });
@@ -405,7 +404,7 @@ describe('Model', () => {
     expect(model.optimistic).toEqual('data_0');
     expect(model.confirmed).toEqual('data_0');
 
-    await model.mutations.foo.$expect([{ channel: 's1', name: 'testEvent', data: 'data_1' }])();
+    await model.mutations.foo.$expect({ events: [{ channel: 's1', name: 'testEvent', data: 'data_1' }] })();
 
     await optimisticSubscriptionCalls[1];
     expect(model.optimistic).toEqual('data_1');
@@ -455,7 +454,7 @@ describe('Model', () => {
     expect(model.optimistic).toEqual('data_0');
     expect(model.confirmed).toEqual('data_0');
 
-    await model.mutations.foo.$expect([{ channel: 's1', name: 'testEvent', data: 'data_1' }])();
+    await model.mutations.foo.$expect({ events: [{ channel: 's1', name: 'testEvent', data: 'data_1' }] })();
 
     await optimisticSubscriptionCalls[1];
     expect(model.optimistic).toEqual('data_1');
@@ -511,9 +510,9 @@ describe('Model', () => {
     expect(model.optimistic).toEqual('data_0');
     expect(model.confirmed).toEqual('data_0');
 
-    const [result, confirmation] = await model.mutations.foo.$expect([
-      { channel: 's1', name: 'testEvent', data: 'data_1' },
-    ])();
+    const [result, confirmation] = await model.mutations.foo.$expect({
+      events: [{ channel: 's1', name: 'testEvent', data: 'data_1' }],
+    })();
     expect(result).toEqual('test');
 
     await optimisticSubscriptionCalls[1];
@@ -578,7 +577,7 @@ describe('Model', () => {
     expect(model.optimistic).toEqual('data_0');
     expect(model.confirmed).toEqual('data_0');
 
-    await model.mutations.foo.$expect([{ channel: 's1', name: 'testEvent', data: 'data_1' }])();
+    await model.mutations.foo.$expect({ events: [{ channel: 's1', name: 'testEvent', data: 'data_1' }] })();
 
     await optimisticSubscriptionCalls[1];
     expect(model.optimistic).toEqual('data_1');
@@ -636,8 +635,8 @@ describe('Model', () => {
     expect(model.optimistic).toEqual('0');
     expect(model.confirmed).toEqual('0');
 
-    await model.mutations.foo.$expect([{ channel: 's1', name: 'testEvent', data: '1' }])();
-    await model.mutations.foo.$expect([{ channel: 's1', name: 'testEvent', data: '2' }])();
+    await model.mutations.foo.$expect({ events: [{ channel: 's1', name: 'testEvent', data: '1' }] })();
+    await model.mutations.foo.$expect({ events: [{ channel: 's1', name: 'testEvent', data: '2' }] })();
 
     // optimistic updates are applied in the order the mutations were called
     await optimisticSubscriptionCalls[1];
@@ -725,9 +724,9 @@ describe('Model', () => {
     expect(model.optimistic).toEqual('0');
     expect(model.confirmed).toEqual('0');
 
-    await model.mutations.foo.$expect([{ channel: 's1', name: 'testEvent', data: '1' }])();
-    await model.mutations.foo.$expect([{ channel: 's2', name: 'testEvent', data: '2' }])();
-    await model.mutations.foo.$expect([{ channel: 's1', name: 'testEvent', data: '3' }])();
+    await model.mutations.foo.$expect({ events: [{ channel: 's1', name: 'testEvent', data: '1' }] })();
+    await model.mutations.foo.$expect({ events: [{ channel: 's2', name: 'testEvent', data: '2' }] })();
+    await model.mutations.foo.$expect({ events: [{ channel: 's1', name: 'testEvent', data: '3' }] })();
 
     // optimistic updates are applied in the order the mutations were called
     await optimisticSubscriptionCalls[1];
@@ -820,8 +819,8 @@ describe('Model', () => {
     expect(model.optimistic).toEqual('0');
     expect(model.confirmed).toEqual('0');
 
-    await model.mutations.foo.$expect([{ channel: 's1', name: 'testEvent', data: '1' }])();
-    await model.mutations.foo.$expect([{ channel: 's1', name: 'testEvent', data: '2' }])();
+    await model.mutations.foo.$expect({ events: [{ channel: 's1', name: 'testEvent', data: '1' }] })();
+    await model.mutations.foo.$expect({ events: [{ channel: 's1', name: 'testEvent', data: '2' }] })();
 
     // optimistic updates are applied in the order the mutations were called
     await optimisticSubscriptionCalls[1];
@@ -894,18 +893,22 @@ describe('Model', () => {
       $mutate: { mutation1, mutation2 },
     });
 
-    const result1 = await model.mutations.mutation1.$expect([
-      { channel: 's1', name: 'testEvent', data: '1' },
-      { channel: 's1', name: 'testEvent', data: '2' },
-      { channel: 's1', name: 'testEvent', data: '3' },
-    ])();
+    const result1 = await model.mutations.mutation1.$expect({
+      events: [
+        { channel: 's1', name: 'testEvent', data: '1' },
+        { channel: 's1', name: 'testEvent', data: '2' },
+        { channel: 's1', name: 'testEvent', data: '3' },
+      ],
+    })();
     expect(result1[0]).toEqual('test');
     await expect(
-      model.mutations.mutation2.$expect([
-        { channel: 's1', name: 'testEvent', data: '4' },
-        { channel: 's1', name: 'testEvent', data: '5' },
-        { channel: 's1', name: 'testEvent', data: '6' },
-      ])(),
+      model.mutations.mutation2.$expect({
+        events: [
+          { channel: 's1', name: 'testEvent', data: '4' },
+          { channel: 's1', name: 'testEvent', data: '5' },
+          { channel: 's1', name: 'testEvent', data: '6' },
+        ],
+      })(),
     ).rejects.toThrow('mutation failed');
     expect(model.optimistic).toEqual('0123');
   });
@@ -998,18 +1001,22 @@ describe('Model', () => {
       $update: { s1: { testEvent: updateFn } },
       $mutate: { mutation },
     });
-    const [result1] = await model.mutations.mutation.$expect([
-      { channel: 's1', name: 'testEvent', data: '1' },
-      { channel: 's1', name: 'testEvent', data: '2' },
-      { channel: 's1', name: 'testEvent', data: '3' },
-    ])();
+    const [result1] = await model.mutations.mutation.$expect({
+      events: [
+        { channel: 's1', name: 'testEvent', data: '1' },
+        { channel: 's1', name: 'testEvent', data: '2' },
+        { channel: 's1', name: 'testEvent', data: '3' },
+      ],
+    })();
     expect(result1).toEqual('test');
     await expect(
-      model.mutations.mutation.$expect([
-        { channel: 's1', name: 'testEvent', data: '4' },
-        { channel: 's1', name: 'testEvent', data: '5' },
-        { channel: 's1', name: 'testEvent', data: '6' },
-      ])(),
+      model.mutations.mutation.$expect({
+        events: [
+          { channel: 's1', name: 'testEvent', data: '4' },
+          { channel: 's1', name: 'testEvent', data: '5' },
+          { channel: 's1', name: 'testEvent', data: '6' },
+        ],
+      })(),
     ).rejects.toThrow('update error');
     // The failed mutation should have been reverted.
     expect(model.optimistic).toEqual('0123');
@@ -1037,18 +1044,22 @@ describe('Model', () => {
       $update: { s1: { testEvent: updateFn } },
       $mutate: { mutation1, mutation2 },
     });
-    const [result1] = await model.mutations.mutation1.$expect([
-      { channel: 's1', name: 'testEvent', data: '1' },
-      { channel: 's1', name: 'testEvent', data: '2' },
-      { channel: 's1', name: 'testEvent', data: '3' },
-    ])();
+    const [result1] = await model.mutations.mutation1.$expect({
+      events: [
+        { channel: 's1', name: 'testEvent', data: '1' },
+        { channel: 's1', name: 'testEvent', data: '2' },
+        { channel: 's1', name: 'testEvent', data: '3' },
+      ],
+    })();
     expect(result1).toEqual('test');
     await expect(
-      model.mutations.mutation2.$expect([
-        { channel: 's1', name: 'testEvent', data: '4' },
-        { channel: 's1', name: 'testEvent', data: '5' },
-        { channel: 's1', name: 'testEvent', data: '6' },
-      ])(),
+      model.mutations.mutation2.$expect({
+        events: [
+          { channel: 's1', name: 'testEvent', data: '4' },
+          { channel: 's1', name: 'testEvent', data: '5' },
+          { channel: 's1', name: 'testEvent', data: '6' },
+        ],
+      })(),
     ).rejects.toThrow('mutation failed');
     // The failed mutation should have been reverted.
     expect(model.optimistic).toEqual('0123');
@@ -1080,11 +1091,13 @@ describe('Model', () => {
       $mutate: { mutation },
     });
     await expect(
-      model.mutations.mutation.$expect([
-        { channel: 's1', name: 'testEvent', data: '1' },
-        { channel: 's1', name: 'testEvent', data: '2' },
-        { channel: 's1', name: 'testEvent', data: '3' },
-      ])(),
+      model.mutations.mutation.$expect({
+        events: [
+          { channel: 's1', name: 'testEvent', data: '1' },
+          { channel: 's1', name: 'testEvent', data: '2' },
+          { channel: 's1', name: 'testEvent', data: '3' },
+        ],
+      })(),
     ).rejects.toThrow(new Error('update error')); // mutation not invoked if optimistic update fails, so we only expect an update error
     // The failed mutation should have been reverted.
     expect(model.optimistic).toEqual('0');
@@ -1115,11 +1128,13 @@ describe('Model', () => {
         },
       },
     });
-    const [result, confirmation] = await model.mutations.foo.$expect([
-      { channel: 's1', name: 'testEvent', data: '1' },
-      { channel: 's1', name: 'testEvent', data: '2' },
-      { channel: 's1', name: 'testEvent', data: '3' },
-    ])();
+    const [result, confirmation] = await model.mutations.foo.$expect({
+      events: [
+        { channel: 's1', name: 'testEvent', data: '1' },
+        { channel: 's1', name: 'testEvent', data: '2' },
+        { channel: 's1', name: 'testEvent', data: '3' },
+      ],
+    })();
     expect(result).toEqual('test');
     expect(model.optimistic).toEqual('0123');
 
@@ -1158,11 +1173,13 @@ describe('Model', () => {
     });
 
     // Mutate and check the returned promise is rejected with a timeout.
-    const [, confirmation] = await model.mutations.foo.$expect([
-      { channel: 's1', name: 'testEvent', data: '1' },
-      { channel: 's1', name: 'testEvent', data: '2' },
-      { channel: 's1', name: 'testEvent', data: '3' },
-    ])();
+    const [, confirmation] = await model.mutations.foo.$expect({
+      events: [
+        { channel: 's1', name: 'testEvent', data: '1' },
+        { channel: 's1', name: 'testEvent', data: '2' },
+        { channel: 's1', name: 'testEvent', data: '3' },
+      ],
+    })();
     expect(model.optimistic).toEqual('0123');
     await expect(confirmation).rejects.toThrow('timed out waiting for event confirmation');
     // Check the optimistic event is reverted.
