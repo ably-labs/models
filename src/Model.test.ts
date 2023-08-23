@@ -470,6 +470,102 @@ describe('Model', () => {
     expect(model.confirmed).toEqual('data_1');
   });
 
+  it<ModelTestContext>('confirms an optimistic event by uuid', async ({ ably, logger, streams }) => {
+    const s1 = streams.getOrCreate({ channel: 's1' });
+    const s2 = streams.getOrCreate({ channel: 's2' });
+    s1.subscribe = vi.fn();
+    s2.subscribe = vi.fn();
+
+    const events = { e1: new Subject<Types.Message>() };
+    s1.subscribe = vi.fn((callback) => {
+      events.e1.subscribe((message) => callback(null, message));
+    });
+
+    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, logger });
+
+    const update1 = vi.fn(async (state, event) => event.data);
+    const mutation = vi.fn(async () => 'test');
+    await model.$register({
+      $sync: async () => 'data_0',
+      $update: { s1: { testEvent: update1 } },
+      $mutate: { foo: mutation },
+    });
+
+    let optimisticSubscription = new Subject<void>();
+    const optimisticSubscriptionCalls = getEventPromises(optimisticSubscription, 2);
+    const optimisticSubscriptionSpy = vi.fn<[Error | null, string?]>(() => optimisticSubscription.next());
+    model.subscribe(optimisticSubscriptionSpy);
+
+    let confirmedSubscription = new Subject<void>();
+    const confirmedSubscriptionCalls = getEventPromises(confirmedSubscription, 2);
+    const confirmedSubscriptionSpy = vi.fn<[Error | null, string?]>(() => confirmedSubscription.next());
+    model.subscribe(confirmedSubscriptionSpy, { optimistic: false });
+
+    await optimisticSubscriptionCalls[0];
+    await confirmedSubscriptionCalls[0];
+    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(1);
+    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(1, null, 'data_0');
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(1);
+    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(1, null, 'data_0');
+    expect(model.optimistic).toEqual('data_0');
+    expect(model.confirmed).toEqual('data_0');
+
+    await model.mutations.foo.$expect({
+      events: [{ uuid: 'some-custom-id', channel: 's1', name: 'testEvent', data: 'data_1' }],
+    })();
+
+    await optimisticSubscriptionCalls[1];
+    expect(model.optimistic).toEqual('data_1');
+    expect(model.confirmed).toEqual('data_0');
+    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(2);
+    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(2, null, 'data_1');
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(1);
+
+    // the event data payload does not match the expected event but the uuid does
+    events.e1.next(
+      customMessage('id_1', 'testEvent', 'confirmed_data', { 'x-ably-models-event-uuid': 'some-custom-id' }),
+    );
+    await confirmedSubscriptionCalls[1];
+    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(2);
+    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(2, null, 'confirmed_data');
+    expect(model.confirmed).toEqual('confirmed_data');
+  });
+
+  it<ModelTestContext>('mutation can access the optimistic events', async ({ ably, logger, streams }) => {
+    const s1 = streams.getOrCreate({ channel: 's1' });
+    const s2 = streams.getOrCreate({ channel: 's2' });
+    s1.subscribe = vi.fn();
+    s2.subscribe = vi.fn();
+
+    const events = { e1: new Subject<Types.Message>() };
+    s1.subscribe = vi.fn((callback) => {
+      events.e1.subscribe((message) => callback(null, message));
+    });
+
+    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, logger });
+
+    const update1 = vi.fn(async (state, event) => event.data);
+    const mutation = vi.fn(async function (this: MutationContext) {
+      if (!this.events.length) {
+        return 'noEvent';
+      }
+      return this.events[0].name;
+    });
+    await model.$register({
+      $sync: async () => 'data_0',
+      $update: { s1: { testEvent: update1 } },
+      $mutate: { foo: mutation },
+    });
+
+    const result1 = await model.mutations.foo();
+    expect(result1).toEqual('noEvent');
+
+    const [result2] = await model.mutations.foo.$expect({
+      events: [{ channel: 's1', name: 'testEvent', data: 'data_1' }],
+    })();
+    expect(result2).toEqual('testEvent');
+  });
+
   it<ModelTestContext>('explicitly rejects an optimistic event', async ({ ably, logger, streams }) => {
     const s1 = streams.getOrCreate({ channel: 's1' });
     const s2 = streams.getOrCreate({ channel: 's2' });

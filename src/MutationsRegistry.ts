@@ -1,5 +1,6 @@
 import isEqual from 'lodash/isEqual.js';
 import toString from 'lodash/toString.js';
+import { v4 as uuidv4 } from 'uuid';
 
 import { toError } from './Errors.js';
 import type { Event, OptimisticEventWithParams } from './types/model.js';
@@ -17,19 +18,45 @@ import type {
 } from './types/mutations.js';
 
 /**
+ * This comparator compares events by equality of channel, event name and deep equality on the event data.
+ *
+ * @param optimistic - The optimistic event to compare.
+ * @param confirmed - The confirmed event to compare.
+ * @returns {boolean} Whether the two events are equal.
+ */
+export const equalityComparator: EventComparator = (optimistic: Event, confirmed: Event) => {
+  return (
+    optimistic.channel === confirmed.channel &&
+    optimistic.name === confirmed.name &&
+    isEqual(optimistic.data, confirmed.data)
+  );
+};
+
+/**
+ * This comparator compares events by their `uuid` property.
+ *
+ * @param optimistic - The optimistic event to compare.
+ * @param confirmed - The confirmed event to compare.
+ * @returns {boolean} Whether the two events are equal.
+ */
+export const uuidComparator: EventComparator = (optimistic: Event, confirmed: Event) => {
+  return !!optimistic.uuid && !!confirmed.uuid && optimistic.uuid === confirmed.uuid;
+};
+
+/**
  * The default event comparator used by all registered mutation functions, unless an override option is provided.
- * Compares events by equality of channel, event name and deep equality on the event data.
+ * Compares events by uuid, if provided on both the optimistic and confirmed events.
+ * Otherwise, compares events by equality of channel, event name and deep equality on the event data.
  *
  * @param optimistic - The optimistic event to compare.
  * @param confirmed - The confirmed event to compare.
  * @returns {boolean} Whether the two events are equal.
  */
 export const defaultComparator: EventComparator = (optimistic: Event, confirmed: Event) => {
-  return (
-    optimistic.channel === confirmed.channel &&
-    optimistic.name === confirmed.name &&
-    isEqual(optimistic.data, confirmed.data)
-  );
+  if (optimistic.uuid && confirmed.uuid) {
+    return uuidComparator(optimistic, confirmed);
+  }
+  return equalityComparator(optimistic, confirmed);
 };
 
 /**
@@ -140,6 +167,7 @@ export default class MutationsRegistry<M extends MutationMethods> {
     return (
       params?.events?.map((event) => ({
         ...event,
+        ...(!event.uuid && { uuid: uuidv4() }),
         confirmed: false,
         params: {
           timeout: options.timeout,

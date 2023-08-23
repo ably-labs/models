@@ -310,7 +310,11 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
         if (event?.extras?.headers && event?.extras?.headers['x-ably-models-reject'] === 'true') {
           rejected = true;
         }
-        await this.onStreamEvent({ ...event!, channel, confirmed: true, rejected });
+        let uuid: string | undefined;
+        if (event?.extras?.headers && !!event?.extras?.headers['x-ably-models-event-uuid']) {
+          uuid = event?.extras?.headers['x-ably-models-event-uuid'];
+        }
+        await this.onStreamEvent({ ...event!, channel, confirmed: true, rejected, ...(uuid && { uuid }) });
       } catch (err) {
         this.init(toError(err));
       }

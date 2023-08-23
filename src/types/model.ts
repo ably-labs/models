@@ -56,6 +56,7 @@ export type Event = {
   channel: string;
   name: string;
   data?: any;
+  uuid?: string;
 };
 
 /**
