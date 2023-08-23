@@ -21,9 +21,9 @@ describe('MutationsRegistry', () => {
     let onError = vi.fn();
     const mutations = new MutationsRegistry<Methods>({ apply: onEvents, rollback: onError });
     mutations.register({
-      one: async (x: string) => x,
+      one: async (_, x: string) => x,
       two: {
-        func: async (x: number) => ({ x }),
+        func: async (_, x: number) => ({ x }),
         options: { timeout: 1000 },
       },
     });
@@ -38,7 +38,7 @@ describe('MutationsRegistry', () => {
     let onError = vi.fn();
     const mutations = new MutationsRegistry<Pick<Methods, 'one'>>({ apply: onEvents, rollback: onError });
     mutations.register({
-      one: async (x: string) => {
+      one: async (_, x: string) => {
         throw x;
       },
     });
@@ -54,7 +54,7 @@ describe('MutationsRegistry', () => {
     let onError = vi.fn();
     const mutations = new MutationsRegistry<Pick<Methods, 'one'>>({ apply: onEvents, rollback: onError });
     mutations.register({
-      one: async (x: string) => {
+      one: async (_, x: string) => {
         throw x;
       },
     });
@@ -75,9 +75,9 @@ describe('MutationsRegistry', () => {
     let onError = vi.fn();
     const mutations = new MutationsRegistry<Methods>({ apply: onEvents, rollback: onError });
     mutations.register({
-      one: async (x: string) => x,
+      one: async (_, x: string) => x,
       two: {
-        func: async (x: number) => ({ x }),
+        func: async (_, x: number) => ({ x }),
         options: { timeout: 1000 },
       },
     });
@@ -103,6 +103,38 @@ describe('MutationsRegistry', () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
+  it<MutationsTestContext>('mutation methods have access to expected events on context', async () => {
+    let onEvents = async () => [Promise.resolve(), Promise.resolve()];
+    let onError = async () => {};
+    const mutations = new MutationsRegistry<Methods>({ apply: onEvents, rollback: onError });
+    let oneEvents: Event[] | undefined;
+    let twoEvents: Event[] | undefined;
+    mutations.register({
+      one: async function (context: MutationContext, x: string) {
+        oneEvents = context.events;
+        return x;
+      },
+      two: {
+        func: async function (context: MutationContext, x: number) {
+          twoEvents = context.events;
+          return { x };
+        },
+        options: { timeout: 1000 },
+      },
+    });
+
+    const events: Event[] = [{ channel: 'channel', name: 'foo', data: { bar: 123 } }];
+    const result1 = await mutations.handler.one.$expect({ events })('foo');
+    expect(result1[0]).toEqual('foo');
+    expect(oneEvents).toEqual(events);
+    await expect(result1[1]).resolves.toBeUndefined();
+
+    const result2 = await mutations.handler.two.$expect({ events })(123);
+    expect(result2[0]).toEqual({ x: 123 });
+    expect(twoEvents).toEqual(events);
+    await expect(result2[1]).resolves.toBeUndefined();
+  });
+
   it<MutationsTestContext>('invokes mutation methods with expectations (custom comparator) and options', async () => {
     let onEvents = vi.fn(async () => [Promise.resolve(), Promise.resolve()]);
     let onError = vi.fn();
@@ -113,13 +145,13 @@ describe('MutationsRegistry', () => {
     const mutations = new MutationsRegistry<Methods>({ apply: onEvents, rollback: onError });
     mutations.register({
       one: {
-        func: async (x: string) => x,
+        func: async (_, x: string) => x,
         options: {
           comparator: nameOnlyComparator,
         },
       },
       two: {
-        func: async (x: number) => ({ x }),
+        func: async (_, x: number) => ({ x }),
         options: {
           timeout: 1000,
           comparator: nameOnlyComparator,
@@ -162,8 +194,8 @@ describe('MutationsRegistry', () => {
 
     const mutations = new MutationsRegistry<Methods>({ apply: onEvents, rollback: onError });
     mutations.register({
-      one: async (x: string) => x,
-      two: async (x: number) => ({ x }),
+      one: async (_, x: string) => x,
+      two: async (_, x: number) => ({ x }),
     });
 
     const events: Event[] = [{ channel: 'channel', name: 'foo', data: { bar: 123 } }];
@@ -203,11 +235,11 @@ describe('MutationsRegistry', () => {
     let onError = vi.fn();
     const mutations = new MutationsRegistry<Methods>({ apply: onEvents, rollback: onError });
     mutations.register({
-      one: async (x: string) => {
+      one: async (_, x: string) => {
         throw x;
       },
       two: {
-        func: async (x: number) => {
+        func: async (_, x: number) => {
           throw x;
         },
         options: { timeout: 1000 },
@@ -249,9 +281,9 @@ describe('MutationsRegistry', () => {
     let onError = vi.fn();
     const mutations = new MutationsRegistry<Methods>({ apply: onEvents, rollback: onError });
     mutations.register({
-      one: async (x: string) => x,
+      one: async (_, x: string) => x,
       two: {
-        func: async (x: number) => ({ x }),
+        func: async (_, x: number) => ({ x }),
         options: { timeout: 1000 },
       },
     });
@@ -290,9 +322,9 @@ describe('MutationsRegistry', () => {
     let onError = vi.fn(async () => {});
     const mutations = new MutationsRegistry<Methods>({ apply: onEvents, rollback: onError });
     mutations.register({
-      one: async (x: string) => x,
+      one: async (_, x: string) => x,
       two: {
-        func: async (x: number) => ({ x }),
+        func: async (_, x: number) => ({ x }),
         options: { timeout: 1000 },
       },
     });
