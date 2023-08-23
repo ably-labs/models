@@ -15,6 +15,7 @@ import type {
   MutationRegistrationWithOptions,
   MutationInvocation,
   MutationOptimisticInvocation,
+  StrippedMutationFunc,
 } from './types/mutations.js';
 
 /**
@@ -189,15 +190,17 @@ export default class MutationsRegistry<M extends MutationMethods> {
    */
   private async executeMethod<M extends MutationFunc>(
     method: M,
-    events: OptimisticEventWithParams[],
-    args: Parameters<M>,
+    params: MutationInvocationParams,
+    options: Required<MutationOptions>,
+    args: Parameters<StrippedMutationFunc<M>>,
   ): Promise<ReturnType<MutationOptimisticInvocation<M>>> {
+    const events = this.getOptimisticEvents(params, options);
     if (!events.length) {
       throw new Error('unexpected call to executeMethod without events');
     }
     let { confirmation } = await this.processOptimistic(events);
     try {
-      const result: Awaited<ReturnType<M>> = await method(...args);
+      const result: Awaited<ReturnType<StrippedMutationFunc<M>>> = await method({ events: params.events }, ...args);
       return [result, this.wrapConfirmation(confirmation, events)];
     } catch (mutationErr) {
       confirmation.catch(() => {});
@@ -219,13 +222,15 @@ export default class MutationsRegistry<M extends MutationMethods> {
       throw new Error(`mutation method '${toString(methodName)}' not registered`);
     }
 
-    const method = this.resolveMethod(registration);
+    const originalMethod = this.resolveMethod(registration);
 
-    let base = method as MutationInvocation<M[K]>; // assertion required as we're gradually constructing the intersection type
+    const method = function (...args: Parameters<StrippedMutationFunc<M[K]>>) {
+      return originalMethod({ events: [] }, ...args);
+    } as MutationInvocation<M[K]>; // assertion required as we're gradually constructing the intersection type
 
-    base.$expect =
+    method.$expect =
       (params: MutationInvocationParams) =>
-      async (...args: Parameters<M[K]>) => {
+      async (...args: Parameters<StrippedMutationFunc<M[K]>>) => {
         let options = Object.assign({}, DEFAULT_OPTIONS);
         if (isMutationRegistrationWithOptions(registration)) {
           options = Object.assign({}, options, registration.options);
@@ -233,12 +238,10 @@ export default class MutationsRegistry<M extends MutationMethods> {
         if (params.options) {
           options = Object.assign({}, options, params.options);
         }
-        const events = this.getOptimisticEvents(params, options);
-        const result = await this.executeMethod(method, events, args);
-        return result;
+        return await this.executeMethod(originalMethod, params, options, args);
       };
 
-    return base;
+    return method;
   }
 
   /**

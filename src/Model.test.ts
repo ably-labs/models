@@ -106,7 +106,10 @@ describe('Model', () => {
       await synchronised;
       return simpleTestData;
     });
-    const model = new Model<TestData, { foo: (val: string) => Promise<number> }>('test', { ably, logger });
+    const model = new Model<TestData, { foo: (_: MutationContext, val: string) => Promise<number> }>('test', {
+      ably,
+      logger,
+    });
     const ready = model.$register({ $sync: sync });
     await modelStatePromise(model, 'preparing');
     completeSync();
@@ -292,7 +295,10 @@ describe('Model', () => {
     const s2 = streams.getOrCreate({ channel: 's2' });
     s1.subscribe = vi.fn();
     s2.subscribe = vi.fn();
-    const model = new Model<string, { foo: (a: string, b: number) => Promise<string> }>('test', { ably, logger });
+    const model = new Model<string, { foo: (_: MutationContext, a: string, b: number) => Promise<string> }>('test', {
+      ably,
+      logger,
+    });
 
     const mutation = vi.fn(async () => 'test');
     await model.$register({
@@ -302,7 +308,7 @@ describe('Model', () => {
 
     await expect(model.mutations.foo('bar', 123)).resolves.toEqual('test');
     expect(mutation).toHaveBeenCalledTimes(1);
-    expect(mutation).toHaveBeenCalledWith('bar', 123);
+    expect(mutation).toHaveBeenCalledWith({ events: [] }, 'bar', 123);
   });
 
   it<ModelTestContext>('fails to register twice', async ({ ably, logger, streams }) => {
@@ -542,28 +548,34 @@ describe('Model', () => {
       events.e1.subscribe((message) => callback(null, message));
     });
 
-    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, logger });
+    const model = new Model<
+      string,
+      { foo: (context: MutationContext, arg: string) => Promise<{ context?: string; arg: string }> }
+    >('test', { ably, logger });
 
     const update1 = vi.fn(async (state, event) => event.data);
-    const mutation = vi.fn(async function (this: MutationContext) {
-      if (!this.events.length) {
-        return 'noEvent';
+    const mutation = vi.fn(async function (context: MutationContext, arg: string) {
+      if (!context.events.length) {
+        return { arg };
       }
-      return this.events[0].name;
+      return {
+        context: context.events[0].name,
+        arg,
+      };
     });
     await model.$register({
       $sync: async () => 'data_0',
-      $update: { s1: { testEvent: update1 } },
+      $update: { s1: { context: update1 } },
       $mutate: { foo: mutation },
     });
 
-    const result1 = await model.mutations.foo();
-    expect(result1).toEqual('noEvent');
+    const result1 = await model.mutations.foo('arg');
+    expect(result1).toEqual({ arg: 'arg' });
 
     const [result2] = await model.mutations.foo.$expect({
-      events: [{ channel: 's1', name: 'testEvent', data: 'data_1' }],
-    })();
-    expect(result2).toEqual('testEvent');
+      events: [{ channel: 's1', name: 'context', data: 'data_1' }],
+    })('arg');
+    expect(result2).toEqual({ context: 'context', arg: 'arg' });
   });
 
   it<ModelTestContext>('explicitly rejects an optimistic event', async ({ ably, logger, streams }) => {

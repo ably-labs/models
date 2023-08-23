@@ -23,12 +23,36 @@ export type MutationOptions = {
 };
 
 /**
+ * MutationContext provides additional context to the MutationFunc when it is invoked.
+ * It allows the caller to access the expected events that were set on the mutation from inside the mutation
+ * function on `context.events`. This is useful if the mutation function needs access to the expected events
+ * in order to make a backend API request, for example to inform the server about the events
+ * that it is expected to confirm.
+ */
+export interface MutationContext {
+  /**
+   * The expected events set on the mutation function invocation.
+   * Is an empty array `[]` if the mutation function is invoked directly (i.e. not via $expect).
+   */
+  events: Event[];
+}
+
+/**
+ * StrippedMutationFunc is a function type that has the same signature as the MutationFunc with the first `context` argument removed.
+ *
+ * @template M - The original mutation function that includes the context argument.
+ */
+export type StrippedMutationFunc<M extends MutationFunc> = M extends (x: any, ...args: infer P) => any
+  ? (...args: P) => ReturnType<M>
+  : never;
+
+/**
  * A MutationFunc is a function that mutates the actual data, typically via an API request to the backend.
  *
  * @template A - An array of input argument types
  * @template R - The return type of the mutation.
  */
-export type MutationFunc<A extends any[] = any[], R = any> = (...args: A) => Promise<R>;
+export type MutationFunc<A extends any[] = any[], R = any> = (context: MutationContext, ...args: A) => Promise<R>;
 
 /**
  * MutationMethods is a mapping of method names to mutation functions. Describes the available muitations on the model.
@@ -84,8 +108,8 @@ export type MutationInvocationParams = {
  * @template M The type of the original MutationFunc that was registered on the model.
  */
 export type MutationOptimisticInvocation<M extends MutationFunc> = (
-  ...args: Parameters<M>
-) => Promise<[Awaited<ReturnType<M>>, Promise<void>]>;
+  ...args: Parameters<StrippedMutationFunc<M>>
+) => Promise<[Awaited<ReturnType<StrippedMutationFunc<M>>>, Promise<void>]>;
 
 /**
  * MutationInvocation describes the two ways in which a MutationFunc can be invoked: either directly,
@@ -94,7 +118,7 @@ export type MutationOptimisticInvocation<M extends MutationFunc> = (
  *
  * @template M The type of the original MutationFunc that was registered on the model.
  */
-export type MutationInvocation<M extends MutationFunc> = M & {
+export type MutationInvocation<M extends MutationFunc> = StrippedMutationFunc<M> & {
   $expect: (params: MutationInvocationParams) => MutationOptimisticInvocation<M>;
 };
 
