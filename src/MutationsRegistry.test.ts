@@ -441,6 +441,29 @@ describe('MutationsRegistry', () => {
     await mutations.handler.two.$expect({ events })(123);
   });
 
+  it<MutationsTestContext>('$expect with empty events', async () => {
+    let onEvents = vi.fn(async () => [Promise.resolve(), Promise.resolve()]);
+    let onError = vi.fn(async () => {});
+    const mutations = new MutationsRegistry<Methods>({ apply: onEvents, rollback: onError });
+    mutations.register({
+      one: async (_, x: string) => x,
+      two: {
+        func: async (_, x: number) => ({ x }),
+        options: { timeout: 1000 },
+      },
+    });
+
+    const result1 = await mutations.handler.one.$expect({ events: [] })('foo');
+    expect(result1[0]).toEqual('foo');
+    await expect(result1[1]).resolves.toBeUndefined();
+    expect(onEvents).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+
+    const result2 = await mutations.handler.two.$expect({ events: [] })(123);
+    expect(result2[0]).toEqual({ x: 123 });
+    await expect(result2[1]).resolves.toBeUndefined();
+  });
+
   it<MutationsTestContext>('$expect with a bound mutation function', async () => {
     let onEvents = vi.fn(async () => [Promise.resolve(), Promise.resolve()]);
     let onError = vi.fn();
