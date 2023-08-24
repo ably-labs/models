@@ -71,10 +71,13 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
     this.logger = options.logger;
     this.streamRegistry = new StreamRegistry({ ably: options.ably, logger: options.logger });
     this.baseLogContext = { scope: `Model:${name}` };
-    this.mutationsRegistry = new MutationsRegistry<M>({
-      apply: this.applyOptimisticEvents.bind(this),
-      rollback: this.rollbackOptimisticEvents.bind(this),
-    });
+    this.mutationsRegistry = new MutationsRegistry<M>(
+      {
+        apply: this.applyOptimisticEvents.bind(this),
+        rollback: this.rollbackOptimisticEvents.bind(this),
+      },
+      options.defaultMutationOptions,
+    );
   }
 
   /**

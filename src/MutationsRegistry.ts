@@ -63,7 +63,7 @@ export const defaultComparator: EventComparator = (optimistic: Event, confirmed:
 /**
  * Default options applied to all registered mutations.
  */
-export const DEFAULT_OPTIONS: Required<MutationOptions> = {
+export const DEFAULT_OPTIONS: MutationOptions = {
   timeout: 1000 * 60 * 2,
   comparator: defaultComparator,
 };
@@ -104,7 +104,7 @@ export type MutationCallbacks = {
 export default class MutationsRegistry<M extends MutationMethods> {
   private methods: Partial<{ [K in keyof M]: MutationRegistration<M[K]> }> = {};
 
-  constructor(readonly callbacks: MutationCallbacks) {}
+  constructor(readonly callbacks: MutationCallbacks, readonly options?: Partial<MutationOptions>) {}
 
   /**
    * Processes optimistic events and waits for them to be applied before returning.
@@ -161,10 +161,7 @@ export default class MutationsRegistry<M extends MutationMethods> {
     return method;
   }
 
-  private getOptimisticEvents(
-    params: MutationInvocationParams,
-    options: Required<MutationOptions>,
-  ): OptimisticEventWithParams[] {
+  private getOptimisticEvents(params: MutationInvocationParams, options: MutationOptions): OptimisticEventWithParams[] {
     return (
       params?.events?.map((event) => ({
         ...event,
@@ -191,7 +188,7 @@ export default class MutationsRegistry<M extends MutationMethods> {
   private async executeMethod<M extends MutationFunc>(
     method: M,
     params: MutationInvocationParams,
-    options: Required<MutationOptions>,
+    options: MutationOptions,
     args: Parameters<StrippedMutationFunc<M>>,
   ): Promise<ReturnType<MutationOptimisticInvocation<M>>> {
     const events = this.getOptimisticEvents(params, options);
@@ -232,6 +229,9 @@ export default class MutationsRegistry<M extends MutationMethods> {
       (params: MutationInvocationParams) =>
       async (...args: Parameters<StrippedMutationFunc<M[K]>>) => {
         let options = Object.assign({}, DEFAULT_OPTIONS);
+        if (this.options) {
+          options = Object.assign({}, options, this.options);
+        }
         if (isMutationRegistrationWithOptions(registration)) {
           options = Object.assign({}, options, registration.options);
         }

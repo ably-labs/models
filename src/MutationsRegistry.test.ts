@@ -49,7 +49,7 @@ describe('MutationsRegistry', () => {
     expect(onError).toHaveBeenCalledTimes(0);
   });
 
-  it<MutationsTestContext>('mutation method throws at same time as optimistic update fails', async () => {
+  it<MutationsTestContext>('mutation method throws at same time as optimistic update rejects', async () => {
     let onEvents = vi.fn(async () => [Promise.reject('optimistic update failed'), Promise.resolve()]);
     let onError = vi.fn();
     const mutations = new MutationsRegistry<Pick<Methods, 'one'>>({ apply: onEvents, rollback: onError });
@@ -70,7 +70,56 @@ describe('MutationsRegistry', () => {
     expect(onError).toHaveBeenNthCalledWith(1, new Error('optimistic update failed'), expectedEventsMatcher);
   });
 
-  it<MutationsTestContext>('invokes mutation methods with expectations (default comparator) and options', async () => {
+  it<MutationsTestContext>('$expect with options configured globally (custom comparator)', async () => {
+    let onEvents = vi.fn(async () => [Promise.resolve(), Promise.resolve()]);
+    let onError = vi.fn();
+
+    const nameOnlyComparator: EventComparator = (optimistic: Event, confirmed: Event) =>
+      optimistic.name === confirmed.name;
+
+    const mutations = new MutationsRegistry<Methods>(
+      { apply: onEvents, rollback: onError },
+      {
+        comparator: nameOnlyComparator, // global default comparator
+      },
+    );
+    mutations.register({
+      one: async (_, x: string) => x,
+      two: {
+        func: async (_, x: number) => ({ x }),
+        options: {
+          timeout: 1000, // partial invocation-specific config
+        },
+      },
+    });
+
+    const events: Event[] = [{ channel: 'channel', name: 'foo', data: { bar: 123 } }];
+    const result1 = await mutations.handler.one.$expect({ events })('foo');
+    expect(result1[0]).toEqual('foo');
+    await expect(result1[1]).resolves.toBeUndefined();
+    expect(onEvents).toHaveBeenCalledTimes(1);
+    expect(onEvents).toHaveBeenNthCalledWith(
+      1,
+      expect.toEqualIgnoringUUID(
+        toOptimisticEventsWithParams(events, { timeout: DEFAULT_OPTIONS.timeout, comparator: nameOnlyComparator }),
+      ),
+    );
+    expect(onError).not.toHaveBeenCalled();
+
+    const result2 = await mutations.handler.two.$expect({ events })(123);
+    expect(result2[0]).toEqual({ x: 123 });
+    await expect(result2[1]).resolves.toBeUndefined();
+    expect(onEvents).toHaveBeenCalledTimes(2);
+    expect(onEvents).toHaveBeenNthCalledWith(
+      2,
+      expect.toEqualIgnoringUUID(
+        toOptimisticEventsWithParams(events, { timeout: 1000, comparator: nameOnlyComparator }),
+      ),
+    );
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it<MutationsTestContext>('$expect with options configured on registration (default comparator)', async () => {
     let onEvents = vi.fn(async () => [Promise.resolve(), Promise.resolve()]);
     let onError = vi.fn();
     const mutations = new MutationsRegistry<Methods>({ apply: onEvents, rollback: onError });
@@ -103,39 +152,7 @@ describe('MutationsRegistry', () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
-  it<MutationsTestContext>('mutation methods have access to expected events on context', async () => {
-    let onEvents = async () => [Promise.resolve(), Promise.resolve()];
-    let onError = async () => {};
-    const mutations = new MutationsRegistry<Methods>({ apply: onEvents, rollback: onError });
-    let oneEvents: Event[] | undefined;
-    let twoEvents: Event[] | undefined;
-    mutations.register({
-      one: async function (context: MutationContext, x: string) {
-        oneEvents = context.events;
-        return x;
-      },
-      two: {
-        func: async function (context: MutationContext, x: number) {
-          twoEvents = context.events;
-          return { x };
-        },
-        options: { timeout: 1000 },
-      },
-    });
-
-    const events: Event[] = [{ channel: 'channel', name: 'foo', data: { bar: 123 } }];
-    const result1 = await mutations.handler.one.$expect({ events })('foo');
-    expect(result1[0]).toEqual('foo');
-    expect(oneEvents).toEqual(events);
-    await expect(result1[1]).resolves.toBeUndefined();
-
-    const result2 = await mutations.handler.two.$expect({ events })(123);
-    expect(result2[0]).toEqual({ x: 123 });
-    expect(twoEvents).toEqual(events);
-    await expect(result2[1]).resolves.toBeUndefined();
-  });
-
-  it<MutationsTestContext>('invokes mutation methods with expectations (custom comparator) and options', async () => {
+  it<MutationsTestContext>('$expect with options configured on registration (custom comparator)', async () => {
     let onEvents = vi.fn(async () => [Promise.resolve(), Promise.resolve()]);
     let onError = vi.fn();
 
@@ -185,7 +202,7 @@ describe('MutationsRegistry', () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
-  it<MutationsTestContext>('invokes mutation methods with expectations (custom comparator) and options configured on specific invocation', async () => {
+  it<MutationsTestContext>('$expect with options configured on specific invocation (custom comparator)', async () => {
     let onEvents = vi.fn(async () => [Promise.resolve(), Promise.resolve()]);
     let onError = vi.fn();
 
@@ -230,7 +247,39 @@ describe('MutationsRegistry', () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
-  it<MutationsTestContext>('mutation methods with expectations and options throw and call onError', async () => {
+  it<MutationsTestContext>('$expect where mutation methods have access to expected events on context', async () => {
+    let onEvents = async () => [Promise.resolve(), Promise.resolve()];
+    let onError = async () => {};
+    const mutations = new MutationsRegistry<Methods>({ apply: onEvents, rollback: onError });
+    let oneEvents: Event[] | undefined;
+    let twoEvents: Event[] | undefined;
+    mutations.register({
+      one: async function (context: MutationContext, x: string) {
+        oneEvents = context.events;
+        return x;
+      },
+      two: {
+        func: async function (context: MutationContext, x: number) {
+          twoEvents = context.events;
+          return { x };
+        },
+        options: { timeout: 1000 },
+      },
+    });
+
+    const events: Event[] = [{ channel: 'channel', name: 'foo', data: { bar: 123 } }];
+    const result1 = await mutations.handler.one.$expect({ events })('foo');
+    expect(result1[0]).toEqual('foo');
+    expect(oneEvents).toEqual(events);
+    await expect(result1[1]).resolves.toBeUndefined();
+
+    const result2 = await mutations.handler.two.$expect({ events })(123);
+    expect(result2[0]).toEqual({ x: 123 });
+    expect(twoEvents).toEqual(events);
+    await expect(result2[1]).resolves.toBeUndefined();
+  });
+
+  it<MutationsTestContext>('$expect where mutation throws', async () => {
     let onEvents = vi.fn(async () => [Promise.resolve(), Promise.resolve()]);
     let onError = vi.fn();
     const mutations = new MutationsRegistry<Methods>({ apply: onEvents, rollback: onError });
@@ -275,7 +324,7 @@ describe('MutationsRegistry', () => {
     );
   });
 
-  it<MutationsTestContext>('apply updates fails', async () => {
+  it<MutationsTestContext>('$expect where optimistic update rejects', async () => {
     const expectedErr = new Error('optimistic update failed');
     let onEvents = vi.fn(async () => [Promise.reject(expectedErr), Promise.resolve()]);
     let onError = vi.fn();
@@ -316,7 +365,7 @@ describe('MutationsRegistry', () => {
     );
   });
 
-  it<MutationsTestContext>('methods not confirmed', async () => {
+  it<MutationsTestContext>('$expect where confirmation promise rejects', async () => {
     const expectedErr = new Error('optimistic update failed');
     let onEvents = vi.fn(async () => [Promise.resolve(), Promise.reject(expectedErr)]);
     let onError = vi.fn(async () => {});

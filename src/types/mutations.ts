@@ -15,11 +15,11 @@ export type MutationOptions = {
    * If the timeout is reached without being confirmed the optimistic events are rolled back.
    * If unset there is a 2 minutes default timeout to avoid leaking unconfirmed events.
    */
-  timeout?: number;
+  timeout: number;
   /**
    * The event comparator used to correlate optimistic events with confirmed events.
    */
-  comparator?: EventComparator;
+  comparator: EventComparator;
 };
 
 /**
@@ -81,7 +81,7 @@ export type MutationRegistrationWithOptions<M extends MutationFunc> = {
   /**
    * Default options to apply to this mutation. Can be overridden by invocation-specific options.
    */
-  options: MutationOptions;
+  options: Partial<MutationOptions>;
 };
 
 /**
@@ -96,7 +96,7 @@ export type MutationInvocationParams = {
   /**
    * Options that can be used to override any configured mutation options for a specific mutation invocation.
    */
-  options?: MutationOptions;
+  options?: Partial<MutationOptions>;
 };
 
 /**
