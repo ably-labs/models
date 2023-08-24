@@ -1,6 +1,7 @@
 import type { Author as AuthorType } from '@/lib/prisma/api';
+import { MutationContext } from '@ably-labs/models';
 
-export async function addComment(author: AuthorType, postId: number, content: string) {
+export async function addComment(_: MutationContext, author: AuthorType, postId: number, content: string) {
   const response = await fetch('/api/comments', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -12,7 +13,7 @@ export async function addComment(author: AuthorType, postId: number, content: st
   return response.json();
 }
 
-export async function editComment(id: number, content: string) {
+export async function editComment(_: MutationContext, id: number, content: string) {
   const response = await fetch(`/api/comments/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -24,7 +25,7 @@ export async function editComment(id: number, content: string) {
   return response.json();
 }
 
-export async function deleteComment(id: number) {
+export async function deleteComment(_: MutationContext, id: number) {
   const response = await fetch(`/api/comments/${id}`, { method: 'DELETE' });
   if (!response.ok) {
     throw new Error(`DELETE /api/comments/:id: ${response.status} ${JSON.stringify(await response.json())}`);
