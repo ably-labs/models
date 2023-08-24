@@ -198,9 +198,11 @@ export default class MutationsRegistry<M extends MutationMethods> {
     let { confirmation } = await this.processOptimistic(events);
     try {
       const result: Awaited<ReturnType<StrippedMutationFunc<M>>> = await method({ events: params.events }, ...args);
-      return [result, this.wrapConfirmation(confirmation, events)];
+      const finalConfirmation = this.wrapConfirmation(confirmation, events);
+      finalConfirmation.catch(() => {}); // ensure we always have a handler in case the user discards the promise
+      return [result, finalConfirmation];
     } catch (mutationErr) {
-      confirmation.catch(() => {});
+      confirmation.catch(() => {}); // ensure we have a handler for the promise which will reject on rollback
       await this.callbacks.rollback(toError(mutationErr), events);
       throw toError(mutationErr);
     }

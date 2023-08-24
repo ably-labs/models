@@ -410,4 +410,34 @@ describe('MutationsRegistry', () => {
       ),
     );
   });
+
+  it<MutationsTestContext>('$expect where confirmation promise rejects and is unhandled', async () => {
+    const expectedErr = new Error('optimistic update failed');
+    let onEvents = vi.fn(async () => [Promise.resolve(), Promise.reject(expectedErr)]);
+    let onError = vi.fn(async () => {});
+    const mutations = new MutationsRegistry<Methods>({ apply: onEvents, rollback: onError });
+    mutations.register({
+      one: async (_, x: string) => x,
+      two: {
+        func: async (_, x: number) => ({ x }),
+        options: { timeout: 1000 },
+      },
+    });
+
+    const events: Event[] = [{ channel: 'channel', name: 'foo', data: { bar: 123 } }];
+    const result1 = await mutations.handler.one.$expect({ events })('foo');
+    expect(result1[0]).toEqual('foo');
+    await expect(result1[1]).rejects.toThrow(expectedErr);
+    expect(onEvents).toHaveBeenCalledTimes(1);
+    expect(onEvents).toHaveBeenNthCalledWith(1, expect.toEqualIgnoringUUID(toOptimisticEventsWithParams(events)));
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenNthCalledWith(
+      1,
+      expectedErr,
+      expect.toEqualIgnoringUUID(toOptimisticEventsWithParams(events)),
+    );
+
+    // do not handle the returned promise
+    await mutations.handler.two.$expect({ events })(123);
+  });
 });
