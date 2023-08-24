@@ -440,4 +440,42 @@ describe('MutationsRegistry', () => {
     // do not handle the returned promise
     await mutations.handler.two.$expect({ events })(123);
   });
+
+  it<MutationsTestContext>('$expect with a bound mutation function', async () => {
+    let onEvents = vi.fn(async () => [Promise.resolve(), Promise.resolve()]);
+    let onError = vi.fn();
+
+    const mutations = new MutationsRegistry<Methods>({ apply: onEvents, rollback: onError });
+
+    const one = async function (_, x: string) {
+      return `${x}${this.x}`;
+    };
+
+    const two = async function (_, x: number) {
+      return { x: x + this.x };
+    };
+
+    mutations.register({ one: one.bind({ x: 'bar' }), two: two.bind({ x: 1 }) });
+
+    const events: Event[] = [{ channel: 'channel', name: 'foo', data: { bar: 123 } }];
+    const result1 = await mutations.handler.one.$expect({ events })('foo');
+    expect(result1[0]).toEqual('foobar');
+    await expect(result1[1]).resolves.toBeUndefined();
+    expect(onEvents).toHaveBeenCalledTimes(1);
+    expect(onEvents).toHaveBeenNthCalledWith(
+      1,
+      expect.toEqualIgnoringUUID(toOptimisticEventsWithParams(events, DEFAULT_OPTIONS)),
+    );
+    expect(onError).not.toHaveBeenCalled();
+
+    const result2 = await mutations.handler.two.$expect({ events })(1);
+    expect(result2[0]).toEqual({ x: 2 });
+    await expect(result2[1]).resolves.toBeUndefined();
+    expect(onEvents).toHaveBeenCalledTimes(2);
+    expect(onEvents).toHaveBeenNthCalledWith(
+      2,
+      expect.toEqualIgnoringUUID(toOptimisticEventsWithParams(events, DEFAULT_OPTIONS)),
+    );
+    expect(onError).not.toHaveBeenCalled();
+  });
 });
