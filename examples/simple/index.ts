@@ -1,4 +1,4 @@
-import Models from '@ably-labs/models';
+import Models, { type MutationContext } from '@ably-labs/models';
 import Ably from 'ably/promises';
 import pino from 'pino';
 
@@ -11,8 +11,8 @@ type Post = {
 };
 
 type Mutations = {
-  updatePost: (text: string) => Promise<{ status: number }>;
-  addComment: (text: string) => Promise<{ status: number }>;
+  updatePost: (context: MutationContext, text: string) => Promise<{ status: number }>;
+  addComment: (context: MutationContext, text: string) => Promise<{ status: number }>;
 };
 
 const ably = new Ably.Realtime.Promise({
@@ -50,8 +50,40 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
       },
     },
     $mutate: {
-      updatePost: async () => ({ status: 200 }),
-      addComment: async () => ({ status: 200 }),
+      updatePost: async (context: MutationContext) => {
+        // simulate confirmation
+        setTimeout(async () => {
+          for (const event of context.events) {
+            await ably.channels.get('posts:123').publish({
+              name: 'update',
+              data: postText,
+              extras: {
+                headers: {
+                  'x-ably-models-event-uuid': event.uuid,
+                },
+              },
+            });
+          }
+        }, 5000);
+        return { status: 200 };
+      },
+      addComment: async (context: MutationContext) => {
+        // simulate confirmation
+        setTimeout(async () => {
+          for (const event of context.events) {
+            await ably.channels.get('posts:123:comments').publish({
+              name: 'add',
+              data: commentText,
+              extras: {
+                headers: {
+                  'x-ably-models-event-uuid': event.uuid,
+                },
+              },
+            });
+          }
+        }, 5000);
+        return { status: 200 };
+      },
     },
   });
 
@@ -88,7 +120,7 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     ],
   })(postText);
   logger.info(postResult, 'mutation: updatePost');
-  setTimeout(() => ably.channels.get('posts:123').publish('update', postText), 5000);
+
   logger.info('mutation: updatePost: awaiting confirmation...');
   await postConfirmation;
   logger.info('mutation: updatePost: confirmed');
@@ -104,14 +136,7 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     ],
   })(commentText);
   logger.info(commentResult, 'mutation: addComment');
-  setTimeout(
-    () =>
-      ably.channels.get('posts:123:comments').publish({
-        name: 'add',
-        data: commentText,
-      }),
-    5000,
-  );
+
   logger.info('mutation: addComment: awaiting confirmation...');
   await commentConfirmation;
   logger.info('mutation: addComment: confirmed');
