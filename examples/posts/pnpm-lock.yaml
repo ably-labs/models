@@ -3734,6 +3734,12 @@ packages:
       { integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw== }
     dev: false
 
+  /uuid@9.0.0:
+    resolution:
+      { integrity: sha512-MXcSTerfPa4uqyzStbRoTgt5XIe3x5+42+q1sDuy3R5MDk66URdLMOZe5aPX/SQd+kuYAh0FdP/pO28IkQyTeg== }
+    hasBin: true
+    dev: false
+
   /v8-compile-cache-lib@3.0.1:
     resolution:
       { integrity: sha512-wa7YjyUGfNZngI/vtK0UHAN+lgDCxBPCylVXGp0zu59Fz5aiGtNXaq3DhIov063MorB+VfufLh3JlF2KdTK3xg== }
@@ -3853,6 +3859,7 @@ packages:
       lodash: 4.17.21
       pino: 8.14.1
       rxjs: 7.8.1
+      uuid: 9.0.0
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
