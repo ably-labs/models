@@ -1,7 +1,7 @@
 import type { Types as AblyTypes } from 'ably/promises';
 import type { Logger, LevelWithSilent } from 'pino';
 
-import type { EventComparator, MutationMethods, MutationRegistration } from './mutations';
+import type { EventComparator, MutationMethods, MutationOptions, MutationRegistration } from './mutations';
 import type { UpdateFunc } from './updates';
 
 /**
@@ -10,6 +10,7 @@ import type { UpdateFunc } from './updates';
 export type ModelsOptions = {
   ably: AblyTypes.RealtimePromise;
   logLevel?: LevelWithSilent;
+  defaultMutationOptions?: Partial<MutationOptions>;
 };
 
 /**
@@ -18,6 +19,7 @@ export type ModelsOptions = {
 export type ModelOptions = {
   ably: AblyTypes.RealtimePromise;
   logger: Logger;
+  defaultMutationOptions?: Partial<MutationOptions>;
 };
 
 /**
