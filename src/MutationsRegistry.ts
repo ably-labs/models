@@ -192,12 +192,15 @@ export default class MutationsRegistry<M extends MutationMethods> {
     args: Parameters<StrippedMutationFunc<M>>,
   ): Promise<ReturnType<MutationOptimisticInvocation<M>>> {
     const events = this.getOptimisticEvents(params, options);
-    if (!events.length) {
-      throw new Error('unexpected call to executeMethod without events');
+    let confirmation = Promise.resolve();
+    if (events.length) {
+      ({ confirmation } = await this.processOptimistic(events));
     }
-    let { confirmation } = await this.processOptimistic(events);
     try {
       const result: Awaited<ReturnType<StrippedMutationFunc<M>>> = await method({ events: params.events }, ...args);
+      if (!events.length) {
+        return [result, confirmation];
+      }
       const finalConfirmation = this.wrapConfirmation(confirmation, events);
       finalConfirmation.catch(() => {}); // ensure we always have a handler in case the user discards the promise
       return [result, finalConfirmation];
