@@ -8,7 +8,7 @@ import Model from './Model.js';
 import { StreamOptions, IStream, StreamState } from './Stream.js';
 import { IStreamRegistry } from './StreamRegistry.js';
 import type { ModelState, ModelStateChange, ModelOptions, Event } from './types/model.d.ts';
-import type { MutationMethods, EventComparator } from './types/mutations.d.ts';
+import type { MutationMethods, EventComparator, MutationContext } from './types/mutations.d.ts';
 import { createMessage, customMessage } from './utilities/test/messages.js';
 
 vi.mock('ably/promises');

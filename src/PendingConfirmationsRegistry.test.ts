@@ -52,7 +52,7 @@ describe('PendingConfirmationRegistry', () => {
     const registry = new PendingConfirmationRegistry();
     await registry.add(toOptimisticEventsWithParams(events));
     const err = new Error('rejected events');
-    await registry.rejectEvents(toOptimisticEvents(events), err);
+    await registry.rejectEvents(err, toOptimisticEvents(events));
 
     expect(mockPendingConfirmationInstance.removeMatchingEvents).toHaveBeenCalled();
     expect(mockPendingConfirmationInstance.isDone()).toBe(true);
