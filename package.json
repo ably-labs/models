@@ -6,16 +6,16 @@
   "module": "dist/mjs/index.js",
   "types": "dist/mjs/index.d.ts",
   "scripts": {
-    "lint": "eslint .",
-    "lint:fix": "eslint --fix .",
-    "format": "prettier --write --ignore-path .gitignore src",
-    "format:check": "prettier --check --ignore-path .gitignore src",
-    "test": "vitest run",
-    "coverage": "vitest run --coverage",
+    "lint": "npx eslint .",
+    "lint:fix": "npx eslint --fix .",
+    "format": "npx prettier --write --ignore-path .gitignore src",
+    "format:check": "npx prettier --check --ignore-path .gitignore src",
+    "test": "npx vitest run",
+    "coverage": "npx vitest run --coverage",
     "build": "npm run build:cjs && npm run build:mjs",
-    "build:mjs": "tsc --project tsconfig.mjs.json && cp res/package.mjs.json dist/mjs/package.json",
-    "build:cjs": "tsc --project tsconfig.cjs.json && cp res/package.cjs.json dist/cjs/package.json",
-    "prepare": "husky install",
+    "build:mjs": "npx tsc --project tsconfig.mjs.json && cp res/package.mjs.json dist/mjs/package.json",
+    "build:cjs": "npx tsc --project tsconfig.cjs.json && cp res/package.cjs.json dist/cjs/package.json",
+    "prepare": "npx husky install",
     "docs": "npx typedoc --tsconfig ./tsconfig.base.json"
   },
   "exports": {
@@ -26,21 +26,22 @@
     "type": "git",
     "url": "git+https://github.com/ably-labs/models.git"
   },
-  "author": "",
+  "author": "Ably",
   "license": "ISC",
   "bugs": {
-    "url": ""
+    "url": "https://github.com/ably-labs/models/issues"
   },
   "homepage": "https://github.com/ably-labs/models",
   "publishConfig": {
     "access": "public"
   },
-  "keywords": [],
+  "keywords": ["ably", "models", "live", "realtime", "data", "sync", "collaboration"],
   "devDependencies": {
     "@types/uuid": "^9.0.2",
     "@typescript-eslint/eslint-plugin": "^6.1.0",
     "@typescript-eslint/parser": "^6.1.0",
     "@vitest/coverage-c8": "^0.28.4",
+    "@vitest/coverage-v8": "^0.34.3",
     "eslint": "^8.45.0",
     "eslint-plugin-import": "^2.27.5",
     "eslint-plugin-jsdoc": "^46.0.0",
