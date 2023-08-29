@@ -43,6 +43,7 @@ Leverages Ably’s low-latency, global message distribution network to keep a la
       - [Option 1: Using NPM (NOT YET SUPPORTED)](#option-1-using-npm-not-yet-supported)
       - [Option 2: Using a CDN (NOT YET SUPPORTED)](#option-2-using-a-cdn-not-yet-supported)
       - [Option 3: Use `npm link`](#option-3-use-npm-link)
+    - [Instantiation](#instantiation)
     - [Creating a Model](#creating-a-model)
 
 ---
@@ -95,16 +96,6 @@ Install the Ably JavaScript SDK and the Models SDK:
 npm install ably @ably-labs/models
 ```
 
-To instantiate the Models SDK, create an [Ably client](https://ably.com/docs/getting-started/setup) and pass it into the Models constructor:
-
-```ts
-import Models from '@ably-labs/models';
-import { Realtime } from 'ably';
-
-const ably = new Realtime.Promise({ key: "<API-key>" });
-const models = new Models({ ably });
-```
-
 You can use [basic authentication](https://ably.com/docs/auth/basic) i.e. the API Key directly for testing purposes, however it is strongly recommended that you use [token authentication](https://ably.com/docs/auth/token) in production environments.
 
 #### Option 2: Using a CDN (NOT YET SUPPORTED)
@@ -138,6 +129,18 @@ popd
 ```
 
 You should now be able to import `@ably-labs/models` in your project.
+
+### Instantiation
+
+To instantiate the Models SDK, create an [Ably client](https://ably.com/docs/getting-started/setup) and pass it into the Models constructor:
+
+```ts
+import Models from '@ably-labs/models';
+import { Realtime } from 'ably';
+
+const ably = new Realtime.Promise({ key: "<API-key>" });
+const models = new Models({ ably });
+```
 
 ### Creating a Model
 
