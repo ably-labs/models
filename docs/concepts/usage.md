@@ -135,7 +135,7 @@ await model.$register({
 });
 ```
 
-Note that the first `context` argument gives your mutation function access to the expected events that were passed to the mutation function when it was invoked. See event correlation.
+> Note that the first `context` argument gives your mutation function access to the expected events that were passed to the mutation function when it was invoked. See [Event Correlation](./event-correlation.md).
 
 The backend API endpoint would then update the post data in the database and emit a confirmation event, which would be received and processed by our `onPostUpdated` update function described [above](#update-functions).
 
