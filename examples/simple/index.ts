@@ -143,4 +143,6 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
   await wait(1000);
   await model.$dispose();
+  ably.close();
+  logger.info('goodbye');
 })();
