@@ -40,9 +40,9 @@ Leverages Ably’s low-latency, global message distribution network to keep a la
   - [Quickstart](#quickstart)
     - [Prerequisites](#prerequisites)
     - [Installation and authentication](#installation-and-authentication)
-  - [Installation and authentication](#installation-and-authentication-1)
-    - [Option 1: Using NPM](#option-1-using-npm)
-      - [Option 2: Using a CDN](#option-2-using-a-cdn)
+      - [Option 1: Using NPM (NOT YET SUPPORTED)](#option-1-using-npm-not-yet-supported)
+      - [Option 2: Using a CDN (NOT YET SUPPORTED)](#option-2-using-a-cdn-not-yet-supported)
+      - [Option 3: Use `npm link`](#option-3-use-npm-link)
     - [Creating a Model](#creating-a-model)
 
 ---
@@ -70,7 +70,7 @@ For a detailed description of how the Models SDK works, see the [docs](./docs/co
 
 Get started quickly using this section, or take a look at:
 
-* Read the Concept [docs](/docs/concepts/)
+* Read the [Concepts docs](/docs/concepts/)
 * Browse the [API docs](/docs/generated/index.html)
 * Explore the [examples](/examples)
 
@@ -87,9 +87,7 @@ You can use [basic authentication](https://ably.com/docs/auth/basic) for testing
 ### Installation and authentication
 
 
-## Installation and authentication
-
-### Option 1: Using NPM
+#### Option 1: Using NPM (NOT YET SUPPORTED)
 
 Install the Ably JavaScript SDK and the Models SDK:
 
@@ -109,7 +107,7 @@ const models = new Models({ ably });
 
 You can use [basic authentication](https://ably.com/docs/auth/basic) i.e. the API Key directly for testing purposes, however it is strongly recommended that you use [token authentication](https://ably.com/docs/auth/token) in production environments.
 
-#### Option 2: Using a CDN
+#### Option 2: Using a CDN (NOT YET SUPPORTED)
 
 You can also use Models with a CDN, such as [unpkg](https://www.unpkg.com/):
 
@@ -118,6 +116,28 @@ You can also use Models with a CDN, such as [unpkg](https://www.unpkg.com/):
 <script src="https://cdn.ably.com/spaces/0.0.13/iife/index.bundle.js"></script>
 ```
 After this, instantiate the SDK in the same way as in the NPM option above.
+
+#### Option 3: Use `npm link`
+
+Clone this repository and run `npm link`:
+
+```sh
+git clone git@github.com:ably-labs/models.git
+cd models
+npm link
+```
+
+From your project, link to the cloned project and build it:
+
+```sh
+cd ./your/project
+npm link @ably-labs/models
+pushd ./node_modules/@ably-labs/models
+npm run build
+popd
+```
+
+You should now be able to import `@ably-labs/models` in your project.
 
 ### Creating a Model
 
