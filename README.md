@@ -50,7 +50,7 @@ Leverages Ably’s low-latency, global message distribution network to keep a la
 
 ## Status
 
-The Realtime Data Models SDK is currently under development. If you are interested in being an early adopter and providing feedback then you can [sign up](https://go.ably.com/models-early-access) for early access and are welcome to [provide us with feedback](https://go.ably.com/models-feedback).
+The Realtime Data Models SDK is currently under development. If you are interested in being an early adopter and providing feedback then you can [sign up](https://go.ably.com/models-early-access) for early access and are welcome to [provide us with feedback](https://docs.google.com/forms/d/e/1FAIpQLSereeJrUbLRJ5g8EBFY9qglUheyB7-bmfaAq2chFpdAuZJkDA/viewform).
 
 ## Overview
 
