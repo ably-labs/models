@@ -6,7 +6,7 @@ The Models SDK aims to make it easier for developers to efficiently and correctl
 
 - The database is treated as the *source of truth* of the state 
 - Alterations to the state take place through your backend APIs
-- The client initialises its local copy if the state via your backend APIs
+- The client initialises its local copy of the state via your backend APIs
 - The client processes a stream of change events from the backend to compute the up-to-date state as it evolves
 - The client optimistically applies change events locally when the user mutates the model, and reconciles the optimistic updates with the confirmations from the backend
 
@@ -120,4 +120,62 @@ Events are applied to model state via update function in the following way:
   - Re-apply any pending optimistic events on top of the new confirmed state
   - Set the optimistic state equal to the result
 
-In this way, optimistic updates are always re-based on top of the latest confirmed state. This means that after applying the confirmed change, the library tries to re-apply the optimistic events in the order they were made.
+In this way, optimistic updates are always re-based on top of the latest confirmed state. This means that after applying the confirmed change, the library tries to re-apply the oustanding optimistic events in the order they were made.
+
+
+## Confirmation Timeouts
+
+There may be cases where a confirmation event from your backend never arrives. For example, perhaps committing the change to the database from some downstream service failed, but the mutation endpoint already returned a successful response to the client.
+
+In this case, the optimistic update should be rolled back if a confirmation isn't received within some time period. This timeout interval defaults to 2 minutes, but you can override this behaviour by providing via mutation options:
+
+```ts
+// set a default timeout of 5s second via mutation options on the model
+const models = new Models({ ably }, {
+	timeout: 5000,
+});
+
+// set a default timeout of 5s on a per-mutation basis 
+await model.$register({
+  $mutate: {
+    myMutation: {
+      func: myMutation,
+      options: { timeout: 5000 },
+    }
+  },
+});
+
+// set a timeout of 5s on a specific mutation invocation
+await model.mutations.myMutation.$expect({
+	events: myExpectedEvents,
+	options: {
+		timeout: 5000,
+	},
+})();
+```
+
+
+## Rejections
+
+In some cases you may wish to explicitly reject a mutation from your backend. You could do this by simply throwing an error from your mutation function, which would cause any optimistic events for that mutation to be rolled back:
+
+
+```ts
+await model.$register({
+  $mutate: {
+    myMutation: async () => {
+      throw new Error('mutation failed!');
+    },
+  },
+});
+
+try {
+  await model.mutations.myMutation.$expect({
+    events: myExpectedEvents,
+  })();
+} catch (err) {
+  // mutation failed!
+}
+```
+
+Other times, you may wish to reject a mutation asynchronously to the lifetime of the backend request made from your mutation function. In this case, it is useful to emit an explicit rejection event from your backend. You can do this by including an `x-ably-models-reject` header on the confirmation event. The Models SDK will automatically treat confirmations with this header set as a rejection and rollback any corresponding optimistic events.
