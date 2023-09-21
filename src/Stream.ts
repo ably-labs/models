@@ -2,6 +2,7 @@ import { Types as AblyTypes } from 'ably';
 import { Logger } from 'pino';
 import { Subject, Subscription } from 'rxjs';
 
+import SlidingWindow from './SlidingWindow.js';
 import type { StandardCallback } from './types/callbacks';
 import EventEmitter from './utilities/EventEmitter.js';
 
@@ -41,6 +42,11 @@ export type StreamOptions = {
   channel: string;
   ably: AblyTypes.RealtimePromise;
   logger: Logger;
+  /**
+   * reorderBufferMs is the ms length of the sliding window  used to buffer messages for recordering,
+   * it defaults to zero, i.e. no buffering.
+  /*/
+  reorderBufferMs?: number;
 };
 
 /**
@@ -72,6 +78,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
   private readonly ablyChannel: AblyTypes.RealtimeChannelPromise;
   private subscriptions = new Subject<AblyTypes.Message>();
   private subscriptionMap: WeakMap<StandardCallback<AblyTypes.Message>, Subscription> = new WeakMap();
+  private slidingWindow: SlidingWindow;
 
   private readonly baseLogContext: Partial<{ scope: string; action: string }>;
   private readonly logger: Logger;
@@ -82,6 +89,9 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     this.logger = options.logger;
     this.ablyChannel = this.ably.channels.get(this.options.channel);
     this.baseLogContext = { scope: `Stream#${options.channel}` };
+    this.slidingWindow = new SlidingWindow(options.reorderBufferMs || 0, (message: AblyTypes.Message) =>
+      this.subscriptions.next(message),
+    );
     this.init();
   }
 
@@ -174,6 +184,6 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
 
   private onMessage(message: AblyTypes.Message) {
     this.logger.trace({ ...this.baseLogContext, action: 'onMessage()', message });
-    this.subscriptions.next(message);
+    this.slidingWindow.addMessage(message);
   }
 }
