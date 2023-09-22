@@ -81,7 +81,9 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     this.logger = options.logger;
     this.ablyChannel = this.ably.channels.get(this.options.channel);
     this.ablyChannel.on('failed', (change) => this.dispose(change.reason));
-    this.ablyChannel.on('suspended', () => this.subscriptions.error(new Error('discontinuity in channel connection')));
+    this.ablyChannel.on(['suspended', 'update'], () =>
+      this.subscriptions.error(new Error('discontinuity in channel connection')),
+    );
     this.baseLogContext = { scope: `Stream#${options.channel}` };
     this.init();
   }
