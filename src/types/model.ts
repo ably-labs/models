@@ -12,6 +12,7 @@ export type ModelsOptions = {
   ably: AblyTypes.RealtimePromise;
   logLevel?: LevelWithSilent;
   defaultMutationOptions?: Partial<MutationOptions>;
+  eventBufferOptions?: EventBufferOptions;
 };
 
 /**

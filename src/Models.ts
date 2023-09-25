@@ -22,6 +22,7 @@ export default class Models {
       logger: pino({ level: options.logLevel || 'silent' }),
       ably: options.ably,
       ...(options.defaultMutationOptions && { defaultMutationOptions: options.defaultMutationOptions }),
+      eventBufferOptions: options.eventBufferOptions,
     };
     this.options.ably.time();
   }
