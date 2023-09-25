@@ -1,29 +1,26 @@
 import { Types as AblyTypes } from 'ably';
 
 export default class SlidingWindow {
-  // TODO: do I need to make this threadsafe somehow?
   private messages: AblyTypes.Message[] = [];
 
-  constructor(private readonly windowSizeMs: number, private onExpire: (message: AblyTypes.Message) => void) {}
+  constructor(
+    private readonly windowSizeMs: number,
+    private onExpire: (message: AblyTypes.Message) => void,
+    private readonly eventOrderer: (a: AblyTypes.Message, b: AblyTypes.Message) => number = defaultOrderLexicoId,
+  ) {}
 
   public addMessage(message: AblyTypes.Message) {
-    if (this.windowSizeMs == 0) {
+    if (this.windowSizeMs === 0) {
       this.onExpire(message);
       return;
     }
 
+    if (this.messages.map((msg) => msg.id).includes(message.id)) {
+      return;
+    }
+
     this.messages.push(message);
-    this.messages.sort((a, b) => {
-      if (a.id < b.id) {
-        return -1;
-      }
-
-      if (a.id == b.id) {
-        return 0;
-      }
-
-      return 1;
-    });
+    this.messages.sort(this.eventOrderer);
 
     setTimeout(() => {
       this.expire(message);
@@ -33,7 +30,7 @@ export default class SlidingWindow {
   private expire(message: AblyTypes.Message) {
     const idx = this.messages.indexOf(message);
 
-    if (idx == -1) {
+    if (idx === -1) {
       return;
     }
 
@@ -41,4 +38,16 @@ export default class SlidingWindow {
       this.onExpire(msg);
     });
   }
+}
+
+function defaultOrderLexicoId(a: AblyTypes.Message, b: AblyTypes.Message): number {
+  if (a.id < b.id) {
+    return -1;
+  }
+
+  if (a.id === b.id) {
+    return 0;
+  }
+
+  return 1;
 }

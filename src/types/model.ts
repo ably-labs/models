@@ -3,6 +3,7 @@ import type { Logger, LevelWithSilent } from 'pino';
 
 import type { EventComparator, MutationMethods, MutationOptions, MutationRegistration } from './mutations';
 import type { UpdateFunc } from './updates';
+import type { EventBufferOptions } from '../Stream';
 
 /**
  * Options used to configure all model instances.
@@ -20,6 +21,7 @@ export type ModelOptions = {
   ably: AblyTypes.RealtimePromise;
   logger: Logger;
   defaultMutationOptions?: Partial<MutationOptions>;
+  eventBufferOptions?: EventBufferOptions;
 };
 
 /**

@@ -47,6 +47,32 @@ describe('SlidingWindow', () => {
     expect(onExpire).toHaveBeenNthCalledWith(2, msg2);
   });
 
+  it('reorders events in the buffer with custom order', async () => {
+    const onExpire = vi.fn();
+    const sliding = new SlidingWindow(1, onExpire, (a, b) => {
+      if (a.id < b.id) {
+        return 1;
+      }
+
+      return -1;
+    });
+
+    const msg3 = createMessage(3);
+    const msg2 = createMessage(2);
+    const msg1 = createMessage(1);
+
+    sliding.addMessage(msg3);
+    sliding.addMessage(msg2);
+    sliding.addMessage(msg1);
+
+    await new Promise((resolve) => setTimeout(resolve, 1));
+
+    expect(onExpire).toHaveBeenCalledTimes(3);
+    expect(onExpire).toHaveBeenNthCalledWith(1, msg3);
+    expect(onExpire).toHaveBeenNthCalledWith(2, msg2);
+    expect(onExpire).toHaveBeenNthCalledWith(3, msg1);
+  });
+
   it('ignores expired events when reordering', async () => {
     const onExpire = vi.fn();
     const sliding = new SlidingWindow(1, onExpire);
@@ -69,5 +95,21 @@ describe('SlidingWindow', () => {
     expect(onExpire).toHaveBeenNthCalledWith(1, msg3);
     expect(onExpire).toHaveBeenNthCalledWith(2, msg1);
     expect(onExpire).toHaveBeenNthCalledWith(3, msg2);
+  });
+
+  it('deduplicates events in the buffer', async () => {
+    const onExpire = vi.fn();
+    const sliding = new SlidingWindow(1, onExpire);
+
+    const msg2a = createMessage(2);
+    const msg2b = createMessage(2);
+
+    sliding.addMessage(msg2a);
+    sliding.addMessage(msg2b);
+
+    await new Promise((resolve) => setTimeout(resolve, 1));
+
+    expect(onExpire).toHaveBeenCalledTimes(1);
+    expect(onExpire).toHaveBeenNthCalledWith(1, msg2a);
   });
 });

@@ -4,6 +4,7 @@ import { Subject } from 'rxjs';
 import { it, describe, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import Stream, { StreamOptions, StreamState } from './Stream.js';
+import StreamRegistry from './StreamRegistry.js';
 import { createMessage } from './utilities/test/messages.js';
 
 vi.mock('ably/promises');
@@ -225,6 +226,20 @@ describe('Stream', () => {
     }
 
     expect(ablyChannel.subscribe).toHaveBeenCalledOnce();
+  });
+
+  it<StreamTestContext>('succeeds with gte zero event buffer ms', async ({ ably, logger }) => {
+    new StreamRegistry({ eventBufferOptions: { bufferMs: 0 }, ably, logger });
+    new StreamRegistry({ eventBufferOptions: { bufferMs: 1 }, ably, logger });
+  });
+
+  it<StreamTestContext>('fails with lt zero event buffer ms', async ({ ably, logger }) => {
+    try {
+      new StreamRegistry({ eventBufferOptions: { bufferMs: -1 }, ably, logger });
+      expect(true).toBe(false);
+    } catch (err) {
+      expect(err.toString(), 'Stream registry should have thrown an error').not.toContain('AssertionError');
+    }
   });
 
   // TODO discontinuity

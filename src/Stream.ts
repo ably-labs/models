@@ -42,12 +42,26 @@ export type StreamOptions = {
   channel: string;
   ably: AblyTypes.RealtimePromise;
   logger: Logger;
-  /**
-   * reorderBufferMs is the ms length of the sliding window  used to buffer messages for recordering,
-   * it defaults to zero, i.e. no buffering.
-  /*/
-  reorderBufferMs?: number;
+  eventBufferOptions?: EventBufferOptions;
 };
+
+export type EventBufferOptions = {
+  /**
+   * bufferms is the period of time events are held in a buffer
+   * for reordering and deduplicating. By default this is zero,
+   * which disables the buffer. Setting bufferMs to a non-zero
+   * value enables the buffer. The buffer is a sliding window.
+   */
+  bufferMs?: number;
+  /**
+   * eventOrderer defines the correct order of events. By default,
+   * when the buffer is enabled the event order is the lexicographical
+   * order of the message ids within the buffer.
+   */
+  eventOrderer?: EventOrderer;
+};
+
+type EventOrderer = (a: AblyTypes.Message, b: AblyTypes.Message) => number;
 
 /**
  * A state transition emitted as an event from the stream describing a change to the stream's lifecycle.
@@ -89,8 +103,10 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     this.logger = options.logger;
     this.ablyChannel = this.ably.channels.get(this.options.channel);
     this.baseLogContext = { scope: `Stream#${options.channel}` };
-    this.slidingWindow = new SlidingWindow(options.reorderBufferMs || 0, (message: AblyTypes.Message) =>
-      this.subscriptions.next(message),
+    this.slidingWindow = new SlidingWindow(
+      options.eventBufferOptions?.bufferMs || 0,
+      (message: AblyTypes.Message) => this.subscriptions.next(message),
+      options.eventBufferOptions?.eventOrderer,
     );
     this.init();
   }
