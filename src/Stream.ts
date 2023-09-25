@@ -57,6 +57,7 @@ export interface IStream {
   get channel(): string;
   pause(): Promise<void>;
   resume(): Promise<void>;
+  reset(): void;
   subscribe(callback: StandardCallback<AblyTypes.Message>): void;
   unsubscribe(callback: StandardCallback<AblyTypes.Message>): void;
   dispose(reason?: AblyTypes.ErrorInfo | string): Promise<void>;
@@ -69,7 +70,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
   private readonly ably: AblyTypes.RealtimePromise;
   private currentState: StreamState = StreamState.INITIALIZED;
   private readonly ablyChannel: AblyTypes.RealtimeChannelPromise;
-  private readonly subscriptions = new Subject<AblyTypes.Message>();
+  private subscriptions = new Subject<AblyTypes.Message>();
   private subscriptionMap: WeakMap<StandardCallback<AblyTypes.Message>, Subscription> = new WeakMap();
 
   private readonly baseLogContext: Partial<{ scope: string; action: string }>;
@@ -80,10 +81,6 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     this.ably = options.ably;
     this.logger = options.logger;
     this.ablyChannel = this.ably.channels.get(this.options.channel);
-    this.ablyChannel.on('failed', (change) => this.dispose(change.reason));
-    this.ablyChannel.on(['suspended', 'update'], () =>
-      this.subscriptions.error(new Error('discontinuity in channel connection')),
-    );
     this.baseLogContext = { scope: `Stream#${options.channel}` };
     this.init();
   }
@@ -115,7 +112,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
         callback(null, message);
       },
       error: (err) => {
-        this.logger.trace({ ...this.baseLogContext, action: 'error()' });
+        this.logger.trace({ ...this.baseLogContext, action: 'error()', error: err.toString() });
         callback(err);
       },
       complete: () => {
@@ -144,6 +141,14 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     this.ably.channels.release(this.ablyChannel.name);
   }
 
+  public async reset() {
+    this.logger.trace({ ...this.baseLogContext, action: 'reset()' });
+    this.setState(StreamState.INITIALIZED, 'reset');
+    this.subscriptions.unsubscribe();
+    this.subscriptions = new Subject<AblyTypes.Message>();
+    this.init();
+  }
+
   private setState(state: StreamState, reason?: AblyTypes.ErrorInfo | string) {
     this.logger.trace({ ...this.baseLogContext, action: 'setState()', state, reason });
     const previous = this.currentState;
@@ -157,6 +162,10 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
 
   private async init() {
     this.logger.trace({ ...this.baseLogContext, action: 'init()' });
+    this.ablyChannel.on('failed', (change) => this.dispose(change.reason));
+    this.ablyChannel.on(['suspended', 'update'], () => {
+      this.subscriptions.error(new Error('discontinuity in channel connection'));
+    });
     this.setState(StreamState.PREPARING);
     await this.ably.connection.whenState('connected');
     await this.ablyChannel.subscribe(this.onMessage.bind(this));

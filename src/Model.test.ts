@@ -33,6 +33,7 @@ vi.mock('./StreamRegistry', () => {
     subscribe(): void {}
     unsubscribe(): void {}
     async dispose() {}
+    async reset() {}
   }
   const streams: { [key: string]: IStream } = {};
 
