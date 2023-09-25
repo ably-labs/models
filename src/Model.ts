@@ -298,6 +298,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
       if (callback) {
         stream.unsubscribe(callback);
       }
+      stream.reset();
     }
     this.streamSubscriptionsMap = new WeakMap();
   }
