@@ -76,7 +76,6 @@ describe('Model', () => {
     await subscriptionCalls[0];
     expect(subscriptionSpy).toHaveBeenNthCalledWith(1, null, '0');
 
-    expect(counter).toEqual(1);
     await modelStatePromise(model, 'ready');
 
     suspendChannel();
@@ -84,6 +83,6 @@ describe('Model', () => {
 
     await subscriptionCalls[1];
     expect(subscriptionSpy).toHaveBeenNthCalledWith(2, null, '1');
-    expect(counter).toEqual(2);
+    expect(sync).toHaveBeenCalledTimes(2);
   });
 });
