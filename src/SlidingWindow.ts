@@ -1,12 +1,14 @@
 import { Types as AblyTypes } from 'ably';
 
+import type { EventOrderer } from './types/mutations';
+
 export default class SlidingWindow {
   private messages: AblyTypes.Message[] = [];
 
   constructor(
     private readonly windowSizeMs: number,
     private onExpire: (message: AblyTypes.Message) => void,
-    private readonly eventOrderer: (a: AblyTypes.Message, b: AblyTypes.Message) => number = defaultOrderLexicoId,
+    private readonly eventOrderer: EventOrderer = defaultOrderLexicoId,
   ) {}
 
   public addMessage(message: AblyTypes.Message) {

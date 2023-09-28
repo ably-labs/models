@@ -16,7 +16,7 @@ export default class StreamRegistry implements IStreamRegistry {
    * @param {Pick<StreamOptions, 'ably' | 'logger'>} options - The default options used when instantiating a stream.
    */
   constructor(readonly options: Pick<StreamOptions, 'ably' | 'logger' | 'eventBufferOptions'>) {
-    if (options.eventBufferOptions !== null) {
+    if (options.eventBufferOptions) {
       const bufferMs = options.eventBufferOptions?.bufferMs || 0;
       if (bufferMs < 0) {
         throw new Error(`EventBufferOptions bufferMs cannot be less than zero: ${bufferMs}`);

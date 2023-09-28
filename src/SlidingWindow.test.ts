@@ -101,15 +101,15 @@ describe('SlidingWindow', () => {
     const onExpire = vi.fn();
     const sliding = new SlidingWindow(1, onExpire);
 
-    const msg2a = createMessage(2);
-    const msg2b = createMessage(2);
+    const msg1a = createMessage(2);
+    const msg1b = createMessage(2);
 
-    sliding.addMessage(msg2a);
-    sliding.addMessage(msg2b);
+    sliding.addMessage(msg1a);
+    sliding.addMessage(msg1b);
 
     await new Promise((resolve) => setTimeout(resolve, 1));
 
     expect(onExpire).toHaveBeenCalledTimes(1);
-    expect(onExpire).toHaveBeenNthCalledWith(1, msg2a);
+    expect(onExpire).toHaveBeenNthCalledWith(1, msg1a);
   });
 });

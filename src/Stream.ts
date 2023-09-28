@@ -4,6 +4,7 @@ import { Subject, Subscription } from 'rxjs';
 
 import SlidingWindow from './SlidingWindow.js';
 import type { StandardCallback } from './types/callbacks';
+import type { EventOrderer } from './types/mutations.js';
 import EventEmitter from './utilities/EventEmitter.js';
 
 /**
@@ -60,8 +61,6 @@ export type EventBufferOptions = {
    */
   eventOrderer?: EventOrderer;
 };
-
-type EventOrderer = (a: AblyTypes.Message, b: AblyTypes.Message) => number;
 
 /**
  * A state transition emitted as an event from the stream describing a change to the stream's lifecycle.
