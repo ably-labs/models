@@ -1,3 +1,5 @@
+import { Types as AblyTypes } from 'ably';
+
 import type { Event } from './model';
 
 /**
@@ -5,6 +7,13 @@ import type { Event } from './model';
  * true if the confirmed event corresponds to the optimistic event (i.e. it confirms it).
  */
 export type EventComparator = (optimistic: Event, confirmed: Event) => boolean;
+
+/**
+ * EventOrderer is used to determine the order of elements in the event buffer. It expects
+ * to return a negative value of the first argument is less than the second argument, zero
+ * if they are equal, and a positive value otherwise.
+ */
+export type EventOrderer = (a: AblyTypes.Message, b: AblyTypes.Message) => number;
 
 /**
  * MutationOptions can be used to configure options on individual mutations.
