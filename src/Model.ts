@@ -6,7 +6,7 @@ import { toError } from './Errors.js';
 import MutationsRegistry from './MutationsRegistry.js';
 import PendingConfirmationRegistry from './PendingConfirmationRegistry.js';
 import { IStream } from './Stream.js';
-import StreamRegistry, { IStreamRegistry } from './StreamRegistry.js';
+import StreamFactory, { IStreamFactory as IStreamFactory } from './StreamFactory.js';
 import type { StandardCallback } from './types/callbacks';
 import { MergeFunc } from './types/merge.js';
 import type {
@@ -51,9 +51,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
   private merge?: MergeFunc<T>;
 
   private readonly stream: IStream;
-
-  // TODO: make rename to stream factory
-  private readonly streamFactory: IStreamRegistry;
+  private readonly streamFactory: IStreamFactory;
   private readonly mutationsRegistry: MutationsRegistry<M>;
 
   private optimisticEvents: OptimisticEventWithParams[] = [];
@@ -76,7 +74,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
     this.logger = options.logger;
     this.baseLogContext = { scope: `Model:${name}` };
 
-    this.streamFactory = new StreamRegistry({
+    this.streamFactory = new StreamFactory({
       ably: options.ably,
       logger: options.logger,
       eventBufferOptions: options.eventBufferOptions,
