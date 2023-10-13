@@ -297,8 +297,8 @@ describe('Model', () => {
   it<ModelTestContext>('fails to register after initialization', async ({ channelName, ably, logger, streams }) => {
     // extend the Model class to get access to protected member setState
     class ModelWithSetState<T, M extends MutationMethods> extends Model<T, M> {
-      constructor(readonly name: string, options: ModelOptions) {
-        super(name, options);
+      constructor(readonly name: string, channelName: string, options: ModelOptions) {
+        super(name, channelName, options);
       }
       setState(state: ModelState) {
         super.setState(state);

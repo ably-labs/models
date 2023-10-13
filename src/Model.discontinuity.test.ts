@@ -9,7 +9,7 @@ import { MutationMethods } from './types/mutations.js';
 
 vi.mock('ably/promises');
 
-interface ModelTestContext extends ModelOptions {}
+type ModelTestContext = { channelName: string } & ModelOptions;
 
 const getNthEventPromise = <T>(subject: Subject<T>, n: number) => lastValueFrom(subject.pipe(take(n)));
 
