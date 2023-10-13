@@ -16,3 +16,5 @@ export const getEventPromises = <T>(subject: Subject<T>, n: number) => {
 
 export const modelStatePromise = <T, M extends MutationMethods>(model: Model<T, M>, state: ModelState) =>
   new Promise((resolve) => model.whenState(state, model.state, resolve));
+
+export const timeout = (ms: number = 0) => new Promise((resolve) => setTimeout(resolve, ms));
