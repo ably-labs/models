@@ -6,7 +6,7 @@ import { toError } from './Errors.js';
 import MutationsRegistry from './MutationsRegistry.js';
 import PendingConfirmationRegistry from './PendingConfirmationRegistry.js';
 import { IStream } from './Stream.js';
-import StreamFactory, { IStreamFactory as IStreamFactory } from './StreamFactory.js';
+import StreamFactory, { IStreamFactory } from './StreamFactory.js';
 import type { StandardCallback } from './types/callbacks';
 import { MergeFunc } from './types/merge.js';
 import type {
