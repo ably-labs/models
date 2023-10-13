@@ -1,8 +1,8 @@
 import type { Types as AblyTypes } from 'ably/promises';
 import type { Logger, LevelWithSilent } from 'pino';
 
+import type { MergeFunc } from './merge';
 import type { EventComparator, MutationMethods, MutationOptions, MutationRegistration } from './mutations';
-import type { UpdateFunc } from './updates';
 import type { EventBufferOptions } from '../Stream';
 
 /**
@@ -142,14 +142,9 @@ export type Registration<T, M extends MutationMethods> = {
    */
   $sync: SyncFunc<T>;
   /**
-   * A mapping of channel name to event to an update function that is invoked when a message
-   * is received matching that channel and event name.
+   * The merge function that is invoked when a message is received.
    */
-  $update?: {
-    [channel: string]: {
-      [event: string]: UpdateFunc<T>;
-    };
-  };
+  $merge?: MergeFunc<T>;
   /**
    * A mapping of method names to mutations describing the mutations that are available on the model that
    * can be invoked to mutate the underlying state of the model in the backend database.

@@ -9,7 +9,7 @@ import { MutationMethods } from './types/mutations.js';
 
 vi.mock('ably/promises');
 
-interface ModelTestContext extends ModelOptions {}
+type ModelTestContext = { channelName: string } & ModelOptions;
 
 const getNthEventPromise = <T>(subject: Subject<T>, n: number) => lastValueFrom(subject.pipe(take(n)));
 
@@ -36,8 +36,9 @@ describe('Model', () => {
     const logger = pino({ level: 'silent' });
     context.ably = ably;
     context.logger = logger;
+    context.channelName = 'models:myModel:events';
   });
-  it<ModelTestContext>('handles discontinuity with resync', async ({ ably, logger }) => {
+  it<ModelTestContext>('handles discontinuity with resync', async ({ channelName, ably, logger }) => {
     const channel = ably.channels.get('foo');
     let suspendChannel: (...args: any[]) => void = () => {
       throw new Error('suspended not defined');
@@ -58,11 +59,11 @@ describe('Model', () => {
     let counter = 0;
 
     const sync = vi.fn(async () => `${counter++}`);
-    const model = new Model<string, {}>('test', { ably, logger });
-    const update1 = vi.fn(async (state, event) => {
+    const model = new Model<string, {}>('test', channelName, { ably, logger });
+    const mergeFn = vi.fn(async (state, event) => {
       return event.data;
     });
-    await model.$register({ $sync: sync, $update: { s1: { testEvent: update1 } } });
+    await model.$register({ $sync: sync, $merge: mergeFn });
 
     expect(sync).toHaveBeenCalledOnce();
 

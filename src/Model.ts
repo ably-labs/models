@@ -2,12 +2,13 @@ import type { Types as AblyTypes } from 'ably/promises.js';
 import type { Logger } from 'pino';
 import { Subject, Subscription } from 'rxjs';
 
-import { toError, UpdateRegistrationError } from './Errors.js';
+import { toError } from './Errors.js';
 import MutationsRegistry from './MutationsRegistry.js';
 import PendingConfirmationRegistry from './PendingConfirmationRegistry.js';
 import { IStream } from './Stream.js';
-import StreamRegistry from './StreamRegistry.js';
+import StreamRegistry, { IStreamRegistry } from './StreamRegistry.js';
 import type { StandardCallback } from './types/callbacks';
+import { MergeFunc } from './types/merge.js';
 import type {
   OptimisticEventWithParams,
   ModelState,
@@ -20,7 +21,6 @@ import type {
   ConfirmedEvent,
 } from './types/model.js';
 import type { MutationMethods } from './types/mutations.js';
-import UpdatesRegistry from './UpdatesRegistry.js';
 import EventEmitter from './utilities/EventEmitter.js';
 
 /**
@@ -48,8 +48,12 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
   private sync: SyncFunc<T> = async () => {
     throw new Error('sync func not registered');
   };
-  private readonly streamRegistry: StreamRegistry;
-  private readonly updatesRegistry: UpdatesRegistry<T> = new UpdatesRegistry<T>();
+  private merge?: MergeFunc<T>;
+
+  private readonly stream: IStream;
+
+  // TODO: make rename to stream factory
+  private readonly streamFactory: IStreamRegistry;
   private readonly mutationsRegistry: MutationsRegistry<M>;
 
   private optimisticEvents: OptimisticEventWithParams[] = [];
@@ -64,13 +68,21 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
 
   /**
    * @param {string} name - A unique name used to identify this model in your application.
+   * @param {string} channel - The name of the channel them model will subscribe to update events on.
    * @param {ModelOptions} options - Options used to configure this model instance.
    */
-  constructor(readonly name: string, options: ModelOptions) {
+  constructor(readonly name: string, channel: string, options: ModelOptions) {
     super();
     this.logger = options.logger;
-    this.streamRegistry = new StreamRegistry({ ably: options.ably, logger: options.logger });
     this.baseLogContext = { scope: `Model:${name}` };
+
+    this.streamFactory = new StreamRegistry({
+      ably: options.ably,
+      logger: options.logger,
+      eventBufferOptions: options.eventBufferOptions,
+    });
+    this.stream = this.streamFactory.newStream({ channel: channel });
+
     this.mutationsRegistry = new MutationsRegistry<M>(
       {
         apply: this.applyOptimisticEvents.bind(this),
@@ -114,8 +126,8 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
    */
   public async $pause() {
     this.logger.trace({ ...this.baseLogContext, action: 'pause()' });
+    await this.stream.pause();
     this.setState('paused');
-    await Promise.all(Object.values(this.streamRegistry.streams).map((stream) => stream.pause()));
   }
 
   /**
@@ -124,7 +136,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
    */
   public async $resume() {
     this.logger.trace({ ...this.baseLogContext, action: 'resume()' });
-    await Promise.all(Object.values(this.streamRegistry.streams).map((stream) => stream.resume()));
+    await this.stream.resume();
     this.setState('ready');
   }
 
@@ -138,13 +150,12 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
     this.logger.trace({ ...this.baseLogContext, action: 'dispose()', reason });
     this.setState('disposed', reason);
     this.subscriptions.unsubscribe();
-    for (const streamName in this.streamRegistry.streams) {
-      const stream = this.streamRegistry.streams[streamName];
-      const callback = this.streamSubscriptionsMap.get(stream);
-      if (callback) {
-        stream.unsubscribe(callback);
-      }
+
+    const callback = this.streamSubscriptionsMap.get(this.stream);
+    if (callback) {
+      this.stream.unsubscribe(callback);
     }
+
     await this.pendingConfirmationsRegistry.finalise(reason);
     this.subscriptionMap = new WeakMap();
     this.streamSubscriptionsMap = new WeakMap();
@@ -152,7 +163,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
   }
 
   /**
-   * Registers a sync function, a set of update functions and mutations for use by this model.
+   * Registers a sync function, a merge function and a set of mutations for use by this model.
    * This should be called once by your application before you subscribe to the model state.
    * @param {Registration<T, M>} registration - The set of methods to register.
    * @returns A promise that resolves when the model has completed the registrtion and is ready to start emitting updates.
@@ -168,14 +179,11 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
     }
     this.wasRegistered = true;
     this.sync = registration.$sync;
-    for (let channel in registration.$update) {
-      for (let event in registration.$update[channel]) {
-        if (!this.streamRegistry.streams[channel]) {
-          this.addStream(channel);
-        }
-        this.updatesRegistry.register(registration.$update[channel][event], { channel, event });
-      }
+
+    if (registration.$merge) {
+      this.merge = registration.$merge;
     }
+
     if (registration.$mutate) {
       this.mutationsRegistry.register(registration.$mutate);
     }
@@ -246,13 +254,15 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
     if (events.length === 0) {
       return [];
     }
-    if (!events.every((event) => event.params.timeout === events[0].params.timeout)) {
-      throw new Error('expected every optimistic event in batch to have the same timeout');
-    }
+
     for (const event of events) {
-      if (!this.streamRegistry.streams[event.channel]) {
+      if (event.channel !== this.stream.channel) {
         throw new Error(`stream with name '${event.channel}' not registered on model '${this.name}'`);
       }
+    }
+
+    if (!events.every((event) => event.params.timeout === events[0].params.timeout)) {
+      throw new Error('expected every optimistic event in batch to have the same timeout');
     }
     const pendingConfirmation = await this.pendingConfirmationsRegistry.add(events);
     const optimistic = this.onStreamEvents(events);
@@ -279,11 +289,8 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
     this.logger.trace({ ...this.baseLogContext, action: 'init()', reason });
     this.setState('preparing', reason);
 
-    this.removeStreams();
-
-    for (let channel in this.streamRegistry.streams) {
-      this.addStream(channel);
-    }
+    this.removeStream();
+    this.addStream(this.stream.channel);
 
     const data = await this.sync();
     this.setOptimisticData(data);
@@ -291,20 +298,17 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
     this.setState('ready');
   }
 
-  private removeStreams() {
-    for (const channel in this.streamRegistry.streams) {
-      const stream = this.streamRegistry.streams[channel];
-      const callback = this.streamSubscriptionsMap.get(stream);
-      if (callback) {
-        stream.unsubscribe(callback);
-      }
-      stream.reset();
+  private removeStream() {
+    this.stream.reset();
+    const callback = this.streamSubscriptionsMap.get(this.stream);
+    if (callback) {
+      this.stream.unsubscribe(callback);
     }
+    this.stream.reset();
     this.streamSubscriptionsMap = new WeakMap();
   }
 
   private addStream(channel: string) {
-    this.streamRegistry.streams[channel] = this.streamRegistry.getOrCreate({ channel });
     const callback: StandardCallback<AblyTypes.Message> = async (err: Error | null, event?: AblyTypes.Message) => {
       try {
         if (err) {
@@ -323,8 +327,8 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
         this.init(toError(err));
       }
     };
-    this.streamRegistry.streams[channel].subscribe(callback);
-    this.streamSubscriptionsMap.set(this.streamRegistry.streams[channel], callback);
+    this.stream.subscribe(callback);
+    this.streamSubscriptionsMap.set(this.stream, callback);
   }
 
   private setOptimisticData(data: T) {
@@ -349,23 +353,22 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
     }, 0);
   }
 
-  private async applyUpdates(initialData: T, event: OptimisticEvent | ConfirmedEvent): Promise<T> {
-    this.logger.trace({ ...this.baseLogContext, action: 'applyUpdates()', initialData, event });
-    let data = initialData;
-    const updates = this.updatesRegistry.get({ channel: event.channel, event: event.name });
-    for (const update of updates) {
-      data = await update.func(data, event);
+  private async applyUpdate(initialData: T, event: OptimisticEvent | ConfirmedEvent): Promise<T> {
+    this.logger.trace({ ...this.baseLogContext, action: 'applyUpdate()', initialData, event });
+    if (!this.merge) {
+      throw new Error('merge func not registered');
     }
+    const data = await this.merge(initialData, event);
     return data;
   }
 
-  private async applyOptimisticUpdates(initialData: T, event: OptimisticEvent) {
-    const data = await this.applyUpdates(initialData, event);
+  private async applyOptimisticUpdate(initialData: T, event: OptimisticEvent) {
+    const data = await this.applyUpdate(initialData, event);
     this.setOptimisticData(data);
   }
 
-  private async applyConfirmedUpdates(initialData: T, event: ConfirmedEvent) {
-    const data = await this.applyUpdates(initialData, event);
+  private async applyConfirmedUpdate(initialData: T, event: ConfirmedEvent) {
+    const data = await this.applyUpdate(initialData, event);
     this.setConfirmedData(data);
   }
 
@@ -380,22 +383,15 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
     if (!event) {
       return;
     }
-    try {
-      const updates = this.updatesRegistry.get({ channel: event.channel });
-      if (!updates || updates.length === 0) {
-        return;
-      }
-    } catch (err) {
-      if (err instanceof UpdateRegistrationError) {
-        return;
-      }
-      throw err;
+
+    if (!this.merge) {
+      return;
     }
 
     // eagerly apply optimistic updates
     if (!event.confirmed) {
       this.optimisticEvents.push(event as OptimisticEventWithParams);
-      await this.applyOptimisticUpdates(this.optimisticData, event as OptimisticEventWithParams);
+      await this.applyOptimisticUpdate(this.optimisticData, event as OptimisticEventWithParams);
       return;
     }
 
@@ -423,10 +419,10 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
     if (confirmedEvent.rejected) {
       return;
     }
-    await this.applyConfirmedUpdates(this.confirmedData, confirmedEvent);
+    await this.applyConfirmedUpdate(this.confirmedData, confirmedEvent);
     let base = this.confirmedData;
     for (const event of optimisticEvents) {
-      base = await this.applyUpdates(base, event);
+      base = await this.applyUpdate(base, event);
     }
     this.setOptimisticData(base);
   }
@@ -448,7 +444,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
     }
     let nextData = this.confirmedData;
     for (const e of this.optimisticEvents) {
-      nextData = await this.applyUpdates(nextData, e);
+      nextData = await this.applyUpdate(nextData, e);
     }
     this.setOptimisticData(nextData);
     await this.pendingConfirmationsRegistry.rejectEvents(err, events);
