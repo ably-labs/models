@@ -2,6 +2,7 @@ import { it, describe, expect, vi } from 'vitest';
 
 import SlidingWindow from './SlidingWindow.js';
 import { createMessage } from './utilities/test/messages.js';
+import { timeout } from './utilities/test/promises.js';
 
 describe('SlidingWindow', () => {
   it('emits events immediately with no timeout', async () => {
@@ -24,7 +25,7 @@ describe('SlidingWindow', () => {
 
     expect(onExpire).toHaveBeenCalledTimes(0);
 
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await timeout(100);
 
     expect(onExpire).toHaveBeenCalledTimes(1);
     expect(onExpire).toHaveBeenCalledWith(msg);
@@ -40,7 +41,7 @@ describe('SlidingWindow', () => {
     sliding.addMessage(msg2);
     sliding.addMessage(msg1);
 
-    await new Promise((resolve) => setTimeout(resolve, 1));
+    await timeout(1);
 
     expect(onExpire).toHaveBeenCalledTimes(2);
     expect(onExpire).toHaveBeenNthCalledWith(1, msg1);
@@ -65,7 +66,7 @@ describe('SlidingWindow', () => {
     sliding.addMessage(msg2);
     sliding.addMessage(msg1);
 
-    await new Promise((resolve) => setTimeout(resolve, 1));
+    await timeout(1);
 
     expect(onExpire).toHaveBeenCalledTimes(3);
     expect(onExpire).toHaveBeenNthCalledWith(1, msg3);
@@ -83,13 +84,13 @@ describe('SlidingWindow', () => {
 
     // message 3 added, and expired
     sliding.addMessage(msg3);
-    await new Promise((resolve) => setTimeout(resolve, 1));
+    await timeout(1);
 
     // then messages 1 and 2 added, reordered, and expired
     sliding.addMessage(msg2);
     sliding.addMessage(msg1);
 
-    await new Promise((resolve) => setTimeout(resolve, 1));
+    await timeout(1);
 
     expect(onExpire).toHaveBeenCalledTimes(3);
     expect(onExpire).toHaveBeenNthCalledWith(1, msg3);
@@ -107,7 +108,7 @@ describe('SlidingWindow', () => {
     sliding.addMessage(msg1a);
     sliding.addMessage(msg1b);
 
-    await new Promise((resolve) => setTimeout(resolve, 1));
+    await timeout(1);
 
     expect(onExpire).toHaveBeenCalledTimes(1);
     expect(onExpire).toHaveBeenNthCalledWith(1, msg1a);

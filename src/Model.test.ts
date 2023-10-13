@@ -9,7 +9,7 @@ import { IStreamFactory } from './StreamFactory.js';
 import type { ModelState, ModelStateChange, ModelOptions, Event } from './types/model.d.ts';
 import type { MutationMethods, EventComparator, MutationContext } from './types/mutations.d.ts';
 import { createMessage, customMessage } from './utilities/test/messages.js';
-import { getNthEventPromise, getEventPromises, modelStatePromise } from './utilities/test/promises.js';
+import { getNthEventPromise, getEventPromises, modelStatePromise, timeout } from './utilities/test/promises.js';
 
 vi.mock('ably/promises');
 
@@ -273,7 +273,7 @@ describe('Model', () => {
 
     // wait for the next event loop iteration so that any scheduled tasks on the tasks queue are cleared,
     // specifically model state updates scheduled via setTimeout from the model init() call in $register()
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await timeout();
 
     let subscription = new Subject<void>();
     const subscriptionCall = getNthEventPromise(subscription, 1);
