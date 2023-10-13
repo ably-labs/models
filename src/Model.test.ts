@@ -9,7 +9,7 @@ import { IStreamFactory } from './StreamFactory.js';
 import type { ModelState, ModelStateChange, ModelOptions, Event } from './types/model.d.ts';
 import type { MutationMethods, EventComparator, MutationContext } from './types/mutations.d.ts';
 import { createMessage, customMessage } from './utilities/test/messages.js';
-import { getNthEventPromise, getEventPromises, modelStatePromise, timeout } from './utilities/test/promises.js';
+import { getNthEventPromise, getEventPromises, statePromise, timeout } from './utilities/test/promises.js';
 
 vi.mock('ably/promises');
 
@@ -99,10 +99,10 @@ describe('Model', () => {
       logger,
     });
     const ready = model.$register({ $sync: sync });
-    await modelStatePromise(model, 'preparing');
+    await statePromise(model, 'preparing');
     completeSync();
     await ready;
-    await modelStatePromise(model, 'ready');
+    await statePromise(model, 'ready');
     expect(sync).toHaveBeenCalledOnce();
     expect(model.optimistic).toEqual(simpleTestData);
     expect(model.confirmed).toEqual(simpleTestData);
@@ -960,7 +960,7 @@ describe('Model', () => {
 
     // The 3rd event throws when applying the update, which should
     // trigger a resync and get the latest counter value.
-    const preparingPromise = modelStatePromise(model, 'preparing');
+    const preparingPromise = statePromise(model, 'preparing');
     events.channelEvents.next(customMessage('id_3', 'testEvent', String(++counter)));
     const { reason } = (await preparingPromise) as ModelStateChange;
     expect(reason).to.toBeDefined();

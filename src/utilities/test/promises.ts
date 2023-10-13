@@ -1,8 +1,6 @@
 import { Subject, lastValueFrom, take } from 'rxjs';
 
-import type Model from '../../Model.js';
-import type { ModelState } from '../../types/model.js';
-import type { MutationMethods } from '../../types/mutations.js';
+import { EventListener } from '../EventEmitter.js';
 
 export const getNthEventPromise = <T>(subject: Subject<T>, n: number) => lastValueFrom(subject.pipe(take(n)));
 
@@ -14,7 +12,12 @@ export const getEventPromises = <T>(subject: Subject<T>, n: number) => {
   return promises;
 };
 
-export const modelStatePromise = <T, M extends MutationMethods>(model: Model<T, M>, state: ModelState) =>
-  new Promise((resolve) => model.whenState(state, model.state, resolve));
+interface StateListener<T, S> {
+  state: S;
+  whenState(targetState: S, currentState: S, listener: EventListener<T>, ...listenerArgs: unknown[]);
+}
+
+export const statePromise = <T, S>(object: StateListener<T, S>, state: S) =>
+  new Promise((resolve) => object.whenState(state, object.state, resolve));
 
 export const timeout = (ms: number = 0) => new Promise((resolve) => setTimeout(resolve, ms));
