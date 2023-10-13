@@ -1,28 +1,15 @@
 import { Realtime, Types } from 'ably/promises';
 import pino from 'pino';
-import { Subject, lastValueFrom, take } from 'rxjs';
+import { Subject } from 'rxjs';
 import { it, describe, expect, vi, beforeEach } from 'vitest';
 
 import Model from './Model.js';
-import { ModelOptions, ModelState } from './types/model.js';
-import { MutationMethods } from './types/mutations.js';
+import { ModelOptions } from './types/model.js';
+import { getEventPromises, modelStatePromise } from './utilities/test/promises.js';
 
 vi.mock('ably/promises');
 
 type ModelTestContext = { channelName: string } & ModelOptions;
-
-const getNthEventPromise = <T>(subject: Subject<T>, n: number) => lastValueFrom(subject.pipe(take(n)));
-
-const getEventPromises = <T>(subject: Subject<T>, n: number) => {
-  const promises: Promise<T>[] = [];
-  for (let i = 0; i < n; i++) {
-    promises.push(getNthEventPromise(subject, i + 1));
-  }
-  return promises;
-};
-
-const modelStatePromise = <T, M extends MutationMethods>(model: Model<T, M>, state: ModelState) =>
-  new Promise((resolve) => model.whenState(state, model.state, resolve));
 
 describe('Model', () => {
   beforeEach<ModelTestContext>(async (context) => {
@@ -38,6 +25,7 @@ describe('Model', () => {
     context.logger = logger;
     context.channelName = 'models:myModel:events';
   });
+
   it<ModelTestContext>('handles discontinuity with resync', async ({ channelName, ably, logger }) => {
     const channel = ably.channels.get('foo');
     let suspendChannel: (...args: any[]) => void = () => {
