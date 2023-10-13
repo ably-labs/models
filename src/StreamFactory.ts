@@ -1,15 +1,14 @@
 import Stream, { IStream, StreamOptions } from './Stream.js';
 
-export interface IStreamRegistry {
+export interface IStreamFactory {
   newStream(options: Pick<StreamOptions, 'channel'>): IStream;
-  //get streams(): { [key: string]: IStream };
 }
 
 /**
- * The StreamRegistry class encapsulates a set of names stream instances that are
+ * The StreamFactory class creates Stream instances that are
  * used to deliver change events to a model.
  */
-export default class StreamRegistry implements IStreamRegistry {
+export default class StreamFactory implements IStreamFactory {
   /**
    * @param {Pick<StreamOptions, 'ably' | 'logger'>} options - The default options used when instantiating a stream.
    */
@@ -23,9 +22,9 @@ export default class StreamRegistry implements IStreamRegistry {
   }
 
   /**
-   * Retrieve an existing stream instance for the given channel or create a new one if it doesn't yet exist.
+   * Create a new Stream instance for the given channel.
    * @param {Pick<StreamOptions, 'channel'>} options - The options used in conjunction with the default options when instantiating a stream
-   * @returns {IStream} The pre-existing or newly created stream instance.
+   * @returns {IStream} The newly created stream instance.
    */
   // TODO: should this cache the streams?
   newStream(options: Pick<StreamOptions, 'channel'>) {

@@ -6,20 +6,20 @@ import { it, describe, expect, afterEach, vi, beforeEach } from 'vitest';
 
 import Model from './Model.js';
 import { StreamOptions, IStream, StreamState } from './Stream.js';
-import { IStreamRegistry } from './StreamRegistry.js';
+import { IStreamFactory } from './StreamFactory.js';
 import type { ModelState, ModelStateChange, ModelOptions, Event } from './types/model.d.ts';
 import type { MutationMethods, EventComparator, MutationContext } from './types/mutations.d.ts';
 import { createMessage, customMessage } from './utilities/test/messages.js';
 
 vi.mock('ably/promises');
 
-// Mocks the StreamRegistry import so that we can modify the Stream instances
+// Mocks the StreamFactory import so that we can modify the Stream instances
 // used by the model to spy on their methods.
-// This implementation ensures that all instances of StreamRegistry use the
-// same cache of Stream instances so that the StreamRegistry instantiated in the
-// model returns the same Stream instances as the StreamRegistry instantiated
+// This implementation ensures that all instances of StreamFactory use the
+// same cache of Stream instances so that the StreamFactory instantiated in the
+// model returns the same Stream instances as the StreamFactory instantiated
 // in these tests.
-vi.mock('./StreamRegistry', () => {
+vi.mock('./StreamFactory', () => {
   class MockStream implements IStream {
     constructor(readonly options: Pick<StreamOptions, 'channel'>) {}
     get state() {
@@ -39,7 +39,7 @@ vi.mock('./StreamRegistry', () => {
   const streams: { [key: string]: IStream } = {};
 
   return {
-    default: class implements IStreamRegistry {
+    default: class implements IStreamFactory {
       newStream(options: Pick<StreamOptions, 'channel'>) {
         if (!streams[options.channel]) {
           streams[options.channel] = new MockStream(options);
@@ -65,7 +65,7 @@ const simpleTestData: TestData = {
 };
 
 interface ModelTestContext extends ModelOptions {
-  streams: IStreamRegistry;
+  streams: IStreamFactory;
   channelName: string;
 }
 
@@ -88,7 +88,7 @@ describe('Model', () => {
     const logger = pino({ level: 'silent' });
     context.ably = ably;
     context.logger = logger;
-    const { default: provider } = await import('./StreamRegistry.js');
+    const { default: provider } = await import('./StreamFactory.js');
     context.streams = new provider({ ably, logger });
     context.channelName = 'models:myModelTest:events';
   });
