@@ -5,7 +5,7 @@ import { it, describe, expect, vi, beforeEach } from 'vitest';
 
 import Model from './Model.js';
 import { ModelOptions } from './types/model.js';
-import { getEventPromises, modelStatePromise } from './utilities/test/promises.js';
+import { getEventPromises, statePromise } from './utilities/test/promises.js';
 
 vi.mock('ably/promises');
 
@@ -65,10 +65,10 @@ describe('Model', () => {
     await subscriptionCalls[0];
     expect(subscriptionSpy).toHaveBeenNthCalledWith(1, null, '0');
 
-    await modelStatePromise(model, 'ready');
+    await statePromise(model, 'ready');
 
     suspendChannel();
-    await modelStatePromise(model, 'ready');
+    await statePromise(model, 'ready');
 
     await subscriptionCalls[1];
     expect(subscriptionSpy).toHaveBeenNthCalledWith(2, null, '1');
