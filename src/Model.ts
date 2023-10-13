@@ -45,7 +45,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
   private optimisticData!: T;
   private confirmedData!: T;
 
-  private sync: SyncFunc<T> = async () => {
+  private _sync: SyncFunc<T> = async () => {
     throw new Error('sync func not registered');
   };
   private merge?: MergeFunc<T>;
@@ -118,6 +118,17 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
   }
 
   /**
+   * The sync function that allows the model to be manually resynced
+   * @returns A promise that resolves when the model has completed the registrtion and is ready to start emitting updates.
+   */
+  public get $sync() {
+    return () => {
+      this.init();
+      return new Promise((resolve) => this.whenState('ready', this.state, resolve));
+    };
+  }
+
+  /**
    * Pauses the current model by detaching from the underlying channels and pausing processing of updates.
    * @returns A promise that resolves when the model has been paused.
    */
@@ -175,7 +186,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
       );
     }
     this.wasRegistered = true;
-    this.sync = registration.$sync;
+    this._sync = registration.$sync;
 
     if (registration.$merge) {
       this.merge = registration.$merge;
@@ -289,7 +300,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
     this.removeStream();
     this.addStream(this.stream.channel);
 
-    const data = await this.sync();
+    const data = await this._sync();
     this.setOptimisticData(data);
     this.setConfirmedData(data);
     this.setState('ready');

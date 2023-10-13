@@ -57,7 +57,7 @@ type TestData = {
   };
 };
 
-const simpleTestData: TestData = {
+let simpleTestData: TestData = {
   foo: 'foobar',
   bar: {
     baz: 1,
@@ -120,6 +120,51 @@ describe('Model', () => {
     expect(sync).toHaveBeenCalledOnce();
     expect(model.optimistic).toEqual(simpleTestData);
     expect(model.confirmed).toEqual(simpleTestData);
+  });
+
+  it<ModelTestContext>('allows sync to be called manually', async ({ channelName, ably, logger }) => {
+    let completeSync: (...args: any[]) => void = () => {
+      throw new Error('completeSync not defined');
+    };
+    let synchronised = new Promise((resolve) => (completeSync = resolve));
+    let counter = 0;
+
+    const sync = vi.fn(async () => {
+      await synchronised;
+
+      return { ...simpleTestData, bar: { baz: ++counter } };
+    });
+    const model = new Model<TestData, { foo: (_: MutationContext, val: string) => Promise<number> }>('test', {
+      ably,
+      channelName,
+      logger,
+    });
+    const ready = model.$register({ $sync: sync });
+    await modelStatePromise(model, 'preparing');
+    completeSync();
+    await ready;
+    await modelStatePromise(model, 'ready');
+    expect(sync).toHaveBeenCalledOnce();
+    expect(model.optimistic).toEqual(simpleTestData);
+    expect(model.confirmed).toEqual(simpleTestData);
+
+    completeSync = () => {
+      throw new Error('completeSync should have been replaced again');
+    };
+    synchronised = new Promise((resolve) => {
+      completeSync = resolve;
+    });
+
+    const resyned = model.$sync();
+    await modelStatePromise(model, 'preparing');
+    completeSync();
+    await resyned;
+    await modelStatePromise(model, 'ready');
+    expect(sync).toHaveBeenCalledTimes(2);
+
+    const want = { ...simpleTestData, bar: { baz: 2 } };
+    expect(model.optimistic).toEqual(want);
+    expect(model.confirmed).toEqual(want);
   });
 
   it<ModelTestContext>('pauses and resumes the model', async ({ channelName, ably, logger, streams }) => {
