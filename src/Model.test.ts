@@ -1,7 +1,6 @@
 import { Realtime, Types } from 'ably/promises';
 import pino from 'pino';
-import { take } from 'rxjs';
-import { Subject, lastValueFrom } from 'rxjs';
+import { Subject } from 'rxjs';
 import { it, describe, expect, afterEach, vi, beforeEach } from 'vitest';
 
 import Model from './Model.js';
@@ -10,6 +9,7 @@ import { IStreamFactory } from './StreamFactory.js';
 import type { ModelState, ModelStateChange, ModelOptions, Event } from './types/model.d.ts';
 import type { MutationMethods, EventComparator, MutationContext } from './types/mutations.d.ts';
 import { createMessage, customMessage } from './utilities/test/messages.js';
+import { getNthEventPromise, getEventPromises, modelStatePromise } from './utilities/test/promises.js';
 
 vi.mock('ably/promises');
 
@@ -67,19 +67,6 @@ let simpleTestData: TestData = {
 interface ModelTestContext extends ModelOptions {
   streams: IStreamFactory;
 }
-
-const modelStatePromise = <T, M extends MutationMethods>(model: Model<T, M>, state: ModelState) =>
-  new Promise((resolve) => model.whenState(state, model.state, resolve));
-
-const getNthEventPromise = <T>(subject: Subject<T>, n: number) => lastValueFrom(subject.pipe(take(n)));
-
-const getEventPromises = <T>(subject: Subject<T>, n: number) => {
-  const promises: Promise<T>[] = [];
-  for (let i = 0; i < n; i++) {
-    promises.push(getNthEventPromise(subject, i + 1));
-  }
-  return promises;
-};
 
 describe('Model', () => {
   beforeEach<ModelTestContext>(async (context) => {
