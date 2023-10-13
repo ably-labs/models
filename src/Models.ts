@@ -37,15 +37,16 @@ export default class Models {
   /**
    * Gets an existing or creates a new model instance with the given name.
    * @param {string} name - The unique name to identify this model instance in your application.
+   * @param {string} channel - The name of the channel the model will subscribe to update events on.
    */
-  Model = <T, M extends MutationMethods>(name: string) => {
+  Model = <T, M extends MutationMethods>(name: string, channel: string) => {
     if (!name) {
       throw new Error('Model must have a non-empty name');
     }
     if (this.models[name]) {
       return this.models[name] as Model<T, M>;
     }
-    const model = new Model<T, M>(name, this.options);
+    const model = new Model<T, M>(name, channel, this.options);
     this.models[name] = model;
     return model as Model<T, M>;
   };
