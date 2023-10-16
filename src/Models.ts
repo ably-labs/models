@@ -8,7 +8,7 @@ import type { MutationMethods } from './types/mutations.js';
  * Models captures the set of named Model instances used by your application.
  */
 export default class Models {
-  private readonly options: ModelOptions;
+  private readonly options: Pick<ModelOptions, 'logger' | 'ably' | 'eventBufferOptions' | 'defaultMutationOptions'>;
   private models: Record<string, Model<any, any>> = {};
 
   readonly version = '0.0.1';
@@ -46,7 +46,10 @@ export default class Models {
     if (this.models[name]) {
       return this.models[name] as Model<T, M>;
     }
-    const model = new Model<T, M>(name, channel, this.options);
+
+    const options: ModelOptions = { ...this.options, channelName: channel };
+
+    const model = new Model<T, M>(name, options);
     this.models[name] = model;
     return model as Model<T, M>;
   };

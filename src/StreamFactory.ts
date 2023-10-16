@@ -26,7 +26,6 @@ export default class StreamFactory implements IStreamFactory {
    * @param {Pick<StreamOptions, 'channel'>} options - The options used in conjunction with the default options when instantiating a stream
    * @returns {IStream} The newly created stream instance.
    */
-  // TODO: should this cache the streams?
   newStream(options: Pick<StreamOptions, 'channel'>) {
     return new Stream(Object.assign(this.options, options));
   }

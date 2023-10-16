@@ -107,14 +107,11 @@ describe('Model', () => {
       await synchronised;
       return simpleTestData;
     });
-    const model = new Model<TestData, { foo: (_: MutationContext, val: string) => Promise<number> }>(
-      'test',
+    const model = new Model<TestData, { foo: (_: MutationContext, val: string) => Promise<number> }>('test', {
+      ably,
       channelName,
-      {
-        ably,
-        logger,
-      },
-    );
+      logger,
+    });
     const ready = model.$register({ $sync: sync });
     await modelStatePromise(model, 'preparing');
     completeSync();
@@ -132,7 +129,7 @@ describe('Model', () => {
     s1.resume = vi.fn();
     const sync = vi.fn(async () => simpleTestData);
 
-    const model = new Model<TestData, {}>('test', channelName, { ably, logger });
+    const model = new Model<TestData, {}>('test', { ably, channelName, logger });
 
     // register update function so that streams get created
     await model.$register({
@@ -157,7 +154,7 @@ describe('Model', () => {
     s1.unsubscribe = vi.fn();
     const sync = vi.fn(async () => simpleTestData);
 
-    const model = new Model<TestData, {}>('test', channelName, { ably, logger });
+    const model = new Model<TestData, {}>('test', { ably, channelName, logger });
 
     // register update function so that streams get created
     await model.$register({
@@ -183,7 +180,7 @@ describe('Model', () => {
     );
 
     const sync = vi.fn(async () => 'data_0'); // defines initial version of model
-    const model = new Model<string, {}>('test', channelName, { ably, logger });
+    const model = new Model<string, {}>('test', { ably, channelName, logger });
 
     const mergeFn = vi.fn(async (state, event) => event.data);
     await model.$register({
@@ -234,7 +231,7 @@ describe('Model', () => {
 
   it<ModelTestContext>('subscribes after initialisation', async ({ channelName, ably, logger }) => {
     const sync = vi.fn(async () => 'data_0'); // defines initial version of model
-    const model = new Model<string, {}>('test', channelName, { ably, logger });
+    const model = new Model<string, {}>('test', { ably, channelName, logger });
 
     await model.$register({ $sync: sync });
 
@@ -261,14 +258,11 @@ describe('Model', () => {
   it<ModelTestContext>('executes a registered mutation', async ({ channelName, ably, logger, streams }) => {
     const s1 = streams.newStream({ channel: channelName });
     s1.subscribe = vi.fn();
-    const model = new Model<string, { foo: (_: MutationContext, a: string, b: number) => Promise<string> }>(
-      'test',
+    const model = new Model<string, { foo: (_: MutationContext, a: string, b: number) => Promise<string> }>('test', {
+      ably,
       channelName,
-      {
-        ably,
-        logger,
-      },
-    );
+      logger,
+    });
 
     const mutation = vi.fn(async () => 'test');
     await model.$register({
@@ -284,7 +278,7 @@ describe('Model', () => {
   it<ModelTestContext>('fails to register twice', async ({ channelName, ably, logger, streams }) => {
     const s1 = streams.newStream({ channel: channelName });
     s1.subscribe = vi.fn();
-    const model = new Model<string, { foo: () => Promise<void> }>('test', channelName, { ably, logger });
+    const model = new Model<string, { foo: () => Promise<void> }>('test', { ably, channelName, logger });
 
     const mutation = vi.fn();
     const sync = async () => 'foobar';
@@ -303,8 +297,8 @@ describe('Model', () => {
   it<ModelTestContext>('fails to register after initialization', async ({ channelName, ably, logger, streams }) => {
     // extend the Model class to get access to protected member setState
     class ModelWithSetState<T, M extends MutationMethods> extends Model<T, M> {
-      constructor(readonly name: string, channelName: string, options: ModelOptions) {
-        super(name, channelName, options);
+      constructor(readonly name: string, options: ModelOptions) {
+        super(name, options);
       }
       setState(state: ModelState) {
         super.setState(state);
@@ -313,7 +307,7 @@ describe('Model', () => {
 
     const s1 = streams.newStream({ channel: channelName });
     s1.subscribe = vi.fn();
-    const model = new ModelWithSetState<string, { foo: () => Promise<void> }>('test', channelName, { ably, logger });
+    const model = new ModelWithSetState<string, { foo: () => Promise<void> }>('test', { ably, channelName, logger });
 
     const mutation = vi.fn();
     const sync = async () => 'foobar';
@@ -333,7 +327,7 @@ describe('Model', () => {
   }) => {
     const s1 = streams.newStream({ channel: channelName });
     s1.subscribe = vi.fn();
-    const model = new Model<string, { foo: () => Promise<string> }>('test', channelName, { ably, logger });
+    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, channelName, logger });
 
     const mutation = vi.fn(async () => 'test');
     await model.$register({
@@ -348,7 +342,7 @@ describe('Model', () => {
   it<ModelTestContext>('updates model state with optimistic event', async ({ channelName, ably, logger, streams }) => {
     const s1 = streams.newStream({ channel: channelName });
     s1.subscribe = vi.fn();
-    const model = new Model<string, { foo: () => Promise<string> }>('test', channelName, { ably, logger });
+    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, channelName, logger });
 
     const mergeFn = vi.fn(async (state, event) => event.data);
     const mutation = vi.fn(async () => 'test');
@@ -396,7 +390,7 @@ describe('Model', () => {
       events.e1.subscribe((message) => callback(null, message));
     });
 
-    const model = new Model<string, { foo: () => Promise<string> }>('test', channelName, { ably, logger });
+    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, channelName, logger });
 
     const mergeFn = vi.fn(async (state, event) => event.data);
     const mutation = vi.fn(async () => 'test');
@@ -450,7 +444,7 @@ describe('Model', () => {
       events.e1.subscribe((message) => callback(null, message));
     });
 
-    const model = new Model<string, { foo: () => Promise<string> }>('test', channelName, { ably, logger });
+    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, channelName, logger });
 
     const mergeFn = vi.fn(async (state, event) => event.data);
     const mutation = vi.fn(async () => 'test');
@@ -512,7 +506,7 @@ describe('Model', () => {
     const model = new Model<
       string,
       { foo: (context: MutationContext, arg: string) => Promise<{ context?: string; arg: string }> }
-    >('test', channelName, { ably, logger });
+    >('test', { ably, channelName, logger });
 
     const mergeFn = vi.fn(async (state, event) => event.data);
     const mutation = vi.fn(async function (context: MutationContext, arg: string) {
@@ -548,7 +542,7 @@ describe('Model', () => {
       events.e1.subscribe((message) => callback(null, message));
     });
 
-    const model = new Model<string, { foo: () => Promise<string> }>('test', channelName, { ably, logger });
+    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, channelName, logger });
 
     const mergeFn = vi.fn(async (state, event) => event.data);
     const mutation = vi.fn(async () => 'test');
@@ -613,7 +607,7 @@ describe('Model', () => {
       events.e1.subscribe((message) => callback(null, message));
     });
 
-    const model = new Model<string, { foo: () => Promise<string> }>('test', channelName, { ably, logger });
+    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, channelName, logger });
 
     const nameOnlyComparator: EventComparator = (optimistic: Event, confirmed: Event) =>
       optimistic.name === confirmed.name;
@@ -676,7 +670,7 @@ describe('Model', () => {
       events.e1.subscribe((message) => callback(null, message));
     });
 
-    const model = new Model<string, { foo: () => Promise<string> }>('test', channelName, { ably, logger });
+    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, channelName, logger });
 
     const mergeFn = vi.fn(async (state, event) => state + event.data);
     const mutation = vi.fn(async () => 'test');
@@ -759,7 +753,7 @@ describe('Model', () => {
       events.e1.subscribe((message) => callback(null, message));
     });
 
-    const model = new Model<string, { foo: () => Promise<string> }>('test', channelName, { ably, logger });
+    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, channelName, logger });
 
     const mergeFn = vi.fn(async (state, event) => state + event.data);
     const mutation = vi.fn(async () => 'test');
@@ -846,7 +840,7 @@ describe('Model', () => {
         mutation1: () => Promise<string>;
         mutation2: () => Promise<string>;
       }
-    >('test', channelName, { ably, logger });
+    >('test', { ably, channelName, logger });
 
     const mergeFn = vi.fn(async (state, event) => state + event.data);
     const mutation1 = vi.fn(async () => 'test');
@@ -898,7 +892,7 @@ describe('Model', () => {
     let counter = 0;
 
     const sync = vi.fn(async () => `${counter}`);
-    const model = new Model<string, {}>('test', channelName, { ably, logger });
+    const model = new Model<string, {}>('test', { ably, channelName, logger });
 
     const mergeFn = vi.fn(async (state, event) => {
       if (event.data === '3') {
@@ -953,7 +947,7 @@ describe('Model', () => {
     const s1 = streams.newStream({ channel: channelName });
     s1.subscribe = vi.fn();
 
-    const model = new Model<string, { mutation: () => Promise<string> }>('test', channelName, { ably, logger });
+    const model = new Model<string, { mutation: () => Promise<string> }>('test', { ably, channelName, logger });
 
     const mergeFn = vi.fn(async (state, event) => {
       if (event.data === '6') {
@@ -993,14 +987,11 @@ describe('Model', () => {
     const s1 = streams.newStream({ channel: 's1' });
     s1.subscribe = vi.fn();
 
-    const model = new Model<string, { mutation1: () => Promise<string>; mutation2: () => Promise<string> }>(
-      'test',
+    const model = new Model<string, { mutation1: () => Promise<string>; mutation2: () => Promise<string> }>('test', {
+      ably,
       channelName,
-      {
-        ably,
-        logger,
-      },
-    );
+      logger,
+    });
 
     const mergeFn = vi.fn(async (state, event) => state + event.data);
     const mutation1 = vi.fn(async () => 'test');
@@ -1043,7 +1034,7 @@ describe('Model', () => {
     const s1 = streams.newStream({ channel: channelName });
     s1.subscribe = vi.fn();
 
-    const model = new Model<string, { mutation: () => Promise<string> }>('test', channelName, { ably, logger });
+    const model = new Model<string, { mutation: () => Promise<string> }>('test', { ably, channelName, logger });
 
     const mergeFn = async (state, event) => {
       if (event.data === '3') {
@@ -1086,7 +1077,7 @@ describe('Model', () => {
       events.e1.subscribe((message) => callback(null, message));
     });
 
-    const model = new Model<string, { foo: () => Promise<string> }>('test', channelName, { ably, logger });
+    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, channelName, logger });
 
     const mergeFn = vi.fn(async (state, event) => state + event.data);
     const mutation = vi.fn(async () => 'test');
@@ -1127,7 +1118,7 @@ describe('Model', () => {
       events.e1.subscribe((message) => callback(null, message));
     });
 
-    const model = new Model<string, { foo: () => Promise<string> }>('test', channelName, { ably, logger });
+    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, channelName, logger });
 
     const mergeFn = vi.fn(async (state, event) => state + event.data);
     const mutation = vi.fn(async () => 'test');
