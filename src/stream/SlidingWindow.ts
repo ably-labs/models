@@ -1,6 +1,6 @@
 import { Types as AblyTypes } from 'ably';
 
-import type { EventOrderer } from './types/mutations';
+import type { EventOrderer } from '../types/mutations';
 
 export default class SlidingWindow {
   private messages: AblyTypes.Message[] = [];

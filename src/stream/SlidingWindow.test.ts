@@ -1,8 +1,8 @@
 import { it, describe, expect, vi } from 'vitest';
 
 import SlidingWindow from './SlidingWindow.js';
-import { createMessage } from './utilities/test/messages.js';
-import { timeout } from './utilities/test/promises.js';
+import { createMessage } from '../utilities/test/messages.js';
+import { timeout } from '../utilities/test/promises.js';
 
 describe('SlidingWindow', () => {
   it('emits events immediately with no timeout', async () => {
