@@ -3,7 +3,7 @@ import type { Logger, LevelWithSilent } from 'pino';
 
 import type { MergeFunc } from './merge';
 import type { EventComparator, MutationMethods, MutationOptions, MutationRegistration } from './mutations';
-import type { EventBufferOptions } from '../Stream';
+import type { EventBufferOptions } from '../stream/Stream';
 
 /**
  * Options used to configure all model instances.

@@ -4,8 +4,8 @@ import { Subject } from 'rxjs';
 import { it, describe, expect, afterEach, vi, beforeEach } from 'vitest';
 
 import Model from './Model.js';
-import { StreamOptions, IStream, StreamState } from './Stream.js';
-import { IStreamFactory } from './StreamFactory.js';
+import { StreamOptions, IStream, StreamState } from './stream/Stream.js';
+import { IStreamFactory } from './stream/StreamFactory.js';
 import type { ModelState, ModelStateChange, ModelOptions, Event } from './types/model.d.ts';
 import type { MutationMethods, EventComparator, MutationContext } from './types/mutations.d.ts';
 import { createMessage, customMessage } from './utilities/test/messages.js';
@@ -19,7 +19,7 @@ vi.mock('ably/promises');
 // same cache of Stream instances so that the StreamFactory instantiated in the
 // model returns the same Stream instances as the StreamFactory instantiated
 // in these tests.
-vi.mock('./StreamFactory', () => {
+vi.mock('./stream/StreamFactory', () => {
   class MockStream implements IStream {
     constructor(readonly options: Pick<StreamOptions, 'channel'>) {}
     get state() {
@@ -74,7 +74,7 @@ describe('Model', () => {
     const logger = pino({ level: 'silent' });
     context.ably = ably;
     context.logger = logger;
-    const { default: provider } = await import('./StreamFactory.js');
+    const { default: provider } = await import('./stream/StreamFactory.js');
     context.streams = new provider({ ably, logger });
     context.channelName = 'models:myModelTest:events';
   });
@@ -126,11 +126,11 @@ describe('Model', () => {
       logger,
     });
     const ready = model.$register({ $sync: sync });
-    await modelStatePromise(model, 'preparing');
+    await statePromise(model, 'preparing');
     completeSync();
 
     await ready;
-    await modelStatePromise(model, 'ready');
+    await statePromise(model, 'ready');
     await expect(ready).resolves.toEqual({ current: 'ready', previous: 'preparing', reason: undefined });
 
     expect(sync).toHaveBeenCalledOnce();
@@ -145,10 +145,10 @@ describe('Model', () => {
     });
 
     const resynced = model.$sync();
-    await modelStatePromise(model, 'preparing');
+    await statePromise(model, 'preparing');
     completeSync();
     await resynced;
-    await modelStatePromise(model, 'ready');
+    await statePromise(model, 'ready');
     expect(sync).toHaveBeenCalledTimes(2);
 
     const want = { ...simpleTestData, bar: { baz: 2 } };
@@ -331,8 +331,8 @@ describe('Model', () => {
   it<ModelTestContext>('fails to register after initialization', async ({ channelName, ably, logger, streams }) => {
     // extend the Model class to get access to protected member setState
     class ModelWithSetState<T, M extends MutationMethods> extends Model<T, M> {
-      constructor(readonly name: string, channelName: string, options: ModelOptions) {
-        super(name, channelName, options);
+      constructor(readonly name: string, options: ModelOptions) {
+        super(name, options);
       }
       setState(state: ModelState) {
         super.setState(state);
