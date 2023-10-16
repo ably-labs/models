@@ -66,7 +66,6 @@ let simpleTestData: TestData = {
 
 interface ModelTestContext extends ModelOptions {
   streams: IStreamFactory;
-  channelName: string;
 }
 
 const modelStatePromise = <T, M extends MutationMethods>(model: Model<T, M>, state: ModelState) =>
@@ -142,8 +141,11 @@ describe('Model', () => {
     const ready = model.$register({ $sync: sync });
     await modelStatePromise(model, 'preparing');
     completeSync();
+
     await ready;
     await modelStatePromise(model, 'ready');
+    await expect(ready).resolves.toEqual({ current: 'ready', previous: 'preparing', reason: undefined });
+
     expect(sync).toHaveBeenCalledOnce();
     expect(model.optimistic).toEqual(simpleTestData);
     expect(model.confirmed).toEqual(simpleTestData);
@@ -155,10 +157,10 @@ describe('Model', () => {
       completeSync = resolve;
     });
 
-    const resyned = model.$sync();
+    const resynced = model.$sync();
     await modelStatePromise(model, 'preparing');
     completeSync();
-    await resyned;
+    await resynced;
     await modelStatePromise(model, 'ready');
     expect(sync).toHaveBeenCalledTimes(2);
 
