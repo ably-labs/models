@@ -14,7 +14,7 @@ export const getEventPromises = <T>(subject: Subject<T>, n: number) => {
 
 interface StateListener<T, S> {
   state: S;
-  whenState(targetState: S, currentState: S, listener: EventListener<T>, ...listenerArgs: unknown[]);
+  whenState(targetState: S, currentState: S, listener: EventListener<T>, ...listenerArgs: unknown[]): void;
 }
 
 export const statePromise = <T, S>(object: StateListener<T, S>, state: S) =>
