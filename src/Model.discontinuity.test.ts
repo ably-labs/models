@@ -9,7 +9,7 @@ import { MutationMethods } from './types/mutations.js';
 
 vi.mock('ably/promises');
 
-type ModelTestContext = { channelName: string } & ModelOptions;
+interface ModelTestContext extends ModelOptions {}
 
 const getNthEventPromise = <T>(subject: Subject<T>, n: number) => lastValueFrom(subject.pipe(take(n)));
 
@@ -59,7 +59,7 @@ describe('Model', () => {
     let counter = 0;
 
     const sync = vi.fn(async () => `${counter++}`);
-    const model = new Model<string, {}>('test', channelName, { ably, logger });
+    const model = new Model<string, {}>('test', { ably, channelName, logger });
     const mergeFn = vi.fn(async (state, event) => {
       return event.data;
     });

@@ -66,10 +66,9 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
 
   /**
    * @param {string} name - A unique name used to identify this model in your application.
-   * @param {string} channel - The name of the channel them model will subscribe to update events on.
    * @param {ModelOptions} options - Options used to configure this model instance.
    */
-  constructor(readonly name: string, channel: string, options: ModelOptions) {
+  constructor(readonly name: string, options: ModelOptions) {
     super();
     this.logger = options.logger;
     this.baseLogContext = { scope: `Model:${name}` };
@@ -79,7 +78,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
       logger: options.logger,
       eventBufferOptions: options.eventBufferOptions,
     });
-    this.stream = this.streamFactory.newStream({ channel: channel });
+    this.stream = this.streamFactory.newStream({ channel: options.channelName });
 
     this.mutationsRegistry = new MutationsRegistry<M>(
       {

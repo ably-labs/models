@@ -20,6 +20,7 @@ export type ModelsOptions = {
  */
 export type ModelOptions = {
   ably: AblyTypes.RealtimePromise;
+  channelName: string;
   logger: Logger;
   defaultMutationOptions?: Partial<MutationOptions>;
   eventBufferOptions?: EventBufferOptions;
