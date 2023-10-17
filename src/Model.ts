@@ -28,7 +28,7 @@ import {
 } from './types/optimistic.js';
 import EventEmitter from './utilities/EventEmitter.js';
 
-const REWIND_INTERVAL_MARGIN_SECONDS = 5;
+export const REWIND_INTERVAL_MARGIN_SECONDS = 5;
 
 /**
  * A Model encapsulates an observable, collaborative data model backed by a transactional database in your backend.
@@ -323,8 +323,14 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
     this.streamSubscriptionsMap.delete(this.stream);
   }
 
+  // class method for getting current time so that it can be overridden in tests
+  protected now() {
+    return new Date();
+  }
+
   private async addStream(sequenceID: string, stateTimestamp: Date) {
-    const interval = Math.floor((Date.now() - stateTimestamp.getTime()) / 1000) + REWIND_INTERVAL_MARGIN_SECONDS;
+    const interval =
+      Math.floor((this.now().getTime() - stateTimestamp.getTime()) / 1000) + REWIND_INTERVAL_MARGIN_SECONDS;
     if (interval > 2 * 60) {
       throw new Error(
         `rewind interval ${interval}s from state timestamp ${stateTimestamp.toString()} is greater than 2 minutes`,
@@ -362,7 +368,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
         await this.init(toError(err));
       }
     };
-    await this.stream.sync(`${interval}s`, sequenceID);
+    await this.stream.sync(interval, sequenceID);
     this.stream.subscribe(callback);
     this.streamSubscriptionsMap.set(this.stream, callback);
   }

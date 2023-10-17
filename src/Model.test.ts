@@ -3,7 +3,7 @@ import pino from 'pino';
 import { Subject } from 'rxjs';
 import { it, describe, expect, afterEach, vi, beforeEach } from 'vitest';
 
-import Model from './Model.js';
+import Model, { REWIND_INTERVAL_MARGIN_SECONDS } from './Model.js';
 import { StreamOptions, IStream, StreamState } from './stream/Stream.js';
 import { IStreamFactory } from './stream/StreamFactory.js';
 import type { ModelState, ModelStateChange, ModelOptions } from './types/model.d.ts';
@@ -154,6 +154,58 @@ describe('Model', () => {
     expect(model.data.confirmed).toEqual(want);
   });
 
+  it<ModelTestContext>('rewinds to the correct point in the stream', async ({ channelName, ably, logger, streams }) => {
+    const stream = streams.newStream({ channelName });
+    let rewind: number | undefined;
+    let sequenceID: string | undefined;
+    stream.sync = vi.fn(async (rewindArg: number, sequenceIDArg: string) => {
+      rewind = rewindArg;
+      sequenceID = sequenceIDArg;
+    });
+
+    const stateTimestamp = new Date();
+    let i = 0;
+    const sync = vi.fn(async () => {
+      i++;
+      if (i === 1)
+        return {
+          data: 'data_0',
+          sequenceID: '123',
+          stateTimestamp,
+        };
+      return {
+        data: 'data_0',
+        sequenceID: '456',
+        stateTimestamp: new Date(stateTimestamp.getTime() + 3000),
+      };
+    });
+
+    // override the implementation of `now()` to allow us to make assertions on the rewind interval
+    class ExtendedModel<T> extends Model<T> {
+      now() {
+        return new Date(stateTimestamp.getTime() + 10000);
+      }
+    }
+    const model = new ExtendedModel<string>('test', { ably, channelName, logger });
+
+    const mergeFn = vi.fn(async (_, event) => event.data);
+    await model.$register({
+      $sync: sync,
+      $merge: mergeFn,
+    });
+
+    expect(sync).toHaveBeenCalledOnce();
+    expect(stream.sync).toHaveBeenCalledOnce();
+    expect(sequenceID).toEqual('123');
+    expect(rewind).toEqual(REWIND_INTERVAL_MARGIN_SECONDS + 10);
+
+    await model.$sync();
+    expect(sync).toHaveBeenCalledTimes(2);
+    expect(stream.sync).toHaveBeenCalledTimes(2);
+    expect(sequenceID).toEqual('456');
+    expect(rewind).toEqual(REWIND_INTERVAL_MARGIN_SECONDS + 10 - 3);
+  });
+
   it<ModelTestContext>('pauses and resumes the model', async ({ channelName, ably, logger, streams }) => {
     const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
@@ -223,7 +275,7 @@ describe('Model', () => {
       data: 'data_0',
       sequenceID: '0',
       stateTimestamp: new Date(),
-    })); // defines initial version of model
+    }));
     const model = new Model<string>('test', { ably, channelName, logger });
 
     const mergeFn = vi.fn(async (_, event) => event.data);
@@ -244,31 +296,38 @@ describe('Model', () => {
     await subscriptionCalls[0];
     expect(subscriptionSpy).toHaveBeenCalledTimes(1);
     expect(subscriptionSpy).toHaveBeenNthCalledWith(1, null, 'data_0');
+    expect(model.data.optimistic).toEqual('data_0');
+    expect(model.data.confirmed).toEqual('data_0');
 
     events.channelEvents.next(createMessage(1));
     await subscriptionCalls[1];
     expect(mergeFn).toHaveBeenCalledTimes(1);
     expect(subscriptionSpy).toHaveBeenCalledTimes(2);
     expect(subscriptionSpy).toHaveBeenNthCalledWith(2, null, 'data_1');
+    expect(model.data.optimistic).toEqual('data_1');
+    expect(model.data.confirmed).toEqual('data_1');
 
     events.channelEvents.next(createMessage(2));
     await subscriptionCalls[2];
     expect(mergeFn).toHaveBeenCalledTimes(2);
     expect(subscriptionSpy).toHaveBeenCalledTimes(3);
     expect(subscriptionSpy).toHaveBeenNthCalledWith(3, null, 'data_2');
+    expect(model.data.optimistic).toEqual('data_2');
+    expect(model.data.confirmed).toEqual('data_2');
 
     events.channelEvents.next(createMessage(3));
     await subscriptionCalls[3];
     expect(mergeFn).toHaveBeenCalledTimes(3);
     expect(subscriptionSpy).toHaveBeenCalledTimes(4);
     expect(subscriptionSpy).toHaveBeenNthCalledWith(4, null, 'data_3');
+    expect(model.data.optimistic).toEqual('data_3');
+    expect(model.data.confirmed).toEqual('data_3');
 
     events.channelEvents.next(createMessage(3));
     await subscriptionCalls[4];
     expect(mergeFn).toHaveBeenCalledTimes(4);
     expect(subscriptionSpy).toHaveBeenCalledTimes(5);
     expect(subscriptionSpy).toHaveBeenNthCalledWith(5, null, 'data_3');
-
     expect(model.data.optimistic).toEqual('data_3');
     expect(model.data.confirmed).toEqual('data_3');
   });
@@ -278,7 +337,7 @@ describe('Model', () => {
       data: 'data_0',
       sequenceID: '0',
       stateTimestamp: new Date(),
-    })); // defines initial version of model
+    }));
     const model = new Model<string>('test', { ably, channelName, logger });
 
     await model.$register({ $sync: sync });
@@ -393,6 +452,47 @@ describe('Model', () => {
     expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(2);
     expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(2, null, 'data_1');
     expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it<ModelTestContext>('updates confirmed state', async ({ channelName, ably, logger, streams }) => {
+    const s1 = streams.newStream({ channelName });
+    s1.subscribe = vi.fn();
+
+    const events = { e1: new Subject<Types.Message>() };
+    s1.subscribe = vi.fn(async (callback) => {
+      events.e1.subscribe((message) => callback(null, message));
+    });
+
+    const model = new Model<string>('test', { ably, channelName, logger });
+
+    const mergeFn = vi.fn(async (_, event) => event.data);
+    await model.$register({
+      $sync: async () => ({
+        data: 'data_0',
+        sequenceID: '0',
+        stateTimestamp: new Date(),
+      }),
+      $merge: mergeFn,
+    });
+
+    let subscription = new Subject<void>();
+    const subscriptionCalls = getEventPromises(subscription, 2);
+    const subscriptionSpy = vi.fn<[Error | null, string?]>(() => subscription.next());
+    model.subscribe(subscriptionSpy, { optimistic: false });
+
+    await subscriptionCalls[0];
+    expect(subscriptionSpy).toHaveBeenCalledTimes(1);
+    expect(subscriptionSpy).toHaveBeenNthCalledWith(1, null, 'data_0');
+    expect(model.data.optimistic).toEqual('data_0');
+    expect(model.data.confirmed).toEqual('data_0');
+
+    events.e1.next(createMessage(1));
+
+    await subscriptionCalls[1];
+    expect(subscriptionSpy).toHaveBeenCalledTimes(2);
+    expect(subscriptionSpy).toHaveBeenNthCalledWith(2, null, 'data_1');
+    expect(model.data.optimistic).toEqual('data_1');
+    expect(model.data.confirmed).toEqual('data_1');
   });
 
   it<ModelTestContext>('confirms an optimistic event by uuid', async ({ channelName, ably, logger, streams }) => {
