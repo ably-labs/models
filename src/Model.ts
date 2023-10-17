@@ -93,16 +93,18 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
     return this.currentState;
   }
 
+  /**
+   * @returns The an object giving access to the optimistic and confirmed state of the model.
+   */
   public get data() {
-    const optimistic = (() => this.optimisticData).bind(this);
-    const confirmed = (() => this.confirmedData).bind(this);
+    const self = this;
 
     return {
       get optimistic() {
-        return optimistic();
+        return self.optimisticData;
       },
       get confirmed() {
-        return confirmed();
+        return self.confirmedData;
       },
     };
   }
