@@ -7,17 +7,19 @@ export function toEventsWithoutUUID(events: Event[]) {
   return events.map(({ uuid, ...rest }) => rest);
 }
 
-export function toOptimisticEventsWithParams(
-  events: Event[],
+export function toOptimisticEventWithParams(
+  id: string,
+  event: Event,
   params: EventParams = {
     timeout: DEFAULT_OPTIONS.timeout,
   },
-): OptimisticEventWithParams[] {
-  return events.map((event) => ({
+): OptimisticEventWithParams {
+  return {
     ...event,
+    uuid: id,
     confirmed: false,
     params,
-  }));
+  };
 }
 
 export function toOptimisticEvents(events: Event[]): OptimisticEvent[] {
