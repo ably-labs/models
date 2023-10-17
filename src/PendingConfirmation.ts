@@ -1,4 +1,5 @@
 import type { ConfirmedEvent, OptimisticEvent, OptimisticEventWithParams } from './types/model';
+import { EventComparator } from './types/optimistic.js';
 
 type ResolveFn<T> = (value: T | PromiseLike<T>) => void;
 type RejectFn = (reason?: Error) => void;
@@ -14,7 +15,11 @@ export default class PendingConfirmation {
   private resolve!: ResolveFn<void>;
   private reject!: RejectFn;
 
-  constructor(readonly timeout: number, events: OptimisticEventWithParams[]) {
+  constructor(
+    readonly timeout: number,
+    events: OptimisticEventWithParams[],
+    private readonly comparator: EventComparator,
+  ) {
     this.events = events;
     this.confirmationPromise = new Promise<void>((resolve, reject) => {
       this.resolve = resolve;
@@ -53,14 +58,10 @@ export default class PendingConfirmation {
       if (event.confirmed && event.rejected) {
         rejections.push(event);
       }
-      this.events = this.events.filter((e) => !e.params.comparator(e, event));
+      this.events = this.events.filter((e) => !this.comparator(e, event));
     }
     if (rejections.length > 0 && !err) {
-      err = new Error(
-        `events contain rejections: ${rejections
-          .map((event) => `channel:${event.channel} name:${event.name}`)
-          .join('\n')}`,
-      );
+      err = new Error(`events contain rejections: ${rejections.map((event) => `name:${event.name}`).join('\n')}`);
     }
     if (this.events.length === 0) {
       await this.finalise(err);

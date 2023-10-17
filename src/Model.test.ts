@@ -6,8 +6,7 @@ import { it, describe, expect, afterEach, vi, beforeEach } from 'vitest';
 import Model from './Model.js';
 import { StreamOptions, IStream, StreamState } from './stream/Stream.js';
 import { IStreamFactory } from './stream/StreamFactory.js';
-import type { ModelState, ModelStateChange, ModelOptions, Event } from './types/model.d.ts';
-import type { MutationMethods, EventComparator, MutationContext } from './types/mutations.d.ts';
+import type { ModelState, ModelStateChange, ModelOptions } from './types/model.d.ts';
 import { createMessage, customMessage } from './utilities/test/messages.js';
 import { getNthEventPromise, getEventPromises, statePromise, timeout } from './utilities/test/promises.js';
 
@@ -93,7 +92,7 @@ describe('Model', () => {
       await synchronised;
       return simpleTestData;
     });
-    const model = new Model<TestData, { foo: (_: MutationContext, val: string) => Promise<number> }>('test', {
+    const model = new Model<TestData>('test', {
       ably,
       channelName,
       logger,
@@ -120,7 +119,7 @@ describe('Model', () => {
 
       return { ...simpleTestData, bar: { baz: ++counter } };
     });
-    const model = new Model<TestData, { foo: (_: MutationContext, val: string) => Promise<number> }>('test', {
+    const model = new Model<TestData>('test', {
       ably,
       channelName,
       logger,
@@ -163,7 +162,7 @@ describe('Model', () => {
     s1.resume = vi.fn();
     const sync = vi.fn(async () => simpleTestData);
 
-    const model = new Model<TestData, {}>('test', { ably, channelName, logger });
+    const model = new Model<TestData>('test', { ably, channelName, logger });
 
     // register update function so that streams get created
     await model.$register({
@@ -188,7 +187,7 @@ describe('Model', () => {
     s1.unsubscribe = vi.fn();
     const sync = vi.fn(async () => simpleTestData);
 
-    const model = new Model<TestData, {}>('test', { ably, channelName, logger });
+    const model = new Model<TestData>('test', { ably, channelName, logger });
 
     // register update function so that streams get created
     await model.$register({
@@ -214,9 +213,9 @@ describe('Model', () => {
     );
 
     const sync = vi.fn(async () => 'data_0'); // defines initial version of model
-    const model = new Model<string, {}>('test', { ably, channelName, logger });
+    const model = new Model<string>('test', { ably, channelName, logger });
 
-    const mergeFn = vi.fn(async (state, event) => event.data);
+    const mergeFn = vi.fn(async (_, event) => event.data);
     await model.$register({
       $sync: sync,
       $merge: mergeFn,
@@ -265,7 +264,7 @@ describe('Model', () => {
 
   it<ModelTestContext>('subscribes after initialisation', async ({ channelName, ably, logger }) => {
     const sync = vi.fn(async () => 'data_0'); // defines initial version of model
-    const model = new Model<string, {}>('test', { ably, channelName, logger });
+    const model = new Model<string>('test', { ably, channelName, logger });
 
     await model.$register({ $sync: sync });
 
@@ -289,48 +288,25 @@ describe('Model', () => {
     expect(model.confirmed).toEqual('data_0');
   });
 
-  it<ModelTestContext>('executes a registered mutation', async ({ channelName, ably, logger, streams }) => {
-    const s1 = streams.newStream({ channelName });
-    s1.subscribe = vi.fn();
-    const model = new Model<string, { foo: (_: MutationContext, a: string, b: number) => Promise<string> }>('test', {
-      ably,
-      channelName,
-      logger,
-    });
-
-    const mutation = vi.fn(async () => 'test');
-    await model.$register({
-      $sync: async () => 'foobar',
-      $mutate: { foo: mutation },
-    });
-
-    await expect(model.mutations.foo('bar', 123)).resolves.toEqual('test');
-    expect(mutation).toHaveBeenCalledTimes(1);
-    expect(mutation).toHaveBeenCalledWith({ events: [] }, 'bar', 123);
-  });
-
   it<ModelTestContext>('fails to register twice', async ({ channelName, ably, logger, streams }) => {
     const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
-    const model = new Model<string, { foo: () => Promise<void> }>('test', { ably, channelName, logger });
+    const model = new Model<string>('test', { ably, channelName, logger });
 
-    const mutation = vi.fn();
     const sync = async () => 'foobar';
     model.$register({
       $sync: sync,
-      $mutate: { foo: mutation },
     });
     expect(() =>
       model.$register({
         $sync: sync,
-        $mutate: { foo: mutation },
       }),
     ).toThrow('$register was already called');
   });
 
   it<ModelTestContext>('fails to register after initialization', async ({ channelName, ably, logger, streams }) => {
     // extend the Model class to get access to protected member setState
-    class ModelWithSetState<T, M extends MutationMethods> extends Model<T, M> {
+    class ModelWithSetState<T> extends Model<T> {
       constructor(readonly name: string, options: ModelOptions) {
         super(name, options);
       }
@@ -341,49 +317,26 @@ describe('Model', () => {
 
     const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
-    const model = new ModelWithSetState<string, { foo: () => Promise<void> }>('test', { ably, channelName, logger });
+    const model = new ModelWithSetState<string>('test', { ably, channelName, logger });
 
-    const mutation = vi.fn();
     const sync = async () => 'foobar';
 
     model.setState('ready');
 
-    expect(() => model.$register({ $sync: sync, $mutate: { foo: mutation } })).toThrow(
+    expect(() => model.$register({ $sync: sync })).toThrow(
       `$register can only be called when the model is in the initialized state`,
-    );
-  });
-
-  it<ModelTestContext>('fails to execute mutation with unregistered stream', async ({
-    channelName,
-    ably,
-    logger,
-    streams,
-  }) => {
-    const s1 = streams.newStream({ channelName });
-    s1.subscribe = vi.fn();
-    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, channelName, logger });
-
-    const mutation = vi.fn(async () => 'test');
-    await model.$register({
-      $sync: async () => 'foobar',
-      $mutate: { foo: mutation },
-    });
-    await expect(model.mutations.foo.$expect({ events: [{ channel: 'unknown', name: 'foo' }] })()).rejects.toThrow(
-      "stream with name 'unknown' not registered on model 'test'",
     );
   });
 
   it<ModelTestContext>('updates model state with optimistic event', async ({ channelName, ably, logger, streams }) => {
     const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
-    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, channelName, logger });
+    const model = new Model<string>('test', { ably, channelName, logger });
 
-    const mergeFn = vi.fn(async (state, event) => event.data);
-    const mutation = vi.fn(async () => 'test');
+    const mergeFn = vi.fn(async (_, event) => event.data);
     await model.$register({
       $sync: async () => 'data_0',
       $merge: mergeFn,
-      $mutate: { foo: mutation },
     });
 
     let optimisticSubscription = new Subject<void>();
@@ -405,7 +358,7 @@ describe('Model', () => {
     expect(model.optimistic).toEqual('data_0');
     expect(model.confirmed).toEqual('data_0');
 
-    await model.mutations.foo.$expect({ events: [{ channel: channelName, name: 'testEvent', data: 'data_1' }] })();
+    await model.optimisticEvent({ events: [{ name: 'testEvent', data: 'data_1' }] });
 
     await optimisticSubscriptionCalls[1];
     expect(model.optimistic).toEqual('data_1');
@@ -419,19 +372,17 @@ describe('Model', () => {
     const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
 
-    const events = { e1: new Subject<Types.Message>() };
+    const events = new Subject<Types.Message>();
     s1.subscribe = vi.fn((callback) => {
-      events.e1.subscribe((message) => callback(null, message));
+      events.subscribe((message) => callback(null, message));
     });
 
-    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, channelName, logger });
+    const model = new Model<string>('test', { ably, channelName, logger });
 
-    const mergeFn = vi.fn(async (state, event) => event.data);
-    const mutation = vi.fn(async () => 'test');
+    const mergeFn = vi.fn(async (_, event) => event.data);
     await model.$register({
       $sync: async () => 'data_0',
       $merge: mergeFn,
-      $mutate: { foo: mutation },
     });
 
     let optimisticSubscription = new Subject<void>();
@@ -453,7 +404,7 @@ describe('Model', () => {
     expect(model.optimistic).toEqual('data_0');
     expect(model.confirmed).toEqual('data_0');
 
-    await model.mutations.foo.$expect({ events: [{ channel: channelName, name: 'testEvent', data: 'data_1' }] })();
+    const [confirmation] = await model.optimisticEvent({ events: [{ name: 'testEvent', data: 'data_1' }] });
 
     await optimisticSubscriptionCalls[1];
     expect(model.optimistic).toEqual('data_1');
@@ -462,8 +413,9 @@ describe('Model', () => {
     expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(2, null, 'data_1');
     expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(1);
 
-    events.e1.next(customMessage('id_1', 'testEvent', 'data_1'));
+    events.next(customMessage('id_1', 'testEvent', 'data_1'));
     await confirmedSubscriptionCalls[1];
+    await confirmation;
     expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(2);
     expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(2, null, 'data_1');
     expect(model.confirmed).toEqual('data_1');
@@ -478,14 +430,12 @@ describe('Model', () => {
       events.e1.subscribe((message) => callback(null, message));
     });
 
-    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, channelName, logger });
+    const model = new Model<string>('test', { ably, channelName, logger });
 
-    const mergeFn = vi.fn(async (state, event) => event.data);
-    const mutation = vi.fn(async () => 'test');
+    const mergeFn = vi.fn(async (_, event) => event.data);
     await model.$register({
       $sync: async () => 'data_0',
       $merge: mergeFn,
-      $mutate: { foo: mutation },
     });
 
     let optimisticSubscription = new Subject<void>();
@@ -507,9 +457,9 @@ describe('Model', () => {
     expect(model.optimistic).toEqual('data_0');
     expect(model.confirmed).toEqual('data_0');
 
-    await model.mutations.foo.$expect({
-      events: [{ uuid: 'some-custom-id', channel: channelName, name: 'testEvent', data: 'data_1' }],
-    })();
+    const [confirmation] = await model.optimisticEvent({
+      events: [{ uuid: 'some-custom-id', name: 'testEvent', data: 'data_1' }],
+    });
 
     await optimisticSubscriptionCalls[1];
     expect(model.optimistic).toEqual('data_1');
@@ -523,48 +473,10 @@ describe('Model', () => {
       customMessage('id_1', 'testEvent', 'confirmed_data', { 'x-ably-models-event-uuid': 'some-custom-id' }),
     );
     await confirmedSubscriptionCalls[1];
+    await confirmation;
     expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(2);
     expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(2, null, 'confirmed_data');
     expect(model.confirmed).toEqual('confirmed_data');
-  });
-
-  it<ModelTestContext>('mutation can access the optimistic events', async ({ channelName, ably, logger, streams }) => {
-    const s1 = streams.newStream({ channelName });
-    s1.subscribe = vi.fn();
-
-    const events = { e1: new Subject<Types.Message>() };
-    s1.subscribe = vi.fn((callback) => {
-      events.e1.subscribe((message) => callback(null, message));
-    });
-
-    const model = new Model<
-      string,
-      { foo: (context: MutationContext, arg: string) => Promise<{ context?: string; arg: string }> }
-    >('test', { ably, channelName, logger });
-
-    const mergeFn = vi.fn(async (state, event) => event.data);
-    const mutation = vi.fn(async function (context: MutationContext, arg: string) {
-      if (!context.events.length) {
-        return { arg };
-      }
-      return {
-        context: context.events[0].name,
-        arg,
-      };
-    });
-    await model.$register({
-      $sync: async () => 'data_0',
-      $merge: mergeFn,
-      $mutate: { foo: mutation },
-    });
-
-    const result1 = await model.mutations.foo('arg');
-    expect(result1).toEqual({ arg: 'arg' });
-
-    const [result2] = await model.mutations.foo.$expect({
-      events: [{ channel: channelName, name: 'context', data: 'data_1' }],
-    })('arg');
-    expect(result2).toEqual({ context: 'context', arg: 'arg' });
   });
 
   it<ModelTestContext>('explicitly rejects an optimistic event', async ({ channelName, ably, logger, streams }) => {
@@ -576,14 +488,12 @@ describe('Model', () => {
       events.e1.subscribe((message) => callback(null, message));
     });
 
-    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, channelName, logger });
+    const model = new Model<string>('test', { ably, channelName, logger });
 
-    const mergeFn = vi.fn(async (state, event) => event.data);
-    const mutation = vi.fn(async () => 'test');
+    const mergeFn = vi.fn(async (_, event) => event.data);
     await model.$register({
       $sync: async () => 'data_0',
       $merge: mergeFn,
-      $mutate: { foo: mutation },
     });
 
     let optimisticSubscription = new Subject<void>();
@@ -605,10 +515,9 @@ describe('Model', () => {
     expect(model.optimistic).toEqual('data_0');
     expect(model.confirmed).toEqual('data_0');
 
-    const [result, confirmation] = await model.mutations.foo.$expect({
-      events: [{ channel: channelName, name: 'testEvent', data: 'data_1' }],
-    })();
-    expect(result).toEqual('test');
+    const [confirmation] = await model.optimisticEvent({
+      events: [{ name: 'testEvent', data: 'data_1' }],
+    });
 
     await optimisticSubscriptionCalls[1];
     expect(model.optimistic).toEqual('data_1');
@@ -618,81 +527,13 @@ describe('Model', () => {
     expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(1);
 
     events.e1.next(customMessage('id_1', 'testEvent', 'data_1', { 'x-ably-models-reject': 'true' }));
-    await expect(confirmation).rejects.toThrow(`events contain rejections: channel:${channelName} name:testEvent`);
+    await expect(confirmation).rejects.toThrow(`events contain rejections: name:testEvent`);
     await optimisticSubscriptionCalls[2];
     expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(1);
     expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(3);
     expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(3, null, 'data_0');
     expect(model.optimistic).toEqual('data_0');
     expect(model.confirmed).toEqual('data_0');
-  });
-
-  it<ModelTestContext>('confirms an optimistic event with a custom comparator', async ({
-    channelName,
-    ably,
-    logger,
-    streams,
-  }) => {
-    const s1 = streams.newStream({ channelName });
-    s1.subscribe = vi.fn();
-
-    const events = { e1: new Subject<Types.Message>() };
-    s1.subscribe = vi.fn((callback) => {
-      events.e1.subscribe((message) => callback(null, message));
-    });
-
-    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, channelName, logger });
-
-    const nameOnlyComparator: EventComparator = (optimistic: Event, confirmed: Event) =>
-      optimistic.name === confirmed.name;
-    const mergeFn = vi.fn(async (state, event) => event.data);
-    const mutation = vi.fn(async () => 'test');
-    await model.$register({
-      $sync: async () => 'data_0',
-      $merge: mergeFn,
-      $mutate: {
-        foo: {
-          func: mutation,
-          options: { comparator: nameOnlyComparator },
-        },
-      },
-    });
-
-    let optimisticSubscription = new Subject<void>();
-    const optimisticSubscriptionCalls = getEventPromises(optimisticSubscription, 2);
-    const optimisticSubscriptionSpy = vi.fn<[Error | null, string?]>(() => optimisticSubscription.next());
-    model.subscribe(optimisticSubscriptionSpy);
-
-    let confirmedSubscription = new Subject<void>();
-    const confirmedSubscriptionCalls = getEventPromises(confirmedSubscription, 2);
-    const confirmedSubscriptionSpy = vi.fn<[Error | null, string?]>(() => confirmedSubscription.next());
-    model.subscribe(confirmedSubscriptionSpy, { optimistic: false });
-
-    await optimisticSubscriptionCalls[0];
-    await confirmedSubscriptionCalls[0];
-    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(1);
-    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(1, null, 'data_0');
-    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(1);
-    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(1, null, 'data_0');
-    expect(model.optimistic).toEqual('data_0');
-    expect(model.confirmed).toEqual('data_0');
-
-    await model.mutations.foo.$expect({ events: [{ channel: channelName, name: 'testEvent', data: 'data_1' }] })();
-
-    await optimisticSubscriptionCalls[1];
-    expect(model.optimistic).toEqual('data_1');
-    expect(model.confirmed).toEqual('data_0');
-    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(2);
-    expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(2, null, 'data_1');
-    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(1);
-
-    events.e1.next(customMessage('id_1', 'testEvent', 'confirmation'));
-    await confirmedSubscriptionCalls[1];
-    expect(optimisticSubscriptionSpy).toHaveBeenCalledTimes(2); // unchanged
-    expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(2);
-    expect(confirmedSubscriptionSpy).toHaveBeenNthCalledWith(2, null, 'confirmation');
-    expect(model.confirmed).toEqual('confirmation');
-    expect(model.optimistic).toEqual('confirmation');
   });
 
   it<ModelTestContext>('confirms optimistic events out of order', async ({ channelName, ably, logger, streams }) => {
@@ -704,14 +545,12 @@ describe('Model', () => {
       events.e1.subscribe((message) => callback(null, message));
     });
 
-    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, channelName, logger });
+    const model = new Model<string>('test', { ably, channelName, logger });
 
     const mergeFn = vi.fn(async (state, event) => state + event.data);
-    const mutation = vi.fn(async () => 'test');
     await model.$register({
       $sync: async () => '0',
       $merge: mergeFn,
-      $mutate: { foo: mutation },
     });
 
     let optimisticSubscription = new Subject<void>();
@@ -733,8 +572,8 @@ describe('Model', () => {
     expect(model.optimistic).toEqual('0');
     expect(model.confirmed).toEqual('0');
 
-    await model.mutations.foo.$expect({ events: [{ channel: channelName, name: 'testEvent', data: '1' }] })();
-    await model.mutations.foo.$expect({ events: [{ channel: channelName, name: 'testEvent', data: '2' }] })();
+    await model.optimisticEvent({ events: [{ name: 'testEvent', data: '1' }] });
+    await model.optimisticEvent({ events: [{ name: 'testEvent', data: '2' }] });
 
     // optimistic updates are applied in the order the mutations were called
     await optimisticSubscriptionCalls[1];
@@ -787,14 +626,12 @@ describe('Model', () => {
       events.e1.subscribe((message) => callback(null, message));
     });
 
-    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, channelName, logger });
+    const model = new Model<string>('test', { ably, channelName, logger });
 
     const mergeFn = vi.fn(async (state, event) => state + event.data);
-    const mutation = vi.fn(async () => 'test');
     await model.$register({
       $sync: async () => '0',
       $merge: mergeFn,
-      $mutate: { foo: mutation },
     });
 
     let optimisticSubscription = new Subject<void>();
@@ -816,8 +653,8 @@ describe('Model', () => {
     expect(model.optimistic).toEqual('0');
     expect(model.confirmed).toEqual('0');
 
-    await model.mutations.foo.$expect({ events: [{ channel: channelName, name: 'testEvent', data: '1' }] })();
-    await model.mutations.foo.$expect({ events: [{ channel: channelName, name: 'testEvent', data: '2' }] })();
+    await model.optimisticEvent({ events: [{ name: 'testEvent', data: '1' }] });
+    await model.optimisticEvent({ events: [{ name: 'testEvent', data: '2' }] });
 
     // optimistic updates are applied in the order the mutations were called
     await optimisticSubscriptionCalls[1];
@@ -864,48 +701,31 @@ describe('Model', () => {
     expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(5, null, '0132');
   });
 
-  it<ModelTestContext>('revert optimistic events if mutate fails', async ({ channelName, ably, logger, streams }) => {
+  it<ModelTestContext>('revert optimistic events on cancel', async ({ channelName, ably, logger, streams }) => {
     const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
 
-    const model = new Model<
-      string,
-      {
-        mutation1: () => Promise<string>;
-        mutation2: () => Promise<string>;
-      }
-    >('test', { ably, channelName, logger });
+    const model = new Model<string>('test', { ably, channelName, logger });
 
     const mergeFn = vi.fn(async (state, event) => state + event.data);
-    const mutation1 = vi.fn(async () => 'test');
-    const mutation2 = vi.fn(async () => {
-      throw new Error('mutation failed');
-    });
 
     await model.$register({
       $sync: async () => '0',
       $merge: mergeFn,
-      $mutate: { mutation1, mutation2 },
     });
 
-    const result1 = await model.mutations.mutation1.$expect({
+    const [confirmation, cancel] = await model.optimisticEvent({
       events: [
-        { channel: channelName, name: 'testEvent', data: '1' },
-        { channel: channelName, name: 'testEvent', data: '2' },
-        { channel: channelName, name: 'testEvent', data: '3' },
+        { name: 'testEvent', data: '1' },
+        { name: 'testEvent', data: '2' },
+        { name: 'testEvent', data: '3' },
       ],
-    })();
-    expect(result1[0]).toEqual('test');
-    await expect(
-      model.mutations.mutation2.$expect({
-        events: [
-          { channel: channelName, name: 'testEvent', data: '4' },
-          { channel: channelName, name: 'testEvent', data: '5' },
-          { channel: channelName, name: 'testEvent', data: '6' },
-        ],
-      })(),
-    ).rejects.toThrow('mutation failed');
+    });
+
     expect(model.optimistic).toEqual('0123');
+    cancel();
+    expect(model.optimistic).toEqual('0');
+    await expect(confirmation).rejects.toEqual(new Error('optimistic event cancelled'));
   });
 
   // If applying a received stream update throws, the model reverts to the PREPARING state and re-syncs.
@@ -926,9 +746,9 @@ describe('Model', () => {
     let counter = 0;
 
     const sync = vi.fn(async () => `${counter}`);
-    const model = new Model<string, {}>('test', { ably, channelName, logger });
+    const model = new Model<string>('test', { ably, channelName, logger });
 
-    const mergeFn = vi.fn(async (state, event) => {
+    const mergeFn = vi.fn(async (_, event) => {
       if (event.data === '3') {
         throw new Error('test');
       }
@@ -981,7 +801,7 @@ describe('Model', () => {
     const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
 
-    const model = new Model<string, { mutation: () => Promise<string> }>('test', { ably, channelName, logger });
+    const model = new Model<string>('test', { ably, channelName, logger });
 
     const mergeFn = vi.fn(async (state, event) => {
       if (event.data === '6') {
@@ -989,112 +809,31 @@ describe('Model', () => {
       }
       return state + event.data;
     });
-    const mutation = vi.fn(async () => 'test');
     await model.$register({
       $sync: async () => '0',
       $merge: mergeFn,
-      $mutate: { mutation },
     });
-    const [result1] = await model.mutations.mutation.$expect({
+
+    await model.optimisticEvent({
       events: [
-        { channel: channelName, name: 'testEvent', data: '1' },
-        { channel: channelName, name: 'testEvent', data: '2' },
-        { channel: channelName, name: 'testEvent', data: '3' },
+        { name: 'testEvent', data: '1' },
+        { name: 'testEvent', data: '2' },
+        { name: 'testEvent', data: '3' },
       ],
-    })();
-    expect(result1).toEqual('test');
+    });
+
     await expect(
-      model.mutations.mutation.$expect({
+      model.optimisticEvent({
         events: [
-          { channel: channelName, name: 'testEvent', data: '4' },
-          { channel: channelName, name: 'testEvent', data: '5' },
-          { channel: channelName, name: 'testEvent', data: '6' },
+          { name: 'testEvent', data: '4' },
+          { name: 'testEvent', data: '5' },
+          { name: 'testEvent', data: '6' },
         ],
-      })(),
+      }),
     ).rejects.toThrow('update error');
+
     // The failed mutation should have been reverted.
     expect(model.optimistic).toEqual('0123');
-  });
-
-  // Tests if the mutation throws, the the optimistic events are reverted.
-  it<ModelTestContext>('revert optimistic events if mutation fails', async ({ channelName, ably, logger, streams }) => {
-    const s1 = streams.newStream({ channelName: 's1' });
-    s1.subscribe = vi.fn();
-
-    const model = new Model<string, { mutation1: () => Promise<string>; mutation2: () => Promise<string> }>('test', {
-      ably,
-      channelName,
-      logger,
-    });
-
-    const mergeFn = vi.fn(async (state, event) => state + event.data);
-    const mutation1 = vi.fn(async () => 'test');
-    const mutation2 = async () => {
-      throw new Error('mutation failed');
-    };
-    await model.$register({
-      $sync: async () => '0',
-      $merge: mergeFn,
-      $mutate: { mutation1, mutation2 },
-    });
-    const [result1] = await model.mutations.mutation1.$expect({
-      events: [
-        { channel: channelName, name: 'testEvent', data: '1' },
-        { channel: channelName, name: 'testEvent', data: '2' },
-        { channel: channelName, name: 'testEvent', data: '3' },
-      ],
-    })();
-    expect(result1).toEqual('test');
-    await expect(
-      model.mutations.mutation2.$expect({
-        events: [
-          { channel: channelName, name: 'testEvent', data: '4' },
-          { channel: channelName, name: 'testEvent', data: '5' },
-          { channel: channelName, name: 'testEvent', data: '6' },
-        ],
-      })(),
-    ).rejects.toThrow('mutation failed');
-    // The failed mutation should have been reverted.
-    expect(model.optimistic).toEqual('0123');
-  });
-
-  // Tests if applying optimistic events throws *and* the mutation throws, the the optimistic events are reverted.
-  it<ModelTestContext>('revert optimistic events if the mutation fails and apply update fails', async ({
-    channelName,
-    ably,
-    logger,
-    streams,
-  }) => {
-    const s1 = streams.newStream({ channelName });
-    s1.subscribe = vi.fn();
-
-    const model = new Model<string, { mutation: () => Promise<string> }>('test', { ably, channelName, logger });
-
-    const mergeFn = async (state, event) => {
-      if (event.data === '3') {
-        throw new Error('update error');
-      }
-      return state + event.data;
-    };
-    const mutation = async () => {
-      throw new Error('mutation failed');
-    };
-    await model.$register({
-      $sync: async () => '0',
-      $merge: mergeFn,
-      $mutate: { mutation },
-    });
-    await expect(
-      model.mutations.mutation.$expect({
-        events: [
-          { channel: channelName, name: 'testEvent', data: '1' },
-          { channel: channelName, name: 'testEvent', data: '2' },
-          { channel: channelName, name: 'testEvent', data: '3' },
-        ],
-      })(),
-    ).rejects.toThrow(new Error('update error')); // mutation not invoked if optimistic update fails, so we only expect an update error
-    // The failed mutation should have been reverted.
-    expect(model.optimistic).toEqual('0');
   });
 
   it<ModelTestContext>('optimistic event confirmation confirmed before timeout', async ({
@@ -1111,28 +850,21 @@ describe('Model', () => {
       events.e1.subscribe((message) => callback(null, message));
     });
 
-    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, channelName, logger });
+    const model = new Model<string>('test', { ably, channelName, logger });
 
     const mergeFn = vi.fn(async (state, event) => state + event.data);
-    const mutation = vi.fn(async () => 'test');
     await model.$register({
       $sync: async () => '0',
       $merge: mergeFn,
-      $mutate: {
-        foo: {
-          func: mutation,
-          options: { timeout: 1000 },
-        },
-      },
     });
-    const [result, confirmation] = await model.mutations.foo.$expect({
+
+    const [confirmation] = await model.optimisticEvent({
       events: [
-        { channel: channelName, name: 'testEvent', data: '1' },
-        { channel: channelName, name: 'testEvent', data: '2' },
-        { channel: channelName, name: 'testEvent', data: '3' },
+        { name: 'testEvent', data: '1' },
+        { name: 'testEvent', data: '2' },
+        { name: 'testEvent', data: '3' },
       ],
-    })();
-    expect(result).toEqual('test');
+    });
     expect(model.optimistic).toEqual('0123');
 
     // Confirm the event.
@@ -1147,34 +879,28 @@ describe('Model', () => {
     const s1 = streams.newStream({ channelName: 's1' });
     s1.subscribe = vi.fn();
 
-    const events = { e1: new Subject<Types.Message>() };
+    const events = new Subject<Types.Message>();
     s1.subscribe = vi.fn((callback) => {
-      events.e1.subscribe((message) => callback(null, message));
+      events.subscribe((message) => callback(null, message));
     });
 
-    const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, channelName, logger });
+    const model = new Model<string>('test', { ably, channelName, logger });
 
     const mergeFn = vi.fn(async (state, event) => state + event.data);
-    const mutation = vi.fn(async () => 'test');
     await model.$register({
       $sync: async () => '0',
       $merge: mergeFn,
-      $mutate: {
-        foo: {
-          func: mutation,
-          options: { timeout: 1 },
-        },
-      },
     });
 
     // Mutate and check the returned promise is rejected with a timeout.
-    const [, confirmation] = await model.mutations.foo.$expect({
+    const [confirmation] = await model.optimisticEvent({
       events: [
-        { channel: channelName, name: 'testEvent', data: '1' },
-        { channel: channelName, name: 'testEvent', data: '2' },
-        { channel: channelName, name: 'testEvent', data: '3' },
+        { name: 'testEvent', data: '1' },
+        { name: 'testEvent', data: '2' },
+        { name: 'testEvent', data: '3' },
       ],
-    })();
+      options: { timeout: 1 },
+    });
     expect(model.optimistic).toEqual('0123');
     await expect(confirmation).rejects.toThrow('timed out waiting for event confirmation');
     // Check the optimistic event is reverted.
