@@ -28,6 +28,8 @@ import {
 } from './types/optimistic.js';
 import EventEmitter from './utilities/EventEmitter.js';
 
+const REWIND_INTERVAL_MARGIN_SECONDS = 5;
+
 /**
  * A Model encapsulates an observable, collaborative data model backed by a transactional database in your backend.
  *
@@ -139,11 +141,9 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
    * The sync function that allows the model to be manually resynced
    * @returns A promise that resolves when the model has successfully re-synchronised its state and is ready to start emitting updates.
    */
-  public get $sync() {
-    return () => {
-      this.init();
-      return new Promise((resolve) => this.whenState('ready', this.state, resolve));
-    };
+  public async $sync() {
+    await this.init();
+    return new Promise((resolve) => this.whenState('ready', this.state, resolve));
   }
 
   /**
@@ -194,7 +194,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
    * @param {Registration<T>} registration - The set of methods to register.
    * @returns A promise that resolves when the model has completed the registrtion and is ready to start emitting updates.
    */
-  public $register(registration: Registration<T>) {
+  public async $register(registration: Registration<T>) {
     if (this.wasRegistered) {
       throw new Error('$register was already called');
     }
@@ -210,8 +210,9 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
       this.merge = registration.$merge;
     }
 
-    this.init();
-    return new Promise((resolve) => this.whenState('ready', this.state, resolve));
+    const result = new Promise((resolve) => this.whenState('ready', this.state, resolve));
+    await this.init();
+    return result;
   }
 
   /**
@@ -305,27 +306,30 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
   private async init(reason?: Error) {
     this.logger.trace({ ...this.baseLogContext, action: 'init()', reason });
     this.setState('preparing', reason);
-
     this.removeStream();
-    this.addStream();
-
-    const data = await this.syncFunc();
+    const { data, sequenceID, stateTimestamp } = await this.syncFunc();
+    await this.addStream(sequenceID, stateTimestamp);
     this.setOptimisticData(data);
     this.setConfirmedData(data);
     this.setState('ready');
   }
 
   private removeStream() {
-    this.stream.reset();
     const callback = this.streamSubscriptionsMap.get(this.stream);
     if (callback) {
       this.stream.unsubscribe(callback);
     }
-    this.stream.reset();
-    this.streamSubscriptionsMap = new WeakMap();
+    this.stream.dispose();
+    this.streamSubscriptionsMap.delete(this.stream);
   }
 
-  private addStream() {
+  private async addStream(sequenceID: string, stateTimestamp: Date) {
+    const interval = Math.floor((Date.now() - stateTimestamp.getTime()) / 1000) + REWIND_INTERVAL_MARGIN_SECONDS;
+    if (interval > 2 * 60) {
+      throw new Error(
+        `rewind interval ${interval}s from state timestamp ${stateTimestamp.toString()} is greater than 2 minutes`,
+      );
+    }
     const callback: StandardCallback<AblyTypes.Message> = async (err: Error | null, event?: AblyTypes.Message) => {
       try {
         if (err) {
@@ -355,9 +359,10 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
 
         await this.onStreamEvent(modelsEvent);
       } catch (err) {
-        this.init(toError(err));
+        await this.init(toError(err));
       }
     };
+    await this.stream.sync(`${interval}s`, sequenceID);
     this.stream.subscribe(callback);
     this.streamSubscriptionsMap.set(this.stream, callback);
   }

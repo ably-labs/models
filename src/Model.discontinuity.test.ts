@@ -46,7 +46,11 @@ describe('Model', () => {
 
     let counter = 0;
 
-    const sync = vi.fn(async () => `${counter++}`);
+    const sync = vi.fn(async () => ({
+      data: `${counter++}`,
+      sequenceID: '0',
+      stateTimestamp: new Date(),
+    }));
     const model = new Model<string>('test', { ably, channelName, logger });
     const mergeFn = vi.fn(async (_, event) => {
       return event.data;

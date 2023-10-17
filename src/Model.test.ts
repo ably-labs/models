@@ -29,10 +29,10 @@ vi.mock('./stream/StreamFactory', () => {
     }
     async pause() {}
     async resume() {}
-    subscribe(): void {}
+    async subscribe() {}
     unsubscribe(): void {}
     async dispose() {}
-    async reset() {}
+    async sync() {}
   }
 
   const streams: { [key: string]: IStream } = {};
@@ -90,7 +90,7 @@ describe('Model', () => {
     const synchronised = new Promise((resolve) => (completeSync = resolve));
     const sync = vi.fn(async () => {
       await synchronised;
-      return simpleTestData;
+      return { data: simpleTestData, sequenceID: '0', stateTimestamp: new Date() };
     });
     const model = new Model<TestData>('test', {
       ably,
@@ -117,7 +117,7 @@ describe('Model', () => {
     const sync = vi.fn(async () => {
       await synchronised;
 
-      return { ...simpleTestData, bar: { baz: ++counter } };
+      return { data: { ...simpleTestData, bar: { baz: ++counter } }, sequenceID: '0', stateTimestamp: new Date() };
     });
     const model = new Model<TestData>('test', {
       ably,
@@ -128,7 +128,6 @@ describe('Model', () => {
     await statePromise(model, 'preparing');
     completeSync();
 
-    await ready;
     await statePromise(model, 'ready');
     await expect(ready).resolves.toEqual({ current: 'ready', previous: 'preparing', reason: undefined });
 
@@ -160,7 +159,11 @@ describe('Model', () => {
     s1.subscribe = vi.fn();
     s1.pause = vi.fn();
     s1.resume = vi.fn();
-    const sync = vi.fn(async () => simpleTestData);
+    const sync = vi.fn(async () => ({
+      data: simpleTestData,
+      sequenceID: '0',
+      stateTimestamp: new Date(),
+    }));
 
     const model = new Model<TestData>('test', { ably, channelName, logger });
 
@@ -185,7 +188,11 @@ describe('Model', () => {
     const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
     s1.unsubscribe = vi.fn();
-    const sync = vi.fn(async () => simpleTestData);
+    const sync = vi.fn(async () => ({
+      data: simpleTestData,
+      sequenceID: '0',
+      stateTimestamp: new Date(),
+    }));
 
     const model = new Model<TestData>('test', { ably, channelName, logger });
 
@@ -208,11 +215,15 @@ describe('Model', () => {
       channelEvents: new Subject<Types.Message>(),
     };
 
-    streams.newStream({ channelName }).subscribe = vi.fn((callback) =>
-      events.channelEvents.subscribe((message) => callback(null, message)),
-    );
+    streams.newStream({ channelName }).subscribe = vi.fn(async (callback) => {
+      events.channelEvents.subscribe((message) => callback(null, message));
+    });
 
-    const sync = vi.fn(async () => 'data_0'); // defines initial version of model
+    const sync = vi.fn(async () => ({
+      data: 'data_0',
+      sequenceID: '0',
+      stateTimestamp: new Date(),
+    })); // defines initial version of model
     const model = new Model<string>('test', { ably, channelName, logger });
 
     const mergeFn = vi.fn(async (_, event) => event.data);
@@ -263,7 +274,11 @@ describe('Model', () => {
   });
 
   it<ModelTestContext>('subscribes after initialisation', async ({ channelName, ably, logger }) => {
-    const sync = vi.fn(async () => 'data_0'); // defines initial version of model
+    const sync = vi.fn(async () => ({
+      data: 'data_0',
+      sequenceID: '0',
+      stateTimestamp: new Date(),
+    })); // defines initial version of model
     const model = new Model<string>('test', { ably, channelName, logger });
 
     await model.$register({ $sync: sync });
@@ -293,15 +308,19 @@ describe('Model', () => {
     s1.subscribe = vi.fn();
     const model = new Model<string>('test', { ably, channelName, logger });
 
-    const sync = async () => 'foobar';
+    const sync = async () => ({
+      data: 'foobar',
+      sequenceID: '0',
+      stateTimestamp: new Date(),
+    });
     model.$register({
       $sync: sync,
     });
-    expect(() =>
+    await expect(
       model.$register({
         $sync: sync,
       }),
-    ).toThrow('$register was already called');
+    ).rejects.toThrow('$register was already called');
   });
 
   it<ModelTestContext>('fails to register after initialization', async ({ channelName, ably, logger, streams }) => {
@@ -319,11 +338,15 @@ describe('Model', () => {
     s1.subscribe = vi.fn();
     const model = new ModelWithSetState<string>('test', { ably, channelName, logger });
 
-    const sync = async () => 'foobar';
+    const sync = async () => ({
+      data: 'foobar',
+      sequenceID: '0',
+      stateTimestamp: new Date(),
+    });
 
     model.setState('ready');
 
-    expect(() => model.$register({ $sync: sync })).toThrow(
+    await expect(model.$register({ $sync: sync })).rejects.toThrow(
       `$register can only be called when the model is in the initialized state`,
     );
   });
@@ -335,7 +358,11 @@ describe('Model', () => {
 
     const mergeFn = vi.fn(async (_, event) => event.data);
     await model.$register({
-      $sync: async () => 'data_0',
+      $sync: async () => ({
+        data: 'data_0',
+        sequenceID: '0',
+        stateTimestamp: new Date(),
+      }),
       $merge: mergeFn,
     });
 
@@ -373,7 +400,7 @@ describe('Model', () => {
     s1.subscribe = vi.fn();
 
     const events = { e1: new Subject<Types.Message>() };
-    s1.subscribe = vi.fn((callback) => {
+    s1.subscribe = vi.fn(async (callback) => {
       events.e1.subscribe((message) => callback(null, message));
     });
 
@@ -381,7 +408,11 @@ describe('Model', () => {
 
     const mergeFn = vi.fn(async (_, event) => event.data);
     await model.$register({
-      $sync: async () => 'data_0',
+      $sync: async () => ({
+        data: 'data_0',
+        sequenceID: '0',
+        stateTimestamp: new Date(),
+      }),
       $merge: mergeFn,
     });
 
@@ -429,10 +460,9 @@ describe('Model', () => {
 
   it<ModelTestContext>('explicitly rejects an optimistic event', async ({ channelName, ably, logger, streams }) => {
     const s1 = streams.newStream({ channelName });
-    s1.subscribe = vi.fn();
 
     const events = new Subject<Types.Message>();
-    s1.subscribe = vi.fn((callback) => {
+    s1.subscribe = vi.fn<any, any>((callback) => {
       events.subscribe((message) => callback(null, message));
     });
 
@@ -440,7 +470,11 @@ describe('Model', () => {
 
     const mergeFn = vi.fn(async (_, event) => event.data);
     await model.$register({
-      $sync: async () => 'data_0',
+      $sync: async () => ({
+        data: 'data_0',
+        sequenceID: '0',
+        stateTimestamp: new Date(),
+      }),
       $merge: mergeFn,
     });
 
@@ -487,7 +521,7 @@ describe('Model', () => {
     s1.subscribe = vi.fn();
 
     const events = { e1: new Subject<Types.Message>() };
-    s1.subscribe = vi.fn((callback) => {
+    s1.subscribe = vi.fn(async (callback) => {
       events.e1.subscribe((message) => callback(null, message));
     });
 
@@ -495,7 +529,11 @@ describe('Model', () => {
 
     const mergeFn = vi.fn(async (state, event) => state + event.data);
     await model.$register({
-      $sync: async () => '0',
+      $sync: async () => ({
+        data: '0',
+        sequenceID: '0',
+        stateTimestamp: new Date(),
+      }),
       $merge: mergeFn,
     });
 
@@ -568,7 +606,7 @@ describe('Model', () => {
     s1.subscribe = vi.fn();
 
     const events = { e1: new Subject<Types.Message>() };
-    s1.subscribe = vi.fn((callback) => {
+    s1.subscribe = vi.fn(async (callback) => {
       events.e1.subscribe((message) => callback(null, message));
     });
 
@@ -576,7 +614,11 @@ describe('Model', () => {
 
     const mergeFn = vi.fn(async (state, event) => state + event.data);
     await model.$register({
-      $sync: async () => '0',
+      $sync: async () => ({
+        data: '0',
+        sequenceID: '0',
+        stateTimestamp: new Date(),
+      }),
       $merge: mergeFn,
     });
 
@@ -656,7 +698,11 @@ describe('Model', () => {
     const mergeFn = vi.fn(async (state, event) => state + event.data);
 
     await model.$register({
-      $sync: async () => '0',
+      $sync: async () => ({
+        data: '0',
+        sequenceID: '0',
+        stateTimestamp: new Date(),
+      }),
       $merge: mergeFn,
     });
 
@@ -688,14 +734,18 @@ describe('Model', () => {
     const events = {
       channelEvents: new Subject<Types.Message>(),
     };
-    s1.subscribe = vi.fn((callback) => {
+    s1.subscribe = vi.fn(async (callback) => {
       events.channelEvents.subscribe((message) => callback(null, message));
     });
     s1.unsubscribe = vi.fn();
 
     let counter = 0;
 
-    const sync = vi.fn(async () => `${counter}`);
+    const sync = vi.fn(async () => ({
+      data: `${counter}`,
+      sequenceID: '0',
+      stateTimestamp: new Date(),
+    }));
     const model = new Model<string>('test', { ably, channelName, logger });
 
     const mergeFn = vi.fn(async (_, event) => {
@@ -760,7 +810,11 @@ describe('Model', () => {
       return state + event.data;
     });
     await model.$register({
-      $sync: async () => '0',
+      $sync: async () => ({
+        data: '0',
+        sequenceID: '0',
+        stateTimestamp: new Date(),
+      }),
       $merge: mergeFn,
     });
 
@@ -784,7 +838,7 @@ describe('Model', () => {
     s1.subscribe = vi.fn();
 
     const events = { e1: new Subject<Types.Message>() };
-    s1.subscribe = vi.fn((callback) => {
+    s1.subscribe = vi.fn(async (callback) => {
       events.e1.subscribe((message) => callback(null, message));
     });
 
@@ -792,7 +846,11 @@ describe('Model', () => {
 
     const mergeFn = vi.fn(async (state, event) => state + event.data);
     await model.$register({
-      $sync: async () => '0',
+      $sync: async () => ({
+        data: '0',
+        sequenceID: '0',
+        stateTimestamp: new Date(),
+      }),
       $merge: mergeFn,
     });
 
@@ -810,7 +868,7 @@ describe('Model', () => {
     s1.subscribe = vi.fn();
 
     const events = new Subject<Types.Message>();
-    s1.subscribe = vi.fn((callback) => {
+    s1.subscribe = vi.fn(async (callback) => {
       events.subscribe((message) => callback(null, message));
     });
 
@@ -818,7 +876,11 @@ describe('Model', () => {
 
     const mergeFn = vi.fn(async (state, event) => state + event.data);
     await model.$register({
-      $sync: async () => '0',
+      $sync: async () => ({
+        data: '0',
+        sequenceID: '0',
+        stateTimestamp: new Date(),
+      }),
       $merge: mergeFn,
     });
 
