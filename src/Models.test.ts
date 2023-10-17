@@ -30,9 +30,9 @@ describe('Models', () => {
 
   it<ModelsTestContext>('getting a model with the same name returns the same instance', ({ ably, channelName }) => {
     const models = new Models({ ably });
-    const model1 = models.Model<string, {}>('test', channelName);
+    const model1 = models.Model<string>('test', channelName);
     expect(model1.name).toEqual('test');
-    const model2 = models.Model<string, {}>('test', channelName);
+    const model2 = models.Model<string>('test', channelName);
     expect(model2.name).toEqual('test');
     expect(model1).toEqual(model2);
   });
