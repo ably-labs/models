@@ -40,7 +40,7 @@ export enum StreamState {
  * Options used to configure a stream instance.
  */
 export type StreamOptions = {
-  channel: string;
+  channelName: string;
   ably: AblyTypes.RealtimePromise;
   logger: Logger;
   eventBufferOptions?: EventBufferOptions;
@@ -73,7 +73,7 @@ export type StreamStateChange = {
 
 export interface IStream {
   get state(): StreamState;
-  get channel(): string;
+  get channelName(): string;
   pause(): Promise<void>;
   resume(): Promise<void>;
   reset(): void;
@@ -100,8 +100,8 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     super();
     this.ably = options.ably;
     this.logger = options.logger;
-    this.ablyChannel = this.ably.channels.get(this.options.channel);
-    this.baseLogContext = { scope: `Stream#${options.channel}` };
+    this.ablyChannel = this.ably.channels.get(this.options.channelName);
+    this.baseLogContext = { scope: `Stream#${options.channelName}` };
     this.slidingWindow = new SlidingWindow(
       options.eventBufferOptions?.bufferMs || 0,
       (message: AblyTypes.Message) => this.subscriptions.next(message),
@@ -114,8 +114,8 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     return this.currentState;
   }
 
-  public get channel() {
-    return this.options.channel;
+  public get channelName() {
+    return this.options.channelName;
   }
 
   public async pause() {

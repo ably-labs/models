@@ -1,7 +1,7 @@
 import Stream, { IStream, StreamOptions } from './Stream.js';
 
 export interface IStreamFactory {
-  newStream(options: Pick<StreamOptions, 'channel'>): IStream;
+  newStream(options: Pick<StreamOptions, 'channelName'>): IStream;
 }
 
 /**
@@ -26,7 +26,7 @@ export default class StreamFactory implements IStreamFactory {
    * @param {Pick<StreamOptions, 'channel'>} options - The options used in conjunction with the default options when instantiating a stream
    * @returns {IStream} The newly created stream instance.
    */
-  newStream(options: Pick<StreamOptions, 'channel'>) {
+  newStream(options: Pick<StreamOptions, 'channelName'>) {
     return new Stream(Object.assign(this.options, options));
   }
 }
