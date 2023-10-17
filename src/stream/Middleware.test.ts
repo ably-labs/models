@@ -75,6 +75,38 @@ describe('SequenceResumer', () => {
     middleware.add(createMessage(101));
     expect(callback).toHaveBeenCalledWith(null, createMessage(101));
   });
+
+  it('does not emit messages after unsubscribing individually', () => {
+    const callback = vi.fn();
+    middleware.subscribe(callback);
+
+    middleware.add(createMessage(100));
+    expect(callback).toHaveBeenCalledTimes(0);
+
+    middleware.add(createMessage(101));
+    expect(callback).toHaveBeenNthCalledWith(1, null, createMessage(101));
+
+    middleware.unsubscribe(callback);
+
+    middleware.add(createMessage(102));
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not emit messages after unsubscribing all', () => {
+    const callback = vi.fn();
+    middleware.subscribe(callback);
+
+    middleware.add(createMessage(100));
+    expect(callback).toHaveBeenCalledTimes(0);
+
+    middleware.add(createMessage(101));
+    expect(callback).toHaveBeenNthCalledWith(1, null, createMessage(101));
+
+    middleware.unsubscribeAll();
+
+    middleware.add(createMessage(102));
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('SlidingWindow', () => {
@@ -192,13 +224,43 @@ describe('SlidingWindow', () => {
     expect(subscription).toHaveBeenCalledTimes(1);
     expect(subscription).toHaveBeenNthCalledWith(1, null, msg1a);
   });
+
+  it('does not emit events after unsubscribing individually', async () => {
+    const subscription = vi.fn();
+    const sliding = new SlidingWindow(0);
+    sliding.subscribe(subscription);
+
+    const msg = createMessage(1);
+    sliding.add(msg);
+
+    expect(subscription).toHaveBeenCalledTimes(1);
+    expect(subscription).toHaveBeenCalledWith(null, msg);
+
+    sliding.unsubscribe(subscription);
+    sliding.add(createMessage(2));
+    expect(subscription).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not emit events after unsubscribing all', async () => {
+    const subscription = vi.fn();
+    const sliding = new SlidingWindow(0);
+    sliding.subscribe(subscription);
+
+    const msg = createMessage(1);
+    sliding.add(msg);
+
+    expect(subscription).toHaveBeenCalledTimes(1);
+    expect(subscription).toHaveBeenCalledWith(null, msg);
+
+    sliding.unsubscribeAll();
+    sliding.add(createMessage(2));
+    expect(subscription).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('OrderedSequenceResumer', () => {
   it('should reorder messages within the sliding window and emit those after the boundary', async () => {
-    const slidingWindow = new SlidingWindow(100);
-    const sequenceResumer = new SequenceResumer('100');
-    const orderedSequenceResumer = new OrderedSequenceResumer(slidingWindow, sequenceResumer);
+    const orderedSequenceResumer = new OrderedSequenceResumer('100', 100);
 
     let receivedMessages: string[] = [];
     orderedSequenceResumer.subscribe((err, message) => {
@@ -217,9 +279,7 @@ describe('OrderedSequenceResumer', () => {
   });
 
   it('should handle errors when messages are out of order outside window bounds', async () => {
-    const slidingWindow = new SlidingWindow(0); // 0-width window
-    const sequenceResumer = new SequenceResumer('100');
-    const orderedSequenceResumer = new OrderedSequenceResumer(slidingWindow, sequenceResumer);
+    const orderedSequenceResumer = new OrderedSequenceResumer('100', 0 /* 0-width window */);
 
     let errors: Error[] = [];
     orderedSequenceResumer.subscribe((err) => {

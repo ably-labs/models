@@ -23,6 +23,10 @@ abstract class MiddlewareBase {
       this.outputCallbacks.splice(index, 1);
     }
   }
+
+  public unsubscribeAll(): void {
+    this.outputCallbacks = [];
+  }
 }
 
 export class SequenceResumer extends MiddlewareBase {
@@ -136,8 +140,17 @@ export class SlidingWindow extends MiddlewareBase {
 }
 
 export class OrderedSequenceResumer extends MiddlewareBase {
-  constructor(private slidingWindow: SlidingWindow, private sequenceResumer: SequenceResumer) {
+  private sequenceResumer: SequenceResumer;
+  private slidingWindow: SlidingWindow;
+
+  constructor(
+    private sequenceID: string,
+    private readonly windowSizeMs: number,
+    private readonly eventOrderer: EventOrderer = defaultOrderLexicoId,
+  ) {
     super();
+    this.sequenceResumer = new SequenceResumer(this.sequenceID);
+    this.slidingWindow = new SlidingWindow(this.windowSizeMs, this.eventOrderer);
     this.sequenceResumer.subscribe((err, message) => (err ? this.error(err) : this.next(message!)));
     this.slidingWindow.subscribe((err, message) => (err ? this.error(err) : this.sequenceResumer.add(message!)));
   }
@@ -149,5 +162,10 @@ export class OrderedSequenceResumer extends MiddlewareBase {
   public unsubscribe(callback: (error: Error | null, message: AblyTypes.Message | null) => void): void {
     this.slidingWindow.unsubscribe(callback);
     this.sequenceResumer.unsubscribe(callback);
+  }
+
+  public unsubscribeAll(): void {
+    this.slidingWindow.unsubscribeAll();
+    this.sequenceResumer.unsubscribeAll();
   }
 }
