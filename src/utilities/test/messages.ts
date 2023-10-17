@@ -21,7 +21,7 @@ export function createMessage(i: number): Types.Message {
 
   return {
     ...baseMessage,
-    id: `id_${i}`,
+    id: `${i}`,
     name: `name_${i}`,
     data: `data_${i}`,
     extras: { headers: headers },
