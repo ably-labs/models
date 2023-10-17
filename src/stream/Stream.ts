@@ -77,7 +77,7 @@ export interface IStream {
   get channelName(): string;
   pause(): Promise<void>;
   resume(): Promise<void>;
-  sync(rewind: string, sequenceID: string): Promise<void>;
+  sync(rewind: number, sequenceID: string): Promise<void>;
   subscribe(callback: StandardCallback<AblyTypes.Message>): Promise<void>;
   unsubscribe(callback: StandardCallback<AblyTypes.Message>): void;
   dispose(reason?: AblyTypes.ErrorInfo | string): Promise<void>;
@@ -171,7 +171,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     }
   }
 
-  public async sync(rewind: string, sequenceID: string) {
+  public async sync(rewind: number, sequenceID: string) {
     this.logger.trace({ ...this.baseLogContext, action: 'sync()' });
     this.setState(StreamState.PREPARING);
     this.subscriptions.unsubscribe();
@@ -191,7 +191,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     } as StreamStateChange);
   }
 
-  private async init(rewind: string, sequenceID: string) {
+  private async init(rewind: number, sequenceID: string) {
     this.logger.trace({ ...this.baseLogContext, action: 'init()' });
     if (this.middleware) {
       this.middleware.unsubscribeAll();
@@ -202,7 +202,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
       this.options.eventBufferOptions?.eventOrderer,
     );
     this.middleware.subscribe(this.onMiddlewareMessage.bind(this));
-    this.ablyChannel = this.ably.channels.get(this.options.channelName, { params: { rewind } });
+    this.ablyChannel = this.ably.channels.get(this.options.channelName, { params: { rewind: `${rewind}s` } });
     this.ablyChannel.on('failed', (change) => this.dispose(change.reason));
     this.ablyChannel.on(['suspended', 'update'], () => {
       this.subscriptions.error(new Error('discontinuity in channel connection'));

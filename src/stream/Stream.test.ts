@@ -57,7 +57,7 @@ describe('Stream', () => {
     });
 
     const stream = new Stream({ ably, logger, channelName: 'foobar' });
-    const synced = stream.sync('0s', '0');
+    const synced = stream.sync(0, '0');
 
     await statePromise(stream, StreamState.PREPARING);
     attach();
@@ -73,7 +73,7 @@ describe('Stream', () => {
     });
 
     const stream = new Stream({ ably, logger, channelName });
-    await stream.sync('0s', '0');
+    await stream.sync(0, '0');
     await statePromise(stream, StreamState.READY);
 
     const subscriptionSpy = vi.fn<any, any>();
@@ -99,7 +99,7 @@ describe('Stream', () => {
     });
 
     const stream = new Stream({ ably, logger, channelName: channel });
-    await stream.sync('0s', '0');
+    await stream.sync(0, '0');
     await statePromise(stream, StreamState.READY);
 
     const subscriptionSpy1 = vi.fn();
@@ -129,7 +129,7 @@ describe('Stream', () => {
     });
 
     const stream = new Stream({ ably, logger, channelName: channel });
-    await stream.sync('0s', '0');
+    await stream.sync(0, '0');
     await statePromise(stream, StreamState.READY);
 
     const subscriptionSpy = vi.fn();
@@ -157,7 +157,7 @@ describe('Stream', () => {
     });
 
     const stream = new Stream({ ably, logger, channelName: channel });
-    await stream.sync('0s', '0');
+    await stream.sync(0, '0');
     await statePromise(stream, StreamState.READY);
 
     const subscriptionSpy1 = vi.fn();
@@ -187,7 +187,7 @@ describe('Stream', () => {
 
   it<StreamTestContext>('pauses and resumes the stream', async ({ ably, logger, channelName: channel }) => {
     const stream = new Stream({ ably, logger, channelName: channel });
-    await stream.sync('0s', '0');
+    await stream.sync(0, '0');
 
     await statePromise(stream, StreamState.READY);
     expect(ably.channels.get(channel).subscribe).toHaveBeenCalledOnce();
@@ -204,7 +204,7 @@ describe('Stream', () => {
   it<StreamTestContext>('disposes of the stream', async ({ ably, logger, channelName: channel }) => {
     ably.channels.release = vi.fn();
     const stream = new Stream({ ably, logger, channelName: channel });
-    await stream.sync('0s', '0');
+    await stream.sync(0, '0');
 
     await statePromise(stream, StreamState.READY);
     expect(ably.channels.get(channel).subscribe).toHaveBeenCalledOnce();
@@ -226,7 +226,7 @@ describe('Stream', () => {
     });
 
     const stream = new Stream({ ably, logger, channelName: channel });
-    await stream.sync('0s', '0');
+    await stream.sync(0, '0');
 
     await statePromise(stream, StreamState.READY);
     expect(ably.channels.get(channel).subscribe).toHaveBeenCalledOnce();
@@ -236,3 +236,5 @@ describe('Stream', () => {
     expect(ably.channels.release).toHaveBeenCalledOnce();
   });
 });
+
+// TODO add a stream test that crosses the boundary
