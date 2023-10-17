@@ -126,9 +126,13 @@ export default class MutationsRegistry {
 
   /**
    * The optimisticEvent function that handles including optimistic events in the model state.
-   * @returns A promise that resolves when the model has successfully applied the optimistic update.
-   * The promise contains another promise that resolves when optimistic event is confirmed,
-   * and a function that can be used to rollback (cancel) this optimistic event. [confirmed, cancel]
+   * @param {OptimisticInvocationParams} params - The set of events (params.events) that should be optimistically
+   * applied to the model state. And optionally a timeout (params.options.timeout) within which a confirmed
+   * event should be received from the backend, or else the optimistic events will rollback.
+   * @returns {Promise<[Promise<void>,() => void]>} A Promise that resolves to a [confirmed, cancel] tuple
+   * when the model has successfully applied the optimistic update. The confirmed field from the tuple is a
+   * promise that resolves when the optimistic event is confirmed. The cancel field from the tuple is a
+   * function that can be used to trigger the rollback of the optimistic event.
    */
   public async handleOptimsitic(params: OptimisticInvocationParams): Promise<[Promise<void>, () => Promise<void>]> {
     const mergedOptions = this.mergeOptions(params.options, this.options, DEFAULT_OPTIONS);
