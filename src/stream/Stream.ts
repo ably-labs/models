@@ -2,7 +2,7 @@ import { Types as AblyTypes } from 'ably';
 import { Logger } from 'pino';
 import { Subject, Subscription } from 'rxjs';
 
-import SlidingWindow from './SlidingWindow.js';
+import { SlidingWindow } from './Middleware.js';
 import type { StandardCallback } from '../types/callbacks';
 import type { EventOrderer } from '../types/optimistic.js';
 import EventEmitter from '../utilities/EventEmitter.js';
@@ -104,8 +104,10 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     this.baseLogContext = { scope: `Stream#${options.channelName}` };
     this.slidingWindow = new SlidingWindow(
       options.eventBufferOptions?.bufferMs || 0,
-      (message: AblyTypes.Message) => this.subscriptions.next(message),
       options.eventBufferOptions?.eventOrderer,
+    );
+    this.slidingWindow.subscribe((err: Error | null, message: AblyTypes.Message | null) =>
+      err ? this.subscriptions.error(err) : this.subscriptions.next(message!),
     );
     this.init();
   }
@@ -199,6 +201,6 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
 
   private onMessage(message: AblyTypes.Message) {
     this.logger.trace({ ...this.baseLogContext, action: 'onMessage()', message });
-    this.slidingWindow.addMessage(message);
+    this.slidingWindow.add(message);
   }
 }
