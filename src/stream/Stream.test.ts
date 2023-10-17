@@ -10,7 +10,7 @@ import { statePromise } from '../utilities/test/promises.js';
 vi.mock('ably/promises');
 
 interface StreamTestContext extends StreamOptions {
-  channel: string;
+  channelName: string;
   ably: Types.RealtimePromise;
   logger: Logger;
 }
@@ -34,7 +34,7 @@ describe('Stream', () => {
 
     context.ably = ably;
     context.logger = pino({ level: 'silent' });
-    context.channel = channelName;
+    context.channelName = channelName;
   });
 
   afterEach(() => {
@@ -44,7 +44,7 @@ describe('Stream', () => {
   it<StreamTestContext>('enters ready state when successfully attached to the channel', async ({
     ably,
     logger,
-    channel,
+    channelName: channel,
   }) => {
     // the promise returned by the subscribe method resolves when we have successfully attached to the channel
     let attach: (...args: any[]) => void = () => {
@@ -55,7 +55,7 @@ describe('Stream', () => {
       await attachment;
     });
 
-    const stream = new Stream({ ably, logger, channel: 'foobar' });
+    const stream = new Stream({ ably, logger, channelName: 'foobar' });
 
     await statePromise(stream, StreamState.PREPARING);
     attach();
@@ -63,13 +63,13 @@ describe('Stream', () => {
     expect(ably.channels.get(channel).subscribe).toHaveBeenCalledOnce();
   });
 
-  it<StreamTestContext>('subscribes to messages', async ({ ably, logger, channel }) => {
+  it<StreamTestContext>('subscribes to messages', async ({ ably, logger, channelName: channel }) => {
     let messages = new Subject<Types.Message>();
     ably.channels.get(channel).subscribe = vi.fn<any, any>((callback) => {
       messages.subscribe((message) => callback(message));
     });
 
-    const stream = new Stream({ ably, logger, channel });
+    const stream = new Stream({ ably, logger, channelName: channel });
     await statePromise(stream, StreamState.READY);
 
     const subscriptionSpy = vi.fn();
@@ -87,13 +87,13 @@ describe('Stream', () => {
     expect(ably.channels.get(channel).subscribe).toHaveBeenCalledOnce();
   });
 
-  it<StreamTestContext>('subscribes with multiple listeners', async ({ ably, logger, channel }) => {
+  it<StreamTestContext>('subscribes with multiple listeners', async ({ ably, logger, channelName: channel }) => {
     let messages = new Subject<Types.Message>();
     ably.channels.get(channel).subscribe = vi.fn<any, any>((callback) => {
       messages.subscribe((message) => callback(message));
     });
 
-    const stream = new Stream({ ably, logger, channel });
+    const stream = new Stream({ ably, logger, channelName: channel });
     await statePromise(stream, StreamState.READY);
 
     const subscriptionSpy1 = vi.fn();
@@ -116,13 +116,13 @@ describe('Stream', () => {
     expect(ably.channels.get(channel).subscribe).toHaveBeenCalledOnce();
   });
 
-  it<StreamTestContext>('unsubscribes to messages', async ({ ably, logger, channel }) => {
+  it<StreamTestContext>('unsubscribes to messages', async ({ ably, logger, channelName: channel }) => {
     let messages = new Subject<Types.Message>();
     ably.channels.get(channel).subscribe = vi.fn<any, any>((callback) => {
       messages.subscribe((message) => callback(message));
     });
 
-    const stream = new Stream({ ably, logger, channel });
+    const stream = new Stream({ ably, logger, channelName: channel });
     await statePromise(stream, StreamState.READY);
 
     const subscriptionSpy = vi.fn();
@@ -143,13 +143,13 @@ describe('Stream', () => {
     expect(ably.channels.get(channel).subscribe).toHaveBeenCalledOnce();
   });
 
-  it<StreamTestContext>('unsubscribes one of two listeners', async ({ ably, logger, channel }) => {
+  it<StreamTestContext>('unsubscribes one of two listeners', async ({ ably, logger, channelName: channel }) => {
     let messages = new Subject<Types.Message>();
     ably.channels.get(channel).subscribe = vi.fn<any, any>((callback) => {
       messages.subscribe((message) => callback(message));
     });
 
-    const stream = new Stream({ ably, logger, channel });
+    const stream = new Stream({ ably, logger, channelName: channel });
     await statePromise(stream, StreamState.READY);
 
     const subscriptionSpy1 = vi.fn();
@@ -177,8 +177,8 @@ describe('Stream', () => {
     expect(ably.channels.get(channel).subscribe).toHaveBeenCalledOnce();
   });
 
-  it<StreamTestContext>('pauses and resumes the stream', async ({ ably, logger, channel }) => {
-    const stream = new Stream({ ably, logger, channel });
+  it<StreamTestContext>('pauses and resumes the stream', async ({ ably, logger, channelName: channel }) => {
+    const stream = new Stream({ ably, logger, channelName: channel });
 
     await statePromise(stream, StreamState.READY);
     expect(ably.channels.get(channel).subscribe).toHaveBeenCalledOnce();
@@ -192,9 +192,9 @@ describe('Stream', () => {
     expect(ably.channels.get(channel).attach).toHaveBeenCalledOnce();
   });
 
-  it<StreamTestContext>('disposes of the stream', async ({ ably, logger, channel }) => {
+  it<StreamTestContext>('disposes of the stream', async ({ ably, logger, channelName: channel }) => {
     ably.channels.release = vi.fn();
-    const stream = new Stream({ ably, logger, channel });
+    const stream = new Stream({ ably, logger, channelName: channel });
 
     await statePromise(stream, StreamState.READY);
     expect(ably.channels.get(channel).subscribe).toHaveBeenCalledOnce();
@@ -204,7 +204,7 @@ describe('Stream', () => {
     expect(ably.channels.release).toHaveBeenCalledOnce();
   });
 
-  it<StreamTestContext>('disposes of the stream on channel failed', async ({ ably, logger, channel }) => {
+  it<StreamTestContext>('disposes of the stream on channel failed', async ({ ably, logger, channelName: channel }) => {
     ably.channels.release = vi.fn();
     let fail: (...args: any[]) => void = () => {
       throw new Error('fail not defined');
@@ -215,7 +215,7 @@ describe('Stream', () => {
       }
     });
 
-    const stream = new Stream({ ably, logger, channel });
+    const stream = new Stream({ ably, logger, channelName: channel });
 
     await statePromise(stream, StreamState.READY);
     expect(ably.channels.get(channel).subscribe).toHaveBeenCalledOnce();

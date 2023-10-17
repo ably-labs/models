@@ -21,12 +21,12 @@ vi.mock('ably/promises');
 // in these tests.
 vi.mock('./stream/StreamFactory', () => {
   class MockStream implements IStream {
-    constructor(readonly options: Pick<StreamOptions, 'channel'>) {}
+    constructor(readonly options: Pick<StreamOptions, 'channelName'>) {}
     get state() {
       return StreamState.READY;
     }
-    get channel() {
-      return this.options.channel;
+    get channelName() {
+      return this.options.channelName;
     }
     async pause() {}
     async resume() {}
@@ -40,11 +40,11 @@ vi.mock('./stream/StreamFactory', () => {
 
   return {
     default: class implements IStreamFactory {
-      newStream(options: Pick<StreamOptions, 'channel'>) {
-        if (!streams[options.channel]) {
-          streams[options.channel] = new MockStream(options);
+      newStream(options: Pick<StreamOptions, 'channelName'>) {
+        if (!streams[options.channelName]) {
+          streams[options.channelName] = new MockStream(options);
         }
-        return streams[options.channel];
+        return streams[options.channelName];
       }
     },
   };
@@ -157,7 +157,7 @@ describe('Model', () => {
   });
 
   it<ModelTestContext>('pauses and resumes the model', async ({ channelName, ably, logger, streams }) => {
-    const s1 = streams.newStream({ channel: channelName });
+    const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
     s1.pause = vi.fn();
     s1.resume = vi.fn();
@@ -183,7 +183,7 @@ describe('Model', () => {
   });
 
   it<ModelTestContext>('disposes of the model', async ({ channelName, ably, logger, streams }) => {
-    const s1 = streams.newStream({ channel: channelName });
+    const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
     s1.unsubscribe = vi.fn();
     const sync = vi.fn(async () => simpleTestData);
@@ -209,7 +209,7 @@ describe('Model', () => {
       channelEvents: new Subject<Types.Message>(),
     };
 
-    streams.newStream({ channel: channelName }).subscribe = vi.fn((callback) =>
+    streams.newStream({ channelName }).subscribe = vi.fn((callback) =>
       events.channelEvents.subscribe((message) => callback(null, message)),
     );
 
@@ -290,7 +290,7 @@ describe('Model', () => {
   });
 
   it<ModelTestContext>('executes a registered mutation', async ({ channelName, ably, logger, streams }) => {
-    const s1 = streams.newStream({ channel: channelName });
+    const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
     const model = new Model<string, { foo: (_: MutationContext, a: string, b: number) => Promise<string> }>('test', {
       ably,
@@ -310,7 +310,7 @@ describe('Model', () => {
   });
 
   it<ModelTestContext>('fails to register twice', async ({ channelName, ably, logger, streams }) => {
-    const s1 = streams.newStream({ channel: channelName });
+    const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
     const model = new Model<string, { foo: () => Promise<void> }>('test', { ably, channelName, logger });
 
@@ -339,7 +339,7 @@ describe('Model', () => {
       }
     }
 
-    const s1 = streams.newStream({ channel: channelName });
+    const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
     const model = new ModelWithSetState<string, { foo: () => Promise<void> }>('test', { ably, channelName, logger });
 
@@ -359,7 +359,7 @@ describe('Model', () => {
     logger,
     streams,
   }) => {
-    const s1 = streams.newStream({ channel: channelName });
+    const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
     const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, channelName, logger });
 
@@ -374,7 +374,7 @@ describe('Model', () => {
   });
 
   it<ModelTestContext>('updates model state with optimistic event', async ({ channelName, ably, logger, streams }) => {
-    const s1 = streams.newStream({ channel: channelName });
+    const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
     const model = new Model<string, { foo: () => Promise<string> }>('test', { ably, channelName, logger });
 
@@ -416,7 +416,7 @@ describe('Model', () => {
   });
 
   it<ModelTestContext>('confirms an optimistic event', async ({ channelName, ably, logger, streams }) => {
-    const s1 = streams.newStream({ channel: channelName });
+    const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
 
     const events = { e1: new Subject<Types.Message>() };
@@ -470,7 +470,7 @@ describe('Model', () => {
   });
 
   it<ModelTestContext>('confirms an optimistic event by uuid', async ({ channelName, ably, logger, streams }) => {
-    const s1 = streams.newStream({ channel: channelName });
+    const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
 
     const events = { e1: new Subject<Types.Message>() };
@@ -529,7 +529,7 @@ describe('Model', () => {
   });
 
   it<ModelTestContext>('mutation can access the optimistic events', async ({ channelName, ably, logger, streams }) => {
-    const s1 = streams.newStream({ channel: channelName });
+    const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
 
     const events = { e1: new Subject<Types.Message>() };
@@ -568,7 +568,7 @@ describe('Model', () => {
   });
 
   it<ModelTestContext>('explicitly rejects an optimistic event', async ({ channelName, ably, logger, streams }) => {
-    const s1 = streams.newStream({ channel: channelName });
+    const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
 
     const events = { e1: new Subject<Types.Message>() };
@@ -633,7 +633,7 @@ describe('Model', () => {
     logger,
     streams,
   }) => {
-    const s1 = streams.newStream({ channel: channelName });
+    const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
 
     const events = { e1: new Subject<Types.Message>() };
@@ -696,7 +696,7 @@ describe('Model', () => {
   });
 
   it<ModelTestContext>('confirms optimistic events out of order', async ({ channelName, ably, logger, streams }) => {
-    const s1 = streams.newStream({ channel: channelName });
+    const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
 
     const events = { e1: new Subject<Types.Message>() };
@@ -779,7 +779,7 @@ describe('Model', () => {
     logger,
     streams,
   }) => {
-    const s1 = streams.newStream({ channel: channelName });
+    const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
 
     const events = { e1: new Subject<Types.Message>() };
@@ -865,7 +865,7 @@ describe('Model', () => {
   });
 
   it<ModelTestContext>('revert optimistic events if mutate fails', async ({ channelName, ably, logger, streams }) => {
-    const s1 = streams.newStream({ channel: channelName });
+    const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
 
     const model = new Model<
@@ -910,7 +910,7 @@ describe('Model', () => {
 
   // If applying a received stream update throws, the model reverts to the PREPARING state and re-syncs.
   it<ModelTestContext>('resync if stream apply update fails', async ({ channelName, ably, logger, streams }) => {
-    const s1 = streams.newStream({ channel: channelName });
+    const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
 
     // event subjects used to invoke the stream subscription callbacks
@@ -978,7 +978,7 @@ describe('Model', () => {
     logger,
     streams,
   }) => {
-    const s1 = streams.newStream({ channel: channelName });
+    const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
 
     const model = new Model<string, { mutation: () => Promise<string> }>('test', { ably, channelName, logger });
@@ -1018,7 +1018,7 @@ describe('Model', () => {
 
   // Tests if the mutation throws, the the optimistic events are reverted.
   it<ModelTestContext>('revert optimistic events if mutation fails', async ({ channelName, ably, logger, streams }) => {
-    const s1 = streams.newStream({ channel: 's1' });
+    const s1 = streams.newStream({ channelName: 's1' });
     s1.subscribe = vi.fn();
 
     const model = new Model<string, { mutation1: () => Promise<string>; mutation2: () => Promise<string> }>('test', {
@@ -1065,7 +1065,7 @@ describe('Model', () => {
     logger,
     streams,
   }) => {
-    const s1 = streams.newStream({ channel: channelName });
+    const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
 
     const model = new Model<string, { mutation: () => Promise<string> }>('test', { ably, channelName, logger });
@@ -1103,7 +1103,7 @@ describe('Model', () => {
     logger,
     streams,
   }) => {
-    const s1 = streams.newStream({ channel: channelName });
+    const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
 
     const events = { e1: new Subject<Types.Message>() };
@@ -1144,7 +1144,7 @@ describe('Model', () => {
   });
 
   it<ModelTestContext>('optimistic event confirmation timeout', async ({ channelName, ably, logger, streams }) => {
-    const s1 = streams.newStream({ channel: 's1' });
+    const s1 = streams.newStream({ channelName: 's1' });
     s1.subscribe = vi.fn();
 
     const events = { e1: new Subject<Types.Message>() };

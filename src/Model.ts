@@ -78,7 +78,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
       logger: options.logger,
       eventBufferOptions: options.eventBufferOptions,
     });
-    this.stream = this.streamFactory.newStream({ channel: options.channelName });
+    this.stream = this.streamFactory.newStream({ channelName: options.channelName });
 
     this.mutationsRegistry = new MutationsRegistry<M>(
       {
@@ -264,7 +264,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
     }
 
     for (const event of events) {
-      if (event.channel !== this.stream.channel) {
+      if (event.channel !== this.stream.channelName) {
         throw new Error(`stream with name '${event.channel}' not registered on model '${this.name}'`);
       }
     }
@@ -298,7 +298,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
     this.setState('preparing', reason);
 
     this.removeStream();
-    this.addStream(this.stream.channel);
+    this.addStream(this.stream.channelName);
 
     const data = await this.syncFunc();
     this.setOptimisticData(data);
