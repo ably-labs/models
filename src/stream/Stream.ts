@@ -2,7 +2,7 @@ import { Types as AblyTypes } from 'ably';
 import { Logger } from 'pino';
 import { Subject, Subscription } from 'rxjs';
 
-import { SlidingWindow } from './Middleware.js';
+import { OrderedSequenceResumer } from './Middleware.js';
 import type { StandardCallback } from '../types/callbacks';
 import type { EventOrderer } from '../types/optimistic.js';
 import EventEmitter from '../utilities/EventEmitter.js';
@@ -76,7 +76,7 @@ export interface IStream {
   get channelName(): string;
   pause(): Promise<void>;
   resume(): Promise<void>;
-  reset(): void;
+  sync(rewind: string, sequenceID: string): void;
   subscribe(callback: StandardCallback<AblyTypes.Message>): void;
   unsubscribe(callback: StandardCallback<AblyTypes.Message>): void;
   dispose(reason?: AblyTypes.ErrorInfo | string): Promise<void>;
@@ -88,10 +88,10 @@ export interface IStream {
 export default class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> implements IStream {
   private readonly ably: AblyTypes.RealtimePromise;
   private currentState: StreamState = StreamState.INITIALIZED;
-  private readonly ablyChannel: AblyTypes.RealtimeChannelPromise;
+  private ablyChannel: AblyTypes.RealtimeChannelPromise;
   private subscriptions = new Subject<AblyTypes.Message>();
   private subscriptionMap: WeakMap<StandardCallback<AblyTypes.Message>, Subscription> = new WeakMap();
-  private slidingWindow: SlidingWindow;
+  private middleware: OrderedSequenceResumer;
 
   private readonly baseLogContext: Partial<{ scope: string; action: string }>;
   private readonly logger: Logger;
@@ -100,16 +100,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     super();
     this.ably = options.ably;
     this.logger = options.logger;
-    this.ablyChannel = this.ably.channels.get(this.options.channelName);
     this.baseLogContext = { scope: `Stream#${options.channelName}` };
-    this.slidingWindow = new SlidingWindow(
-      options.eventBufferOptions?.bufferMs || 0,
-      options.eventBufferOptions?.eventOrderer,
-    );
-    this.slidingWindow.subscribe((err: Error | null, message: AblyTypes.Message | null) =>
-      err ? this.subscriptions.error(err) : this.subscriptions.next(message!),
-    );
-    this.init();
   }
 
   public get state() {
@@ -168,12 +159,13 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     this.ably.channels.release(this.ablyChannel.name);
   }
 
-  public async reset() {
-    this.logger.trace({ ...this.baseLogContext, action: 'reset()' });
-    this.setState(StreamState.INITIALIZED, 'reset');
+  public async sync(rewind: string, sequenceID: string) {
+    this.logger.trace({ ...this.baseLogContext, action: 'sync()' });
+    this.setState(StreamState.PREPARING);
     this.subscriptions.unsubscribe();
     this.subscriptions = new Subject<AblyTypes.Message>();
-    this.init();
+    await this.init(rewind, sequenceID);
+    this.setState(StreamState.READY);
   }
 
   private setState(state: StreamState, reason?: AblyTypes.ErrorInfo | string) {
@@ -187,20 +179,38 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     } as StreamStateChange);
   }
 
-  private async init() {
+  private async init(rewind: string, sequenceID: string) {
     this.logger.trace({ ...this.baseLogContext, action: 'init()' });
+    if (this.middleware) {
+      this.middleware.unsubscribeAll();
+    }
+    this.middleware = new OrderedSequenceResumer(
+      sequenceID,
+      this.options.eventBufferOptions?.bufferMs || 0,
+      this.options.eventBufferOptions?.eventOrderer,
+    );
+    this.middleware.subscribe(this.onMiddlewareMessage.bind(this));
+    this.ablyChannel = this.ably.channels.get(this.options.channelName, { params: { rewind } });
     this.ablyChannel.on('failed', (change) => this.dispose(change.reason));
     this.ablyChannel.on(['suspended', 'update'], () => {
       this.subscriptions.error(new Error('discontinuity in channel connection'));
     });
-    this.setState(StreamState.PREPARING);
     await this.ably.connection.whenState('connected');
-    await this.ablyChannel.subscribe(this.onMessage.bind(this));
-    this.setState(StreamState.READY);
+    await this.ablyChannel.subscribe(this.onChannelMessage.bind(this));
   }
 
-  private onMessage(message: AblyTypes.Message) {
+  private onChannelMessage(message: AblyTypes.Message) {
     this.logger.trace({ ...this.baseLogContext, action: 'onMessage()', message });
-    this.slidingWindow.add(message);
+    this.middleware.add(message);
+  }
+
+  private onMiddlewareMessage(err: Error | null, message: AblyTypes.Message | null) {
+    if (err) {
+      this.logger.error({ ...this.baseLogContext, action: 'onMiddlewareMessage()', message, err });
+      this.subscriptions.error(err);
+      return;
+    }
+    this.logger.trace({ ...this.baseLogContext, action: 'onMiddlewareMessage()', message });
+    this.subscriptions.next(message!);
   }
 }
