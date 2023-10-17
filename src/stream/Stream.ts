@@ -77,8 +77,8 @@ export interface IStream {
   get channelName(): string;
   pause(): Promise<void>;
   resume(): Promise<void>;
-  sync(rewind: string, sequenceID: string): void;
-  subscribe(callback: StandardCallback<AblyTypes.Message>): void;
+  sync(rewind: string, sequenceID: string): Promise<void>;
+  subscribe(callback: StandardCallback<AblyTypes.Message>): Promise<void>;
   unsubscribe(callback: StandardCallback<AblyTypes.Message>): void;
   dispose(reason?: AblyTypes.ErrorInfo | string): Promise<void>;
 }
