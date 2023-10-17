@@ -61,7 +61,7 @@ describe('MutationsRegistry', () => {
     );
   });
 
-  it<MutationsTestContext>('$expect where confirmation promise rejects', async () => {
+  it<MutationsTestContext>('handleOptimistic where confirmation promise rejects', async () => {
     const expectedErr = new Error('optimistic update failed');
     let onEvents = vi.fn(async () => [Promise.resolve(), Promise.reject(expectedErr)]);
     let onError = vi.fn(async () => {});
@@ -89,7 +89,7 @@ describe('MutationsRegistry', () => {
     );
   });
 
-  it<MutationsTestContext>('$expect where confirmation promise rejects and is unhandled', async () => {
+  it<MutationsTestContext>('handleOptimistic where confirmation promise rejects and is unhandled', async () => {
     const expectedErr = new Error('optimistic update failed');
     let onEvents = vi.fn(async () => [Promise.resolve(), Promise.reject(expectedErr)]);
     let onError = vi.fn(async () => {});
@@ -110,7 +110,7 @@ describe('MutationsRegistry', () => {
     await mutations.handleOptimsitic({ events });
   });
 
-  it<MutationsTestContext>('$expect with empty events', async () => {
+  it<MutationsTestContext>('handleOptimistic with empty events', async () => {
     let onEvents = vi.fn(async () => [Promise.resolve(), Promise.resolve()]);
     let onError = vi.fn(async () => {});
     const mutations = new MutationsRegistry({ apply: onEvents, rollback: onError });
@@ -124,7 +124,7 @@ describe('MutationsRegistry', () => {
     await expect(conf2).resolves.toBeUndefined();
   });
 
-  it<MutationsTestContext>('$expect with a bound mutation function', async () => {
+  it<MutationsTestContext>('handleOptimistic with a bound mutation function', async () => {
     let onEvents = vi.fn(async () => [Promise.resolve(), Promise.resolve()]);
     let onError = vi.fn();
 

@@ -52,9 +52,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
   private readonly mutationsRegistry: MutationsRegistry;
 
   private optimisticEvents: OptimisticEventWithParams[] = [];
-  private pendingConfirmationsRegistry: PendingConfirmationRegistry = new PendingConfirmationRegistry(
-    defaultComparator,
-  );
+  private pendingConfirmationRegistry: PendingConfirmationRegistry = new PendingConfirmationRegistry(defaultComparator);
 
   private readonly subscriptions = new Subject<{ confirmed: boolean; data: T }>();
   private subscriptionMap: WeakMap<StandardCallback<T>, Subscription> = new WeakMap();
@@ -112,9 +110,13 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
   /**
    * The optimistic function that allows optimistic events to be included in the model state.
    * Optimistic events are expected to be confirmed by later confirmed events consumed on the channel.
-   * @returns A promise that resolves when the model has successfully applied the optimistic update.
-   * The promise contains another promise that resolves when optimistic event is confirmed,
-   * and a function that can be used to rollback (cancel) this optimistic event. [confirmed, cancel]
+   * @param {OptimisticInvocationParams} params - The set of events (params.events) that should be optimistically
+   * applied to the model state. And optionally a timeout (params.options.timeout) within which a confirmed
+   * event should be received from the backend, or else the optimistic events will rollback.
+   * @returns {Promise<[Promise<void>,() => void]>} A Promise that resolves to a [confirmed, cancel] tuple
+   * when the model has successfully applied the optimistic update. The confirmed field from the tuple is a
+   * promise that resolves when the optimistic event is confirmed. The cancel field from the tuple is a
+   * function that can be used to trigger the rollback of the optimistic event.
    */
   public optimistic(params: OptimisticInvocationParams): Promise<[Promise<void>, () => Promise<void>]> {
     return this.mutationsRegistry.handleOptimsitic(params);
@@ -167,7 +169,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
       this.stream.unsubscribe(callback);
     }
 
-    await this.pendingConfirmationsRegistry.finalise(reason);
+    await this.pendingConfirmationRegistry.finalise(reason);
     this.subscriptionMap = new WeakMap();
     this.streamSubscriptionsMap = new WeakMap();
     return new Promise((resolve) => this.whenState('disposed', this.state, resolve));
@@ -266,7 +268,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
     if (!events.every((event) => event.params.timeout === events[0].params.timeout)) {
       throw new Error('expected every optimistic event in batch to have the same timeout');
     }
-    const pendingConfirmation = await this.pendingConfirmationsRegistry.add(events);
+    const pendingConfirmation = await this.pendingConfirmationRegistry.add(events);
     const optimistic = this.onStreamEvents(events);
     return [optimistic, pendingConfirmation.promise];
   }
@@ -431,7 +433,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
 
   private async confirmPendingEvents(event: ConfirmedEvent) {
     this.logger.trace({ ...this.baseLogContext, action: 'confirmPendingEvents()', event });
-    await this.pendingConfirmationsRegistry.confirmEvents([event]);
+    await this.pendingConfirmationRegistry.confirmEvents([event]);
   }
 
   private async revertOptimisticEvents(err: Error, events: OptimisticEvent[]) {
@@ -449,6 +451,6 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
       nextData = await this.applyUpdate(nextData, e);
     }
     this.setOptimisticData(nextData);
-    await this.pendingConfirmationsRegistry.rejectEvents(err, events);
+    await this.pendingConfirmationRegistry.rejectEvents(err, events);
   }
 }
