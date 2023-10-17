@@ -9,7 +9,7 @@ interface MatcherResult<R> {
 
 // extend vitest's `expect` with customer matchers
 interface CustomMatchers {
-  toEqualIgnoringUUID(events: Event[]): MatcherResult<Event[]>;
+  toEqualIgnoringUUID(events: Event): MatcherResult<Event>;
 }
 
 declare module 'vitest' {

@@ -10,6 +10,7 @@ import StreamFactory, { IStreamFactory as IStreamFactory } from './stream/Stream
 import type { StandardCallback } from './types/callbacks';
 import { MergeFunc } from './types/merge.js';
 import type {
+  Event,
   OptimisticEventWithParams,
   ModelState,
   ModelStateChange,
@@ -20,7 +21,7 @@ import type {
   OptimisticEvent,
   ConfirmedEvent,
 } from './types/model.js';
-import type { OptimisticInvocationParams } from './types/optimistic.js';
+import type { OptimisticEventOptions } from './types/optimistic.js';
 import EventEmitter from './utilities/EventEmitter.js';
 
 /**
@@ -112,16 +113,21 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
   /**
    * The optimistic function that allows optimistic events to be included in the model state.
    * Optimistic events are expected to be confirmed by later confirmed events consumed on the channel.
-   * @param {OptimisticInvocationParams} params - The set of events (params.events) that should be optimistically
-   * applied to the model state. And optionally a timeout (params.options.timeout) within which a confirmed
-   * event should be received from the backend, or else the optimistic events will rollback.
+   * @param {string} mutationId - The identifier for this mutation. This ID will be used to match this
+   * optimistic event against a confirmed event received on the channel.
+   * @param {Event} event - The event to apply optimistically.
+   * @param {Partial<OptimisticEventOptions>} options - Options for handling this specific optimisitic event.
    * @returns {Promise<[Promise<void>,() => void]>} A Promise that resolves to a [confirmed, cancel] tuple
    * when the model has successfully applied the optimistic update. The confirmed field from the tuple is a
    * promise that resolves when the optimistic event is confirmed. The cancel field from the tuple is a
    * function that can be used to trigger the rollback of the optimistic event.
    */
-  public optimistic(params: OptimisticInvocationParams): Promise<[Promise<void>, () => Promise<void>]> {
-    return this.mutationsRegistry.handleOptimsitic(params);
+  public optimistic(
+    mutationId: string,
+    event: Event,
+    options?: Partial<OptimisticEventOptions>,
+  ): Promise<[Promise<void>, () => Promise<void>]> {
+    return this.mutationsRegistry.handleOptimsitic(mutationId, event, options);
   }
 
   /**

@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { toError } from './Errors.js';
 import type { Event, OptimisticEventWithParams } from './types/model.js';
-import type { EventComparator, OptimisticEventOptions, OptimisticInvocationParams } from './types/optimistic.js';
+import type { EventComparator, OptimisticEventOptions } from './types/optimistic.js';
 
 /**
  * This comparator compares events by equality of channel, event name and deep equality on the event data.
@@ -109,34 +109,35 @@ export default class MutationsRegistry {
   }
 
   private getOptimisticEvents(
-    params: OptimisticInvocationParams,
+    mutationId: string,
+    event: Event,
     options: OptimisticEventOptions,
-  ): OptimisticEventWithParams[] {
-    return (
-      params?.events?.map((event) => ({
-        ...event,
-        ...(!event.uuid && { uuid: uuidv4() }),
-        confirmed: false,
-        params: {
-          timeout: options.timeout,
-        },
-      })) || []
-    );
+  ): OptimisticEventWithParams {
+    return {
+      ...event,
+      ...(mutationId && { uuid: mutationId }),
+      ...(!mutationId && !event.uuid && { uuid: uuidv4() }),
+      confirmed: false,
+      params: { timeout: options.timeout },
+    };
   }
 
-  public async handleOptimsitic(params: OptimisticInvocationParams): Promise<[Promise<void>, () => Promise<void>]> {
-    const mergedOptions = this.mergeOptions(params.options, this.options, DEFAULT_OPTIONS);
+  public async handleOptimsitic(
+    mutationId: string,
+    event: Event,
+    options?: Partial<OptimisticEventOptions>,
+  ): Promise<[Promise<void>, () => Promise<void>]> {
+    const mergedOptions = this.mergeOptions(options, this.options, DEFAULT_OPTIONS);
 
-    const events = this.getOptimisticEvents(params, mergedOptions);
+    const optimisticEvent = this.getOptimisticEvents(mutationId, event, mergedOptions);
     let confirmation = Promise.resolve();
-    if (events.length) {
-      ({ confirmation } = await this.processOptimistic(events));
-      confirmation = this.wrapConfirmation(confirmation, events);
-      confirmation.catch(() => {}); // ensure we always have a handler in case the user discards the promise
-    }
+
+    ({ confirmation } = await this.processOptimistic([optimisticEvent]));
+    confirmation = this.wrapConfirmation(confirmation, [optimisticEvent]);
+    confirmation.catch(() => {}); // ensure we always have a handler in case the user discards the promise
 
     const cancel = () => {
-      return this.callbacks.rollback(new Error('optimistic event cancelled'), events);
+      return this.callbacks.rollback(new Error('optimistic event cancelled'), [optimisticEvent]);
     };
 
     return [confirmation, cancel];

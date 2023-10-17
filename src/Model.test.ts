@@ -358,7 +358,7 @@ describe('Model', () => {
     expect(model.data.optimistic).toEqual('data_0');
     expect(model.data.confirmed).toEqual('data_0');
 
-    await model.optimistic({ events: [{ name: 'testEvent', data: 'data_1' }] });
+    await model.optimistic('mutation-id-1', { name: 'testEvent', data: 'data_1' });
 
     await optimisticSubscriptionCalls[1];
     expect(model.data.optimistic).toEqual('data_1');
@@ -404,7 +404,7 @@ describe('Model', () => {
     expect(model.data.optimistic).toEqual('data_0');
     expect(model.data.confirmed).toEqual('data_0');
 
-    const [confirmation] = await model.optimistic({ events: [{ name: 'testEvent', data: 'data_1' }] });
+    const [confirmation] = await model.optimistic('id_1', { name: 'testEvent', data: 'data_1' });
 
     await optimisticSubscriptionCalls[1];
     expect(model.data.optimistic).toEqual('data_1');
@@ -457,9 +457,7 @@ describe('Model', () => {
     expect(model.data.optimistic).toEqual('data_0');
     expect(model.data.confirmed).toEqual('data_0');
 
-    const [confirmation] = await model.optimistic({
-      events: [{ uuid: 'some-custom-id', name: 'testEvent', data: 'data_1' }],
-    });
+    const [confirmation] = await model.optimistic('', { uuid: 'some-custom-id', name: 'testEvent', data: 'data_1' });
 
     await optimisticSubscriptionCalls[1];
     expect(model.data.optimistic).toEqual('data_1');
@@ -469,6 +467,7 @@ describe('Model', () => {
     expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(1);
 
     // the event data payload does not match the expected event but the uuid does
+    // this passes because the mutation id passed to optimistic is empty.
     events.e1.next(
       customMessage('id_1', 'testEvent', 'confirmed_data', { 'x-ably-models-event-uuid': 'some-custom-id' }),
     );
@@ -515,9 +514,7 @@ describe('Model', () => {
     expect(model.data.optimistic).toEqual('data_0');
     expect(model.data.confirmed).toEqual('data_0');
 
-    const [confirmation] = await model.optimistic({
-      events: [{ name: 'testEvent', data: 'data_1' }],
-    });
+    const [confirmation] = await model.optimistic('id_1', { name: 'testEvent', data: 'data_1' });
 
     await optimisticSubscriptionCalls[1];
     expect(model.data.optimistic).toEqual('data_1');
@@ -572,8 +569,8 @@ describe('Model', () => {
     expect(model.data.optimistic).toEqual('0');
     expect(model.data.confirmed).toEqual('0');
 
-    await model.optimistic({ events: [{ name: 'testEvent', data: '1' }] });
-    await model.optimistic({ events: [{ name: 'testEvent', data: '2' }] });
+    await model.optimistic('id_1', { name: 'testEvent', data: '1' });
+    await model.optimistic('id_2', { name: 'testEvent', data: '2' });
 
     // optimistic updates are applied in the order the mutations were called
     await optimisticSubscriptionCalls[1];
@@ -592,7 +589,7 @@ describe('Model', () => {
     // since the updates were applied in different order.
 
     // confirm the second expected event
-    events.e1.next(customMessage('id_1', 'testEvent', '2'));
+    events.e1.next(customMessage('id_2', 'testEvent', '2'));
     await confirmedSubscriptionCalls[1];
     expect(model.data.confirmed).toEqual('02');
     await optimisticSubscriptionCalls[3];
@@ -653,8 +650,8 @@ describe('Model', () => {
     expect(model.data.optimistic).toEqual('0');
     expect(model.data.confirmed).toEqual('0');
 
-    await model.optimistic({ events: [{ name: 'testEvent', data: '1' }] });
-    await model.optimistic({ events: [{ name: 'testEvent', data: '2' }] });
+    await model.optimistic('id_1', { name: 'testEvent', data: '1' });
+    await model.optimistic('id_2', { name: 'testEvent', data: '2' });
 
     // optimistic updates are applied in the order the mutations were called
     await optimisticSubscriptionCalls[1];
@@ -679,7 +676,7 @@ describe('Model', () => {
 
     // an event is received which does not have a corresponding expected event,
     // and the speculative updates are rebased on top of the incoming event
-    events.e1.next(customMessage('id_1', 'testEvent', '3'));
+    events.e1.next(customMessage('id_3', 'testEvent', '3'));
     await confirmedSubscriptionCalls[2];
     expect(model.data.confirmed).toEqual('013');
     await optimisticSubscriptionCalls[4];
@@ -690,7 +687,7 @@ describe('Model', () => {
     expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(5, null, '0132');
 
     // confirm the second expected event
-    events.e1.next(customMessage('id_1', 'testEvent', '2'));
+    events.e1.next(customMessage('id_2', 'testEvent', '2'));
     await confirmedSubscriptionCalls[3];
     expect(model.data.confirmed).toEqual('0132');
     await optimisticSubscriptionCalls[5];
@@ -714,18 +711,22 @@ describe('Model', () => {
       $merge: mergeFn,
     });
 
-    const [confirmation, cancel] = await model.optimistic({
-      events: [
-        { name: 'testEvent', data: '1' },
-        { name: 'testEvent', data: '2' },
-        { name: 'testEvent', data: '3' },
-      ],
-    });
-
+    const [confirmation, cancel] = await model.optimistic('id_1', { name: 'testEvent', data: '1' });
+    const [confirmation2, cancel2] = await model.optimistic('id_2', { name: 'testEvent', data: '2' });
+    const [confirmation3, cancel3] = await model.optimistic('id_3', { name: 'testEvent', data: '3' });
     expect(model.data.optimistic).toEqual('0123');
+
     cancel();
-    expect(model.data.optimistic).toEqual('0');
     await expect(confirmation).rejects.toEqual(new Error('optimistic event cancelled'));
+    expect(model.data.optimistic).toEqual('023');
+
+    cancel2();
+    await expect(confirmation2).rejects.toEqual(new Error('optimistic event cancelled'));
+    expect(model.data.optimistic).toEqual('03');
+
+    cancel3();
+    await expect(confirmation3).rejects.toEqual(new Error('optimistic event cancelled'));
+    expect(model.data.optimistic).toEqual('0');
   });
 
   // If applying a received stream update throws, the model reverts to the PREPARING state and re-syncs.
@@ -804,7 +805,7 @@ describe('Model', () => {
     const model = new Model<string>('test', { ably, channelName, logger });
 
     const mergeFn = vi.fn(async (state, event) => {
-      if (event.data === '6') {
+      if (event.data === '4') {
         throw new Error('update error');
       }
       return state + event.data;
@@ -814,23 +815,9 @@ describe('Model', () => {
       $merge: mergeFn,
     });
 
-    await model.optimistic({
-      events: [
-        { name: 'testEvent', data: '1' },
-        { name: 'testEvent', data: '2' },
-        { name: 'testEvent', data: '3' },
-      ],
-    });
+    await model.optimistic('id_1', { name: 'testEvent', data: '123' });
 
-    await expect(
-      model.optimistic({
-        events: [
-          { name: 'testEvent', data: '4' },
-          { name: 'testEvent', data: '5' },
-          { name: 'testEvent', data: '6' },
-        ],
-      }),
-    ).rejects.toThrow('update error');
+    await expect(model.optimistic('id_2', { name: 'testEvent', data: '4' })).rejects.toThrow('update error');
 
     // The failed mutation should have been reverted.
     expect(model.data.optimistic).toEqual('0123');
@@ -858,21 +845,13 @@ describe('Model', () => {
       $merge: mergeFn,
     });
 
-    const [confirmation] = await model.optimistic({
-      events: [
-        { name: 'testEvent', data: '1' },
-        { name: 'testEvent', data: '2' },
-        { name: 'testEvent', data: '3' },
-      ],
-    });
-    expect(model.data.optimistic).toEqual('0123');
+    const [confirmation] = await model.optimistic('id_1', { name: 'testEvent', data: '1' });
+    expect(model.data.optimistic).toEqual('01');
 
     // Confirm the event.
     events.e1.next(customMessage('id_1', 'testEvent', '1'));
-    events.e1.next(customMessage('id_1', 'testEvent', '2'));
-    events.e1.next(customMessage('id_1', 'testEvent', '3'));
     await confirmation;
-    expect(model.data.optimistic).toEqual('0123');
+    expect(model.data.optimistic).toEqual('01');
   });
 
   it<ModelTestContext>('optimistic event confirmation timeout', async ({ channelName, ably, logger, streams }) => {
@@ -893,15 +872,9 @@ describe('Model', () => {
     });
 
     // Mutate and check the returned promise is rejected with a timeout.
-    const [confirmation] = await model.optimistic({
-      events: [
-        { name: 'testEvent', data: '1' },
-        { name: 'testEvent', data: '2' },
-        { name: 'testEvent', data: '3' },
-      ],
-      options: { timeout: 1 },
-    });
-    expect(model.data.optimistic).toEqual('0123');
+    const [confirmation] = await model.optimistic('id_1', { name: 'testEvent', data: '1' }, { timeout: 1 });
+    expect(model.data.optimistic).toEqual('01');
+
     await expect(confirmation).rejects.toThrow('timed out waiting for event confirmation');
     // Check the optimistic event is reverted.
     expect(model.data.optimistic).toEqual('0');

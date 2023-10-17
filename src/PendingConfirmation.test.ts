@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 
 import PendingConfirmation from './PendingConfirmation.js';
 import type { Event, EventParams } from './types/model.js';
-import { toOptimisticEventsWithParams } from './utilities/test/events.js';
+import { toOptimisticEventWithParams } from './utilities/test/events.js';
 
 describe('PendingConfirmation', () => {
   const defaultTimeout = 3000;
@@ -14,7 +14,7 @@ describe('PendingConfirmation', () => {
     { name: 'baz', data: { qux: 456 } },
   ];
 
-  const expectedEvents = toOptimisticEventsWithParams(events, params);
+  const expectedEvents = events.map((elem, i) => toOptimisticEventWithParams(`id_${i}`, elem, params));
 
   it('initializes with the correct default values', () => {
     const pc = new PendingConfirmation(defaultTimeout, expectedEvents, mockComparator);
@@ -29,7 +29,7 @@ describe('PendingConfirmation', () => {
 
   it('removes matching events and finalizes when no events are left', async () => {
     const pc = new PendingConfirmation(defaultTimeout, expectedEvents, mockComparator);
-    await pc.removeMatchingEvents(events);
+    await pc.removeMatchingEvents(events.map((elem, i) => toOptimisticEventWithParams(`id_${i}`, elem, params)));
     expect(pc.isDone).toBe(true);
   });
 
