@@ -4,7 +4,7 @@ import { Subject, Subscription } from 'rxjs';
 
 import SlidingWindow from './SlidingWindow.js';
 import type { StandardCallback } from '../types/callbacks';
-import type { EventOrderer } from '../types/mutations.js';
+import type { EventOrderer } from '../types/optimistic.js';
 import EventEmitter from '../utilities/EventEmitter.js';
 
 /**

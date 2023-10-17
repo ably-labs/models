@@ -2,14 +2,13 @@ import pino from 'pino';
 
 import Model from './Model.js';
 import type { ModelsOptions, ModelOptions } from './types/model.js';
-import type { MutationMethods } from './types/mutations.js';
 
 /**
  * Models captures the set of named Model instances used by your application.
  */
 export default class Models {
-  private readonly options: Pick<ModelOptions, 'logger' | 'ably' | 'eventBufferOptions' | 'defaultMutationOptions'>;
-  private models: Record<string, Model<any, any>> = {};
+  private readonly options: Pick<ModelOptions, 'logger' | 'ably' | 'eventBufferOptions' | 'defaultOptimisticOptions'>;
+  private models: Record<string, Model<any>> = {};
 
   readonly version = '0.0.1';
 
@@ -21,7 +20,7 @@ export default class Models {
     this.options = {
       logger: pino({ level: options.logLevel || 'silent' }),
       ably: options.ably,
-      ...(options.defaultMutationOptions && { defaultMutationOptions: options.defaultMutationOptions }),
+      ...(options.defaultOptimisticOptions && { defaultOptimisticOptions: options.defaultOptimisticOptions }),
       eventBufferOptions: options.eventBufferOptions,
     };
     this.options.ably.time();
@@ -39,18 +38,18 @@ export default class Models {
    * @param {string} name - The unique name to identify this model instance in your application.
    * @param {string} channel - The name of the channel the model will subscribe to update events on.
    */
-  Model = <T, M extends MutationMethods>(name: string, channel: string) => {
+  Model = <T>(name: string, channel: string) => {
     if (!name) {
       throw new Error('Model must have a non-empty name');
     }
     if (this.models[name]) {
-      return this.models[name] as Model<T, M>;
+      return this.models[name] as Model<T>;
     }
 
     const options: ModelOptions = { ...this.options, channelName: channel };
 
-    const model = new Model<T, M>(name, options);
+    const model = new Model<T>(name, options);
     this.models[name] = model;
-    return model as Model<T, M>;
+    return model as Model<T>;
   };
 }

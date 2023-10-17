@@ -2,7 +2,7 @@ import type { Types as AblyTypes } from 'ably/promises';
 import type { Logger, LevelWithSilent } from 'pino';
 
 import type { MergeFunc } from './merge';
-import type { EventComparator, MutationMethods, MutationOptions, MutationRegistration } from './mutations';
+import type { OptimisticEventOptions } from './optimistic';
 import type { EventBufferOptions } from '../stream/Stream';
 
 /**
@@ -11,7 +11,7 @@ import type { EventBufferOptions } from '../stream/Stream';
 export type ModelsOptions = {
   ably: AblyTypes.RealtimePromise;
   logLevel?: LevelWithSilent;
-  defaultMutationOptions?: Partial<MutationOptions>;
+  defaultOptimisticOptions?: Partial<OptimisticEventOptions>;
   eventBufferOptions?: EventBufferOptions;
 };
 
@@ -22,7 +22,7 @@ export type ModelOptions = {
   ably: AblyTypes.RealtimePromise;
   channelName: string;
   logger: Logger;
-  defaultMutationOptions?: Partial<MutationOptions>;
+  defaultOptimisticOptions?: Partial<OptimisticEventOptions>;
   eventBufferOptions?: EventBufferOptions;
 };
 
@@ -59,7 +59,6 @@ export type ModelState =
  * Represents a change event that can be applied to a model via an update function.
  */
 export type Event = {
-  channel: string;
   name: string;
   data?: any;
   uuid?: string;
@@ -73,10 +72,6 @@ export type EventParams = {
    * The time within which an optimistic event should be confirmed.
    */
   timeout: number;
-  /**
-   * A function used to correlate optimistic events with the confirmed counterparts.
-   */
-  comparator: EventComparator;
 };
 
 /**
@@ -87,13 +82,13 @@ export type OptimisticEvent = Event & {
 };
 
 /**
- * An event received from the backend over Ably that represents a confirmed mutation on the underlying state in the database.
+ * An event received from the backend over Ably that represents a confirmed change on the underlying state in the database.
  */
 export type ConfirmedEvent = Event & {
   confirmed: true;
   /**
-   * If true, indicates that the backend is (asynchronously) explicitly rejecting this mutation.
-   * This is useful if the server cannot reject the mutation synchronously with the mutation request
+   * If true, indicates that the backend is (asynchronously) explicitly rejecting this optimistic change.
+   * This is useful if the server cannot reject the change synchronously with the mutation request
    * (such as if the rejection occurred after the backend sent a response).
    * This field is set to `true` iff. there is an `x-ably-models-reject: true` header in the message extras.
    * @see https://ably.com/docs/api/realtime-sdk/messages?lang=nodejs#extras
@@ -137,7 +132,7 @@ export type SubscriptionOptions = {
 /**
  * A type used to capture the bulk registration of the required methods on the model.
  */
-export type Registration<T, M extends MutationMethods> = {
+export type Registration<T> = {
   /**
    * The sync function used to pull the latest state of the model.
    */
@@ -146,9 +141,4 @@ export type Registration<T, M extends MutationMethods> = {
    * The merge function that is invoked when a message is received.
    */
   $merge?: MergeFunc<T>;
-  /**
-   * A mapping of method names to mutations describing the mutations that are available on the model that
-   * can be invoked to mutate the underlying state of the model in the backend database.
-   */
-  $mutate?: { [K in keyof M]: MutationRegistration<M[K]> };
 };

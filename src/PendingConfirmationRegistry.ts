@@ -1,15 +1,16 @@
 import PendingConfirmation from './PendingConfirmation.js';
 import { OptimisticEvent, OptimisticEventWithParams } from './types/model.js';
 import type { ConfirmedEvent } from './types/model.js';
+import { EventComparator } from './types/optimistic.js';
 
 export default class PendingConfirmationRegistry {
   private pendingConfirmations: PendingConfirmation[] = [];
 
-  constructor() {}
+  constructor(private readonly comparator: EventComparator) {}
 
   async add(events: OptimisticEventWithParams[]) {
     let timeout = Math.min(...events.map((e) => e.params.timeout));
-    const pendingConfirmation = new PendingConfirmation(timeout, events);
+    const pendingConfirmation = new PendingConfirmation(timeout, events, this.comparator);
     this.pendingConfirmations.push(pendingConfirmation);
     return pendingConfirmation;
   }

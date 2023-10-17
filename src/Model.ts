@@ -3,7 +3,7 @@ import type { Logger } from 'pino';
 import { Subject, Subscription } from 'rxjs';
 
 import { toError } from './Errors.js';
-import MutationsRegistry from './MutationsRegistry.js';
+import MutationsRegistry, { defaultComparator } from './MutationsRegistry.js';
 import PendingConfirmationRegistry from './PendingConfirmationRegistry.js';
 import { IStream } from './stream/Stream.js';
 import StreamFactory, { IStreamFactory as IStreamFactory } from './stream/StreamFactory.js';
@@ -20,26 +20,23 @@ import type {
   OptimisticEvent,
   ConfirmedEvent,
 } from './types/model.js';
-import type { MutationMethods } from './types/mutations.js';
+import type { OptimisticInvocationParams } from './types/optimistic.js';
 import EventEmitter from './utilities/EventEmitter.js';
 
 /**
  * A Model encapsulates an observable, collaborative data model backed by a transactional database in your backend.
  *
- * It allows you to define a set of mutation functions on the model which typically trigger some backend endpoint
- * to mutate the model state in the database. Your backend is expected to emit ordered events that confirm this mutation.
- * The model will receive these events as confirmed events and update the model's state in accordance with
- * some matching update functions.
+ * Your backend is expected to emit ordered events that represent the state of changes to the model.
+ * The model will receive these events as confirmed events and will merge these events into the existing state.
  *
- * Additionally, mutations may emit optimistic events which are applied locally to generate an optimistic
- * view of your data, which must be confirmed within the configured timeout.
+ * Additionally, the Model supports optimistic events which are applied locally to generate an optimistic
+ * view of your data, which must be confirmed by your backend within the configured timeout.
  *
  * @template T - The type of your data model.
- * @template M - The type of the mutation methods. This should be a map from method names to mutations.
  *
  * @extends {EventEmitter<Record<ModelState, ModelStateChange>>} Allows you to listen for model state changes to hook into the model lifecycle.
  */
-export default class Model<T, M extends MutationMethods> extends EventEmitter<Record<ModelState, ModelStateChange>> {
+export default class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   private wasRegistered = false;
   private currentState: ModelState = 'initialized';
   private optimisticData!: T;
@@ -52,10 +49,12 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
 
   private readonly stream: IStream;
   private readonly streamFactory: IStreamFactory;
-  private readonly mutationsRegistry: MutationsRegistry<M>;
+  private readonly mutationsRegistry: MutationsRegistry;
 
   private optimisticEvents: OptimisticEventWithParams[] = [];
-  private pendingConfirmationsRegistry: PendingConfirmationRegistry = new PendingConfirmationRegistry();
+  private pendingConfirmationsRegistry: PendingConfirmationRegistry = new PendingConfirmationRegistry(
+    defaultComparator,
+  );
 
   private readonly subscriptions = new Subject<{ confirmed: boolean; data: T }>();
   private subscriptionMap: WeakMap<StandardCallback<T>, Subscription> = new WeakMap();
@@ -80,12 +79,12 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
     });
     this.stream = this.streamFactory.newStream({ channelName: options.channelName });
 
-    this.mutationsRegistry = new MutationsRegistry<M>(
+    this.mutationsRegistry = new MutationsRegistry(
       {
         apply: this.applyOptimisticEvents.bind(this),
         rollback: this.rollbackOptimisticEvents.bind(this),
       },
-      options.defaultMutationOptions,
+      options.defaultOptimisticOptions,
     );
   }
 
@@ -111,10 +110,14 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
   }
 
   /**
-   * @returns {MethodWithExpect<M>} The mutations handler that can be used to invoke the registered mutations on this model.
+   * The optimisticEvent function that allows optimistic events to be included in the model state.
+   * Optimistic events are expected to be confirmed by later confirmed events consumed on the channel.
+   * @returns A promise that resolves when the model has successfully applied the optimistic update.
+   * The promise contains another promise that resolves when optimistic event is confirmed,
+   * and a function that can be used to rollback (cancel) this optimistic event. [confirmed, cancel]
    */
-  public get mutations() {
-    return this.mutationsRegistry.handler;
+  public optimisticEvent(params: OptimisticInvocationParams): Promise<[Promise<void>, () => Promise<void>]> {
+    return this.mutationsRegistry.handleOptimsitic(params);
   }
 
   /**
@@ -171,12 +174,12 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
   }
 
   /**
-   * Registers a sync function, a merge function and a set of mutations for use by this model.
+   * Registers a sync function and a merge function for use by this model.
    * This should be called once by your application before you subscribe to the model state.
-   * @param {Registration<T, M>} registration - The set of methods to register.
+   * @param {Registration<T>} registration - The set of methods to register.
    * @returns A promise that resolves when the model has completed the registrtion and is ready to start emitting updates.
    */
-  public $register(registration: Registration<T, M>) {
+  public $register(registration: Registration<T>) {
     if (this.wasRegistered) {
       throw new Error('$register was already called');
     }
@@ -192,9 +195,6 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
       this.merge = registration.$merge;
     }
 
-    if (registration.$mutate) {
-      this.mutationsRegistry.register(registration.$mutate);
-    }
     this.init();
     return new Promise((resolve) => this.whenState('ready', this.state, resolve));
   }
@@ -263,12 +263,6 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
       return [];
     }
 
-    for (const event of events) {
-      if (event.channel !== this.stream.channelName) {
-        throw new Error(`stream with name '${event.channel}' not registered on model '${this.name}'`);
-      }
-    }
-
     if (!events.every((event) => event.params.timeout === events[0].params.timeout)) {
       throw new Error('expected every optimistic event in batch to have the same timeout');
     }
@@ -298,7 +292,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
     this.setState('preparing', reason);
 
     this.removeStream();
-    this.addStream(this.stream.channelName);
+    this.addStream();
 
     const data = await this.syncFunc();
     this.setOptimisticData(data);
@@ -316,7 +310,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
     this.streamSubscriptionsMap = new WeakMap();
   }
 
-  private addStream(channel: string) {
+  private addStream() {
     const callback: StandardCallback<AblyTypes.Message> = async (err: Error | null, event?: AblyTypes.Message) => {
       try {
         if (err) {
@@ -330,7 +324,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
         if (event?.extras?.headers && !!event?.extras?.headers['x-ably-models-event-uuid']) {
           uuid = event?.extras?.headers['x-ably-models-event-uuid'];
         }
-        await this.onStreamEvent({ ...event!, channel, confirmed: true, rejected, ...(uuid && { uuid }) });
+        await this.onStreamEvent({ ...event!, confirmed: true, rejected, ...(uuid && { uuid }) });
       } catch (err) {
         this.init(toError(err));
       }
@@ -411,7 +405,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
     // additional data on the confirmed event in the updated data.
     for (let i = 0; i < this.optimisticEvents.length; i++) {
       let e = this.optimisticEvents[i];
-      if (e.params.comparator(e, event)) {
+      if (defaultComparator(e, event)) {
         this.optimisticEvents.splice(i, 1);
         await this.applyWithRebase(event, this.optimisticEvents);
         return;
@@ -448,7 +442,7 @@ export default class Model<T, M extends MutationMethods> extends EventEmitter<Re
     // remove any matching events from the optimisticEvents and re-apply the remaining events
     // on top of the latest confirmed state
     for (let event of events) {
-      this.optimisticEvents = this.optimisticEvents.filter((e) => !e.params.comparator(e, event));
+      this.optimisticEvents = this.optimisticEvents.filter((e) => !defaultComparator(e, event));
     }
     let nextData = this.confirmedData;
     for (const e of this.optimisticEvents) {
