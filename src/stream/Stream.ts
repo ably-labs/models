@@ -6,6 +6,7 @@ import { OrderedSequenceResumer } from './Middleware.js';
 import type { StandardCallback } from '../types/callbacks';
 import type { EventOrderer } from '../types/optimistic.js';
 import EventEmitter from '../utilities/EventEmitter.js';
+import { statePromise } from '../utilities/test/promises.js';
 
 /**
  * StreamState represents the possible lifecycle states of a stream.
@@ -88,10 +89,10 @@ export interface IStream {
 export default class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> implements IStream {
   private readonly ably: AblyTypes.RealtimePromise;
   private currentState: StreamState = StreamState.INITIALIZED;
-  private ablyChannel: AblyTypes.RealtimeChannelPromise;
   private subscriptions = new Subject<AblyTypes.Message>();
   private subscriptionMap: WeakMap<StandardCallback<AblyTypes.Message>, Subscription> = new WeakMap();
-  private middleware: OrderedSequenceResumer;
+  private ablyChannel?: AblyTypes.RealtimeChannelPromise;
+  private middleware?: OrderedSequenceResumer;
 
   private readonly baseLogContext: Partial<{ scope: string; action: string }>;
   private readonly logger: Logger;
@@ -113,16 +114,21 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
 
   public async pause() {
     this.setState(StreamState.PAUSED);
-    await this.ablyChannel.detach();
+    if (this.ablyChannel) {
+      await this.ablyChannel.detach();
+    }
   }
 
   public async resume() {
     await this.ably.connection.whenState('connected');
+    if (!this.ablyChannel) {
+      throw new Error('no ably channel configured on the stream');
+    }
     await this.ablyChannel.attach();
     this.setState(StreamState.READY);
   }
 
-  public subscribe(callback: StandardCallback<AblyTypes.Message>) {
+  public async subscribe(callback: StandardCallback<AblyTypes.Message>) {
     this.logger.trace({ ...this.baseLogContext, action: 'subscribe()' });
     const subscription = this.subscriptions.subscribe({
       next: (message) => {
@@ -139,6 +145,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
       },
     });
     this.subscriptionMap.set(callback, subscription);
+    await statePromise(this, StreamState.READY);
   }
 
   public unsubscribe(callback: StandardCallback<AblyTypes.Message>) {
@@ -153,10 +160,15 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
   public async dispose(reason?: AblyTypes.ErrorInfo | string) {
     this.logger.trace({ ...this.baseLogContext, action: 'dispose()', reason });
     this.setState(StreamState.DISPOSED, reason);
+    if (this.middleware) {
+      this.middleware.unsubscribeAll();
+    }
     this.subscriptions.unsubscribe();
     this.subscriptionMap = new WeakMap();
-    await this.ablyChannel.detach();
-    this.ably.channels.release(this.ablyChannel.name);
+    if (this.ablyChannel) {
+      await this.ablyChannel.detach();
+      this.ably.channels.release(this.ablyChannel.name);
+    }
   }
 
   public async sync(rewind: string, sequenceID: string) {
@@ -201,6 +213,9 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
 
   private onChannelMessage(message: AblyTypes.Message) {
     this.logger.trace({ ...this.baseLogContext, action: 'onMessage()', message });
+    if (!this.middleware) {
+      throw new Error('received channel message before middleware was registered');
+    }
     this.middleware.add(message);
   }
 
