@@ -95,28 +95,28 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
     return this.currentState;
   }
 
-  /**
-   * @returns {T} The optimistic view of this model's data.
-   */
-  public get optimistic() {
-    return this.optimisticData;
+  public get data() {
+    const optimistic = (() => this.optimisticData).bind(this);
+    const confirmed = (() => this.confirmedData).bind(this);
+
+    return {
+      get optimistic() {
+        return optimistic();
+      },
+      get confirmed() {
+        return confirmed();
+      },
+    };
   }
 
   /**
-   * @returns {T} The confirmed view of this model's data.
-   */
-  public get confirmed() {
-    return this.confirmedData;
-  }
-
-  /**
-   * The optimisticEvent function that allows optimistic events to be included in the model state.
+   * The optimistic function that allows optimistic events to be included in the model state.
    * Optimistic events are expected to be confirmed by later confirmed events consumed on the channel.
    * @returns A promise that resolves when the model has successfully applied the optimistic update.
    * The promise contains another promise that resolves when optimistic event is confirmed,
    * and a function that can be used to rollback (cancel) this optimistic event. [confirmed, cancel]
    */
-  public optimisticEvent(params: OptimisticInvocationParams): Promise<[Promise<void>, () => Promise<void>]> {
+  public optimistic(params: OptimisticInvocationParams): Promise<[Promise<void>, () => Promise<void>]> {
     return this.mutationsRegistry.handleOptimsitic(params);
   }
 
