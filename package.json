@@ -37,7 +37,6 @@
   },
   "keywords": ["ably", "models", "live", "realtime", "data", "sync", "collaboration"],
   "devDependencies": {
-    "@types/uuid": "^9.0.2",
     "@typescript-eslint/eslint-plugin": "^6.1.0",
     "@typescript-eslint/parser": "^6.1.0",
     "@vitest/coverage-c8": "^0.28.4",
@@ -58,7 +57,6 @@
     "ably": "^1.2.41",
     "lodash": "^4.17.21",
     "pino": "^8.14.1",
-    "rxjs": "^7.8.1",
-    "uuid": "^9.0.0"
+    "rxjs": "^7.8.1"
   }
 }
