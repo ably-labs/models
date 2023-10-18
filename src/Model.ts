@@ -336,41 +336,43 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
         `rewind interval ${interval}s from state timestamp ${stateTimestamp.toString()} is greater than 2 minutes`,
       );
     }
-    const callback: StandardCallback<AblyTypes.Message> = async (err: Error | null, event?: AblyTypes.Message) => {
-      try {
-        if (err) {
-          throw err;
-        }
-        let rejected = false;
-        if (event?.extras?.headers && event?.extras?.headers[MODELS_EVENT_REJECT_HEADER] === 'true') {
-          rejected = true;
-        }
-
-        const mutationId = event?.extras?.headers[MODELS_EVENT_UUID_HEADER];
-        if (!mutationId) {
-          this.logger.warn(
-            { ...this.baseLogContext, action: 'streamEventCallback' },
-            `message does not have "${MODELS_EVENT_UUID_HEADER}" header, skipping message id`,
-            event?.id,
-          );
-          return;
-        }
-
-        const modelsEvent: ConfirmedEvent = {
-          ...event!,
-          confirmed: true,
-          rejected,
-          mutationId: mutationId,
-        };
-
-        await this.onStreamEvent(modelsEvent);
-      } catch (err) {
-        await this.init(toError(err));
-      }
-    };
     await this.stream.sync(interval, sequenceID);
+    const callback = this.onStreamMessage.bind(this);
     this.stream.subscribe(callback);
     this.streamSubscriptionsMap.set(this.stream, callback);
+  }
+
+  private async onStreamMessage(err: Error | null, event?: AblyTypes.Message) {
+    try {
+      if (err) {
+        throw err;
+      }
+      let rejected = false;
+      if (event?.extras?.headers && event?.extras?.headers[MODELS_EVENT_REJECT_HEADER] === 'true') {
+        rejected = true;
+      }
+
+      const mutationId = event?.extras?.headers[MODELS_EVENT_UUID_HEADER];
+      if (!mutationId) {
+        this.logger.warn(
+          { ...this.baseLogContext, action: 'streamEventCallback' },
+          `message does not have "${MODELS_EVENT_UUID_HEADER}" header, skipping message id`,
+          event?.id,
+        );
+        return;
+      }
+
+      const modelsEvent: ConfirmedEvent = {
+        ...event!,
+        confirmed: true,
+        rejected,
+        mutationId: mutationId,
+      };
+
+      await this.onStreamEvent(modelsEvent);
+    } catch (err) {
+      await this.init(toError(err));
+    }
   }
 
   private setOptimisticData(data: T) {
