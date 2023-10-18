@@ -1,5 +1,7 @@
 import { Types } from 'ably/promises';
 
+import { MODELS_EVENT_UUID_HEADER } from '../../types/optimistic.js';
+
 export const baseMessage: Types.Message = {
   id: '1',
   data: null,
@@ -14,15 +16,22 @@ export const baseMessage: Types.Message = {
 };
 
 export function createMessage(i: number): Types.Message {
+  const headers: { [key: string]: string } = {};
+  headers[MODELS_EVENT_UUID_HEADER] = `id_${i}`;
+
   return {
     ...baseMessage,
     id: `id_${i}`,
     name: `name_${i}`,
     data: `data_${i}`,
+    extras: { headers: headers },
   };
 }
 
 export function customMessage(id: string, name: string, data: string, headers?: Record<string, string>): Types.Message {
+  const baseHeaders: { [key: string]: string } = {};
+  baseHeaders[MODELS_EVENT_UUID_HEADER] = id;
+
   return {
     ...baseMessage,
     id,
@@ -32,6 +41,7 @@ export function customMessage(id: string, name: string, data: string, headers?: 
       ...baseMessage.extras,
       headers: {
         ...baseMessage.extras.headers,
+        ...baseHeaders,
         ...(headers || {}),
       },
     },

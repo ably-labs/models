@@ -417,8 +417,6 @@ describe('Model', () => {
     expect(optimisticSubscriptionSpy).toHaveBeenNthCalledWith(2, null, 'data_1');
     expect(confirmedSubscriptionSpy).toHaveBeenCalledTimes(1);
 
-    // the event data payload does not match the expected event but the uuid does
-    // this passes because the mutation id passed to optimistic is empty.
     events.e1.next(
       customMessage('id_1', 'testEvent', 'confirmed_data', { 'x-ably-models-event-uuid': 'some-custom-id' }),
     );

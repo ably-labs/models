@@ -21,7 +21,11 @@ import type {
   OptimisticEvent,
   ConfirmedEvent,
 } from './types/model.js';
-import type { OptimisticEventOptions } from './types/optimistic.js';
+import {
+  MODELS_EVENT_REJECT_HEADER,
+  MODELS_EVENT_UUID_HEADER,
+  type OptimisticEventOptions,
+} from './types/optimistic.js';
 import EventEmitter from './utilities/EventEmitter.js';
 
 /**
@@ -326,20 +330,25 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
           throw err;
         }
         let rejected = false;
-        if (event?.extras?.headers && event?.extras?.headers['x-ably-models-reject'] === 'true') {
+        if (event?.extras?.headers && event?.extras?.headers[MODELS_EVENT_REJECT_HEADER] === 'true') {
           rejected = true;
         }
-        let uuid: string | undefined;
-        if (event?.extras?.headers && !!event?.extras?.headers['x-ably-models-event-uuid']) {
-          uuid = event?.extras?.headers['x-ably-models-event-uuid'];
+
+        const mutationId = event?.extras?.headers[MODELS_EVENT_UUID_HEADER];
+        if (!mutationId) {
+          this.logger.warn(
+            { ...this.baseLogContext, action: 'streamEventCallback' },
+            `message does not have "${MODELS_EVENT_UUID_HEADER}" header, skipping message id`,
+            event?.id,
+          );
+          return;
         }
 
         const modelsEvent: ConfirmedEvent = {
           ...event!,
           confirmed: true,
           rejected,
-          mutationId: event!.id,
-          ...(uuid && { mutationId: uuid }),
+          mutationId: mutationId,
         };
 
         await this.onStreamEvent(modelsEvent);

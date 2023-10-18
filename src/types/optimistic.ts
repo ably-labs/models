@@ -41,3 +41,6 @@ export type OptimisticInvocationParams = {
    */
   options?: Partial<OptimisticEventOptions>;
 };
+
+export const MODELS_EVENT_UUID_HEADER = 'x-ably-models-event-uuid';
+export const MODELS_EVENT_REJECT_HEADER = 'x-ably-models-reject';
