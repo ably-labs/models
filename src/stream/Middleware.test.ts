@@ -15,7 +15,7 @@ describe('SequenceResumer', () => {
     const callback = vi.fn();
     middleware.subscribe(callback);
 
-    middleware.add(createMessage(50));
+    middleware.next(createMessage(50));
     expect(callback).not.toHaveBeenCalled();
   });
 
@@ -23,8 +23,8 @@ describe('SequenceResumer', () => {
     const callback = vi.fn();
     middleware.subscribe(callback);
 
-    middleware.add(createMessage(150));
-    middleware.add(createMessage(120));
+    middleware.next(createMessage(150));
+    middleware.next(createMessage(120));
 
     expect(callback).toHaveBeenCalledWith(expect.any(Error), null); // TODO error type
   });
@@ -33,10 +33,10 @@ describe('SequenceResumer', () => {
     const callback = vi.fn();
     middleware.subscribe(callback);
 
-    middleware.add(createMessage(101));
+    middleware.next(createMessage(101));
     expect(callback).toHaveBeenCalledWith(expect.any(Error), null);
 
-    middleware.add(createMessage(102));
+    middleware.next(createMessage(102));
     expect(callback).toHaveBeenCalledWith(expect.any(Error), null);
   });
 
@@ -44,10 +44,10 @@ describe('SequenceResumer', () => {
     const callback = vi.fn();
     middleware.subscribe(callback);
 
-    middleware.add(createMessage(100));
+    middleware.next(createMessage(100));
     expect(callback).toHaveBeenCalledTimes(0);
 
-    middleware.add(createMessage(101));
+    middleware.next(createMessage(101));
     expect(callback).toHaveBeenCalledWith(null, createMessage(101));
   });
 
@@ -55,13 +55,13 @@ describe('SequenceResumer', () => {
     const callback = vi.fn();
     middleware.subscribe(callback);
 
-    middleware.add(createMessage(99));
+    middleware.next(createMessage(99));
     expect(callback).toHaveBeenCalledTimes(0);
 
-    middleware.add(createMessage(100));
+    middleware.next(createMessage(100));
     expect(callback).toHaveBeenCalledTimes(0);
 
-    middleware.add(createMessage(101));
+    middleware.next(createMessage(101));
     expect(callback).toHaveBeenCalledWith(null, createMessage(101));
   });
 
@@ -69,10 +69,10 @@ describe('SequenceResumer', () => {
     const callback = vi.fn();
     middleware.subscribe(callback);
 
-    middleware.add(createMessage(99));
+    middleware.next(createMessage(99));
     expect(callback).toHaveBeenCalledTimes(0);
 
-    middleware.add(createMessage(101));
+    middleware.next(createMessage(101));
     expect(callback).toHaveBeenCalledWith(null, createMessage(101));
   });
 
@@ -80,15 +80,15 @@ describe('SequenceResumer', () => {
     const callback = vi.fn();
     middleware.subscribe(callback);
 
-    middleware.add(createMessage(100));
+    middleware.next(createMessage(100));
     expect(callback).toHaveBeenCalledTimes(0);
 
-    middleware.add(createMessage(101));
+    middleware.next(createMessage(101));
     expect(callback).toHaveBeenNthCalledWith(1, null, createMessage(101));
 
     middleware.unsubscribe(callback);
 
-    middleware.add(createMessage(102));
+    middleware.next(createMessage(102));
     expect(callback).toHaveBeenCalledTimes(1);
   });
 
@@ -96,15 +96,15 @@ describe('SequenceResumer', () => {
     const callback = vi.fn();
     middleware.subscribe(callback);
 
-    middleware.add(createMessage(100));
+    middleware.next(createMessage(100));
     expect(callback).toHaveBeenCalledTimes(0);
 
-    middleware.add(createMessage(101));
+    middleware.next(createMessage(101));
     expect(callback).toHaveBeenNthCalledWith(1, null, createMessage(101));
 
     middleware.unsubscribeAll();
 
-    middleware.add(createMessage(102));
+    middleware.next(createMessage(102));
     expect(callback).toHaveBeenCalledTimes(1);
   });
 });
@@ -116,7 +116,7 @@ describe('SlidingWindow', () => {
     sliding.subscribe(subscription);
 
     const msg = createMessage(1);
-    sliding.add(msg);
+    sliding.next(msg);
 
     expect(subscription).toHaveBeenCalledTimes(1);
     expect(subscription).toHaveBeenCalledWith(null, msg);
@@ -128,7 +128,7 @@ describe('SlidingWindow', () => {
     sliding.subscribe(subscription);
 
     const msg = createMessage(1);
-    sliding.add(msg);
+    sliding.next(msg);
 
     expect(subscription).toHaveBeenCalledTimes(0);
 
@@ -146,8 +146,8 @@ describe('SlidingWindow', () => {
     const msg2 = createMessage(2);
     const msg1 = createMessage(1);
 
-    sliding.add(msg2);
-    sliding.add(msg1);
+    sliding.next(msg2);
+    sliding.next(msg1);
 
     await timeout(1);
 
@@ -171,9 +171,9 @@ describe('SlidingWindow', () => {
     const msg2 = createMessage(2);
     const msg1 = createMessage(1);
 
-    sliding.add(msg3);
-    sliding.add(msg2);
-    sliding.add(msg1);
+    sliding.next(msg3);
+    sliding.next(msg2);
+    sliding.next(msg1);
 
     await timeout(1);
 
@@ -193,12 +193,12 @@ describe('SlidingWindow', () => {
     const msg1 = createMessage(1);
 
     // message 3 added, and expired
-    sliding.add(msg3);
+    sliding.next(msg3);
     await timeout(1);
 
     // then messages 1 and 2 added, reordered, and expired
-    sliding.add(msg2);
-    sliding.add(msg1);
+    sliding.next(msg2);
+    sliding.next(msg1);
 
     await timeout(1);
 
@@ -216,8 +216,8 @@ describe('SlidingWindow', () => {
     const msg1a = createMessage(2);
     const msg1b = createMessage(2);
 
-    sliding.add(msg1a);
-    sliding.add(msg1b);
+    sliding.next(msg1a);
+    sliding.next(msg1b);
 
     await timeout(1);
 
@@ -231,13 +231,13 @@ describe('SlidingWindow', () => {
     sliding.subscribe(subscription);
 
     const msg = createMessage(1);
-    sliding.add(msg);
+    sliding.next(msg);
 
     expect(subscription).toHaveBeenCalledTimes(1);
     expect(subscription).toHaveBeenCalledWith(null, msg);
 
     sliding.unsubscribe(subscription);
-    sliding.add(createMessage(2));
+    sliding.next(createMessage(2));
     expect(subscription).toHaveBeenCalledTimes(1);
   });
 
@@ -247,13 +247,13 @@ describe('SlidingWindow', () => {
     sliding.subscribe(subscription);
 
     const msg = createMessage(1);
-    sliding.add(msg);
+    sliding.next(msg);
 
     expect(subscription).toHaveBeenCalledTimes(1);
     expect(subscription).toHaveBeenCalledWith(null, msg);
 
     sliding.unsubscribeAll();
-    sliding.add(createMessage(2));
+    sliding.next(createMessage(2));
     expect(subscription).toHaveBeenCalledTimes(1);
   });
 });
@@ -267,11 +267,11 @@ describe('OrderedSequenceResumer', () => {
       if (!err && message) receivedMessages.push(message.id);
     });
 
-    orderedSequenceResumer.add(createMessage(101));
-    orderedSequenceResumer.add(createMessage(100));
-    orderedSequenceResumer.add(createMessage(99));
-    orderedSequenceResumer.add(createMessage(103));
-    orderedSequenceResumer.add(createMessage(102));
+    orderedSequenceResumer.next(createMessage(101));
+    orderedSequenceResumer.next(createMessage(100));
+    orderedSequenceResumer.next(createMessage(99));
+    orderedSequenceResumer.next(createMessage(103));
+    orderedSequenceResumer.next(createMessage(102));
 
     await timeout(100);
 
@@ -286,10 +286,10 @@ describe('OrderedSequenceResumer', () => {
       if (err) errors.push(err);
     });
 
-    orderedSequenceResumer.add(createMessage(100));
-    orderedSequenceResumer.add(createMessage(99));
-    orderedSequenceResumer.add(createMessage(102));
-    orderedSequenceResumer.add(createMessage(101));
+    orderedSequenceResumer.next(createMessage(100));
+    orderedSequenceResumer.next(createMessage(99));
+    orderedSequenceResumer.next(createMessage(102));
+    orderedSequenceResumer.next(createMessage(101));
 
     await timeout(0);
 
