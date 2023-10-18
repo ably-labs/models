@@ -10,11 +10,11 @@ describe('PendingConfirmation', () => {
   const params: EventParams = { timeout: defaultTimeout };
 
   const events: Event[] = [
-    { name: 'foo', data: { bar: 123 } },
-    { name: 'baz', data: { qux: 456 } },
+    { mutationId: 'id_1', name: 'foo', data: { bar: 123 } },
+    { mutationId: 'id_2', name: 'baz', data: { qux: 456 } },
   ];
 
-  const expectedEvents = events.map((elem, i) => toOptimisticEventWithParams(`id_${i}`, elem, params));
+  const expectedEvents = events.map((elem) => toOptimisticEventWithParams(elem, params));
 
   it('initializes with the correct default values', () => {
     const pc = new PendingConfirmation(defaultTimeout, expectedEvents, mockComparator);
@@ -29,7 +29,7 @@ describe('PendingConfirmation', () => {
 
   it('removes matching events and finalizes when no events are left', async () => {
     const pc = new PendingConfirmation(defaultTimeout, expectedEvents, mockComparator);
-    await pc.removeMatchingEvents(events.map((elem, i) => toOptimisticEventWithParams(`id_${i}`, elem, params)));
+    await pc.removeMatchingEvents(events.map((elem) => toOptimisticEventWithParams(elem, params)));
     expect(pc.isDone).toBe(true);
   });
 

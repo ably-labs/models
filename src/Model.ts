@@ -123,11 +123,10 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
    * function that can be used to trigger the rollback of the optimistic event.
    */
   public optimistic(
-    mutationId: string,
     event: Event,
     options?: Partial<OptimisticEventOptions>,
   ): Promise<[Promise<void>, () => Promise<void>]> {
-    return this.mutationsRegistry.handleOptimsitic(mutationId, event, options);
+    return this.mutationsRegistry.handleOptimistic(event, options);
   }
 
   /**
@@ -339,7 +338,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
           ...event!,
           confirmed: true,
           rejected,
-          mutationId: event?.id,
+          mutationId: event!.id,
           ...(uuid && { mutationId: uuid }),
         };
 
