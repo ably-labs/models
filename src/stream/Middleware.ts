@@ -43,7 +43,7 @@ export class SequenceResumer extends MiddlewareBase {
       return;
     }
 
-    if (this.lastMessageId && this.compareIds(message.id, this.lastMessageId) < 0) {
+    if (this.lastMessageId && this.messageIdBeforeExclusive(message.id, this.lastMessageId)) {
       this.state = 'error';
       this.error(new Error(`out-of-sequence message received: ${message.id} after ${this.lastMessageId}`));
       return;
@@ -53,11 +53,11 @@ export class SequenceResumer extends MiddlewareBase {
 
     switch (this.state) {
       case 'pending':
-        if (this.compareIds(message.id, this.sequenceID) <= 0) {
+        if (this.messageIdBeforeInclusive(message.id, this.sequenceID)) {
           // track that we've seen a message before the boundary and skip
           this.hasCrossedBoundary = true;
           return;
-        } else if (this.compareIds(message.id, this.sequenceID) > 0) {
+        } else if (this.messageIdAfter(message.id, this.sequenceID)) {
           if (!this.hasCrossedBoundary) {
             // if we haven't seen a message before the boundary, we cannot guarantee that we have
             // looked far back enough in the message stream to process all messages after the boundary
@@ -83,6 +83,18 @@ export class SequenceResumer extends MiddlewareBase {
 
   private compareIds(a: string, b: string): number {
     return a.localeCompare(b, 'en-US', { numeric: true });
+  }
+
+  private messageIdBeforeInclusive(a: string, b: string) {
+    return this.compareIds(a, b) <= 0;
+  }
+
+  private messageIdBeforeExclusive(a: string, b: string) {
+    return this.compareIds(a, b) < 0;
+  }
+
+  private messageIdAfter(a: string, b: string) {
+    return this.compareIds(a, b) > 0;
   }
 }
 
