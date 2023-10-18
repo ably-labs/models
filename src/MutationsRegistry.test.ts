@@ -29,18 +29,16 @@ describe('MutationsRegistry', () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
-  it<MutationsTestContext>('handleOptimsitic uses event uuid when mutation id is missing', async () => {
+  it<MutationsTestContext>('handleOptimsitic throws an error when mutation id is missing', async () => {
     let onEvents = vi.fn(async () => [Promise.resolve(), Promise.resolve()]);
     let onError = vi.fn();
 
     const mutations = new MutationsRegistry({ apply: onEvents, rollback: onError });
 
-    const event = { uuid: 'my-event-id', name: 'foo', data: { bar: 123 } };
-    await mutations.handleOptimsitic('', event);
-    expect(onEvents).toHaveBeenCalledTimes(1);
-    expect(onEvents).toHaveBeenNthCalledWith(1, [toOptimisticEventWithParams('my-event-id', event)]);
-
-    expect(onError).not.toHaveBeenCalled();
+    const event = { mutationId: 'my-event-id', name: 'foo', data: { bar: 123 } };
+    await expect(mutations.handleOptimsitic('', event)).rejects.toThrowError(
+      'optimisitic event must have a mutation id',
+    );
   });
 
   it<MutationsTestContext>('handleOptimsitic where update rejects', async () => {
