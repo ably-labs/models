@@ -1,44 +1,16 @@
-import isEqual from 'lodash/isEqual.js';
-
 import { toError } from './Errors.js';
 import type { Event, OptimisticEventWithParams } from './types/model.js';
 import type { EventComparator, OptimisticEventOptions } from './types/optimistic.js';
 
 /**
- * This comparator compares events by equality of channel, event name and deep equality on the event data.
+ * This comparator compares events by their `mutationId` property.
  *
  * @param optimistic - The optimistic event to compare.
  * @param confirmed - The confirmed event to compare.
  * @returns {boolean} Whether the two events are equal.
  */
-export const equalityComparator: EventComparator = (optimistic: Event, confirmed: Event) => {
-  return optimistic.name === confirmed.name && isEqual(optimistic.data, confirmed.data);
-};
-
-/**
- * This comparator compares events by their `uuid` property.
- *
- * @param optimistic - The optimistic event to compare.
- * @param confirmed - The confirmed event to compare.
- * @returns {boolean} Whether the two events are equal.
- */
-export const uuidComparator: EventComparator = (optimistic: Event, confirmed: Event) => {
+export const mutationIdComparator: EventComparator = (optimistic: Event, confirmed: Event) => {
   return !!optimistic.mutationId && !!confirmed.mutationId && optimistic.mutationId === confirmed.mutationId;
-};
-
-/**
- * The default event comparator. Compares events by uuid, if provided on both the optimistic and confirmed events.
- * Otherwise, compares events by equality of channel, event name and deep equality on the event data.
- *
- * @param optimistic - The optimistic event to compare.
- * @param confirmed - The confirmed event to compare.
- * @returns {boolean} Whether the two events are equal.
- */
-export const defaultComparator: EventComparator = (optimistic: Event, confirmed: Event) => {
-  if (optimistic.mutationId && confirmed.mutationId) {
-    return uuidComparator(optimistic, confirmed);
-  }
-  return equalityComparator(optimistic, confirmed);
 };
 
 /**

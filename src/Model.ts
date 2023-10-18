@@ -3,7 +3,7 @@ import type { Logger } from 'pino';
 import { Subject, Subscription } from 'rxjs';
 
 import { toError } from './Errors.js';
-import MutationsRegistry, { defaultComparator } from './MutationsRegistry.js';
+import MutationsRegistry, { mutationIdComparator } from './MutationsRegistry.js';
 import PendingConfirmationRegistry from './PendingConfirmationRegistry.js';
 import { IStream } from './stream/Stream.js';
 import StreamFactory, { IStreamFactory as IStreamFactory } from './stream/StreamFactory.js';
@@ -57,7 +57,9 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
   private readonly mutationsRegistry: MutationsRegistry;
 
   private optimisticEvents: OptimisticEventWithParams[] = [];
-  private pendingConfirmationRegistry: PendingConfirmationRegistry = new PendingConfirmationRegistry(defaultComparator);
+  private pendingConfirmationRegistry: PendingConfirmationRegistry = new PendingConfirmationRegistry(
+    mutationIdComparator,
+  );
 
   private readonly subscriptions = new Subject<{ confirmed: boolean; data: T }>();
   private subscriptionMap: WeakMap<StandardCallback<T>, Subscription> = new WeakMap();
@@ -432,7 +434,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
     // additional data on the confirmed event in the updated data.
     for (let i = 0; i < this.optimisticEvents.length; i++) {
       let e = this.optimisticEvents[i];
-      if (defaultComparator(e, event)) {
+      if (mutationIdComparator(e, event)) {
         this.optimisticEvents.splice(i, 1);
         await this.applyWithRebase(event, this.optimisticEvents);
         return;
@@ -469,7 +471,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
     // remove any matching events from the optimisticEvents and re-apply the remaining events
     // on top of the latest confirmed state
     for (let event of events) {
-      this.optimisticEvents = this.optimisticEvents.filter((e) => !defaultComparator(e, event));
+      this.optimisticEvents = this.optimisticEvents.filter((e) => !mutationIdComparator(e, event));
     }
     let nextData = this.confirmedData;
     for (const e of this.optimisticEvents) {
