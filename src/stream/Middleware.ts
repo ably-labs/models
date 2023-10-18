@@ -38,7 +38,7 @@ export class SequenceResumer extends MiddlewareBase {
     super();
   }
 
-  public add(message: AblyTypes.Message): void {
+  public next(message: AblyTypes.Message): void {
     if (this.state === 'error') {
       return;
     }
@@ -71,12 +71,12 @@ export class SequenceResumer extends MiddlewareBase {
           }
           // we have crossed the boundary and can process the message
           this.state = 'active';
-          this.next(message);
+          super.next(message);
           return;
         }
         break;
       case 'active':
-        this.next(message);
+        super.next(message);
         break;
     }
   }
@@ -109,9 +109,9 @@ export class SlidingWindow extends MiddlewareBase {
     super();
   }
 
-  public add(message: AblyTypes.Message): void {
+  public next(message: AblyTypes.Message): void {
     if (this.windowSizeMs === 0) {
-      this.next(message);
+      super.next(message);
       return;
     }
 
@@ -135,7 +135,7 @@ export class SlidingWindow extends MiddlewareBase {
     }
 
     const expiredMessages = this.messages.splice(0, idx + 1);
-    expiredMessages.forEach(this.next.bind(this));
+    expiredMessages.forEach((message) => super.next(message));
   }
 }
 
@@ -151,12 +151,12 @@ export class OrderedSequenceResumer extends MiddlewareBase {
     super();
     this.sequenceResumer = new SequenceResumer(this.sequenceID);
     this.slidingWindow = new SlidingWindow(this.windowSizeMs, this.eventOrderer);
-    this.sequenceResumer.subscribe((err, message) => (err ? this.error(err) : this.next(message!)));
-    this.slidingWindow.subscribe((err, message) => (err ? this.error(err) : this.sequenceResumer.add(message!)));
+    this.sequenceResumer.subscribe((err, message) => (err ? this.error(err) : super.next(message!)));
+    this.slidingWindow.subscribe((err, message) => (err ? this.error(err) : this.sequenceResumer.next(message!)));
   }
 
-  public add(message: AblyTypes.Message) {
-    this.slidingWindow.add(message);
+  public next(message: AblyTypes.Message) {
+    this.slidingWindow.next(message);
   }
 
   public unsubscribe(callback: (error: Error | null, message: AblyTypes.Message | null) => void): void {

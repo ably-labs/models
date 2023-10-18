@@ -216,7 +216,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     if (!this.middleware) {
       throw new Error('received channel message before middleware was registered');
     }
-    this.middleware.add(message);
+    this.middleware.next(message);
   }
 
   private onMiddlewareMessage(err: Error | null, message: AblyTypes.Message | null) {
