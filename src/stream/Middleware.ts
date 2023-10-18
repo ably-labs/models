@@ -162,10 +162,12 @@ export class OrderedSequenceResumer extends MiddlewareBase {
   public unsubscribe(callback: (error: Error | null, message: AblyTypes.Message | null) => void): void {
     this.slidingWindow.unsubscribe(callback);
     this.sequenceResumer.unsubscribe(callback);
+    super.unsubscribe(callback);
   }
 
   public unsubscribeAll(): void {
     this.slidingWindow.unsubscribeAll();
     this.sequenceResumer.unsubscribeAll();
+    super.unsubscribeAll();
   }
 }
