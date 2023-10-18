@@ -1,5 +1,4 @@
 import isEqual from 'lodash/isEqual.js';
-import { v4 as uuidv4 } from 'uuid';
 
 import { toError } from './Errors.js';
 import type { Event, OptimisticEventWithParams } from './types/model.js';
@@ -24,7 +23,7 @@ export const equalityComparator: EventComparator = (optimistic: Event, confirmed
  * @returns {boolean} Whether the two events are equal.
  */
 export const uuidComparator: EventComparator = (optimistic: Event, confirmed: Event) => {
-  return !!optimistic.uuid && !!confirmed.uuid && optimistic.uuid === confirmed.uuid;
+  return !!optimistic.mutationId && !!confirmed.mutationId && optimistic.mutationId === confirmed.mutationId;
 };
 
 /**
@@ -36,7 +35,7 @@ export const uuidComparator: EventComparator = (optimistic: Event, confirmed: Ev
  * @returns {boolean} Whether the two events are equal.
  */
 export const defaultComparator: EventComparator = (optimistic: Event, confirmed: Event) => {
-  if (optimistic.uuid && confirmed.uuid) {
+  if (optimistic.mutationId && confirmed.mutationId) {
     return uuidComparator(optimistic, confirmed);
   }
   return equalityComparator(optimistic, confirmed);
@@ -108,15 +107,18 @@ export default class MutationsRegistry {
     }
   }
 
-  private getOptimisticEvents(
+  private getOptimisticEvent(
     mutationId: string,
     event: Event,
     options: OptimisticEventOptions,
   ): OptimisticEventWithParams {
+    if (mutationId.length === 0) {
+      throw new Error('optimisitic event must have a mutation id');
+    }
+
     return {
       ...event,
-      ...(mutationId && { uuid: mutationId }),
-      ...(!mutationId && !event.uuid && { uuid: uuidv4() }),
+      ...(mutationId && { mutationId: mutationId }),
       confirmed: false,
       params: { timeout: options.timeout },
     };
@@ -129,7 +131,7 @@ export default class MutationsRegistry {
   ): Promise<[Promise<void>, () => Promise<void>]> {
     const mergedOptions = this.mergeOptions(options, this.options, DEFAULT_OPTIONS);
 
-    const optimisticEvent = this.getOptimisticEvents(mutationId, event, mergedOptions);
+    const optimisticEvent = this.getOptimisticEvent(mutationId, event, mergedOptions);
     let confirmation = Promise.resolve();
 
     ({ confirmation } = await this.processOptimistic([optimisticEvent]));

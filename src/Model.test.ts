@@ -457,7 +457,11 @@ describe('Model', () => {
     expect(model.data.optimistic).toEqual('data_0');
     expect(model.data.confirmed).toEqual('data_0');
 
-    const [confirmation] = await model.optimistic('', { uuid: 'some-custom-id', name: 'testEvent', data: 'data_1' });
+    const [confirmation] = await model.optimistic('some-custom-id', {
+      mutationId: '',
+      name: 'testEvent',
+      data: 'data_1',
+    });
 
     await optimisticSubscriptionCalls[1];
     expect(model.data.optimistic).toEqual('data_1');

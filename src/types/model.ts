@@ -61,7 +61,7 @@ export type ModelState =
 export type Event = {
   name: string;
   data?: any;
-  uuid?: string;
+  mutationId?: string;
 };
 
 /**
