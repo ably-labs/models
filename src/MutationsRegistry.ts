@@ -107,31 +107,21 @@ export default class MutationsRegistry {
     }
   }
 
-  private getOptimisticEvent(
-    mutationId: string,
-    event: Event,
-    options: OptimisticEventOptions,
-  ): OptimisticEventWithParams {
-    if (mutationId.length === 0) {
-      throw new Error('optimisitic event must have a mutation id');
-    }
-
+  private getOptimisticEvent(event: Event, options: OptimisticEventOptions): OptimisticEventWithParams {
     return {
       ...event,
-      ...(mutationId && { mutationId: mutationId }),
       confirmed: false,
       params: { timeout: options.timeout },
     };
   }
 
-  public async handleOptimsitic(
-    mutationId: string,
+  public async handleOptimistic(
     event: Event,
     options?: Partial<OptimisticEventOptions>,
   ): Promise<[Promise<void>, () => Promise<void>]> {
     const mergedOptions = this.mergeOptions(options, this.options, DEFAULT_OPTIONS);
 
-    const optimisticEvent = this.getOptimisticEvent(mutationId, event, mergedOptions);
+    const optimisticEvent = this.getOptimisticEvent(event, mergedOptions);
     let confirmation = Promise.resolve();
 
     ({ confirmation } = await this.processOptimistic([optimisticEvent]));

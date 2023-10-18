@@ -59,9 +59,9 @@ export type ModelState =
  * Represents a change event that can be applied to a model via an update function.
  */
 export type Event = {
+  mutationId: string;
   name: string;
   data?: any;
-  mutationId?: string;
 };
 
 /**

@@ -8,7 +8,6 @@ export function toEventsWithoutUUID(events: Event[]) {
 }
 
 export function toOptimisticEventWithParams(
-  id: string,
   event: Event,
   params: EventParams = {
     timeout: DEFAULT_OPTIONS.timeout,
@@ -16,7 +15,6 @@ export function toOptimisticEventWithParams(
 ): OptimisticEventWithParams {
   return {
     ...event,
-    mutationId: id,
     confirmed: false,
     params,
   };
