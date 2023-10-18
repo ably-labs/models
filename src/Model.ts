@@ -334,7 +334,16 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
         if (event?.extras?.headers && !!event?.extras?.headers['x-ably-models-event-uuid']) {
           uuid = event?.extras?.headers['x-ably-models-event-uuid'];
         }
-        await this.onStreamEvent({ ...event!, confirmed: true, rejected, ...(uuid && { mutationId: uuid }) });
+
+        const modelsEvent: ConfirmedEvent = {
+          ...event!,
+          confirmed: true,
+          rejected,
+          mutationId: event?.id,
+          ...(uuid && { mutationId: uuid }),
+        };
+
+        await this.onStreamEvent(modelsEvent);
       } catch (err) {
         this.init(toError(err));
       }
