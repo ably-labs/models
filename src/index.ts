@@ -1,9 +1,9 @@
 import Model from './Model.js';
-import Models from './Models.js';
+import ModelsClient from './ModelsClient.js';
 
 export type * from './types/callbacks.js';
 export type * from './types/model.js';
 export type * from './types/optimistic.js';
 export type * from './types/merge.js';
 export { Model };
-export default Models;
+export default ModelsClient;
