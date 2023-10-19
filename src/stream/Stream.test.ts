@@ -3,7 +3,7 @@ import pino, { type Logger } from 'pino';
 import { Subject } from 'rxjs';
 import { it, describe, expect, beforeEach, afterEach, vi } from 'vitest';
 
-import Stream, { StreamOptions, StreamState } from './Stream.js';
+import Stream, { HISTORY_PAGE_SIZE, StreamOptions, StreamState } from './Stream.js';
 import { createMessage } from '../utilities/test/messages.js';
 import { statePromise } from '../utilities/test/promises.js';
 
@@ -42,64 +42,104 @@ describe('Stream', () => {
     vi.restoreAllMocks();
   });
 
-  it<StreamTestContext>('enters ready state when successfully attached to the channel', async ({
-    ably,
-    logger,
-    channelName,
-  }) => {
-    // the promise returned by the subscribe method resolves when we have successfully attached to the channel
-    let attach: (...args: any[]) => void = () => {
-      throw new Error('attach not defined');
-    };
-    const attachment = new Promise((resolve) => (attach = resolve));
-    ably.channels.get(channelName).subscribe = vi.fn<any, any>(async () => {
-      await attachment;
-    });
+  it<StreamTestContext>('enters ready state when successfully synced', async ({ ably, logger, channelName }) => {
+    const channel = ably.channels.get(channelName);
+    channel.attach = vi.fn(
+      async (): Promise<Types.ChannelStateChange | null> => ({
+        current: 'attached',
+        previous: 'attaching',
+        resumed: false,
+        hasBacklog: false,
+      }),
+    );
+    channel.subscribe = vi.fn<any, any>(async (): Promise<Types.ChannelStateChange | null> => null);
+    channel.history = vi.fn<any, any>(
+      async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => ({
+        items: [],
+        hasNext: () => false,
+      }),
+    );
 
     const stream = new Stream({ ably, logger, channelName: 'foobar' });
-    const synced = stream.sync(0, '0');
+    const synced = stream.sync('0');
 
     await statePromise(stream, StreamState.PREPARING);
-    attach();
-    await synced;
-    await statePromise(stream, StreamState.READY);
-    expect(ably.channels.get(channelName).subscribe).toHaveBeenCalledOnce();
+    await expect(synced).resolves.toBeUndefined();
+    expect(stream.state).toBe(StreamState.READY);
+
+    expect(channel.attach).toHaveBeenCalledOnce();
+    expect(channel.subscribe).toHaveBeenCalledOnce();
+    expect(channel.history).toHaveBeenCalledOnce();
+    expect(channel.history).toHaveBeenNthCalledWith(1, { untilAttach: true, limit: HISTORY_PAGE_SIZE });
   });
 
+  // todo more sync tests
+  // todo more subcribe messages tests with history
+
   it<StreamTestContext>('subscribes to messages', async ({ ably, logger, channelName }) => {
+    const channel = ably.channels.get(channelName);
+    channel.attach = vi.fn(
+      async (): Promise<Types.ChannelStateChange | null> => ({
+        current: 'attached',
+        previous: 'attaching',
+        resumed: false,
+        hasBacklog: false,
+      }),
+    );
+    channel.history = vi.fn<any, any>(
+      async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => ({
+        items: [],
+        hasNext: () => false,
+      }),
+    );
     let messages = new Subject<Types.Message>();
-    ably.channels.get(channelName).subscribe = vi.fn<any, any>((callback) => {
+    channel.subscribe = vi.fn<any, any>((callback) => {
       messages.subscribe((message) => callback(message));
     });
 
     const stream = new Stream({ ably, logger, channelName });
-    await stream.sync(0, '0');
+    await stream.sync('0');
     await statePromise(stream, StreamState.READY);
 
     const subscriptionSpy = vi.fn<any, any>();
     stream.subscribe(subscriptionSpy);
 
-    for (let i = 0; i < 11; i++) {
+    for (let i = 0; i < 10; i++) {
       messages.next(createMessage(i));
     }
 
     // the 0th message is the sync boundary and should not be emitted
     expect(subscriptionSpy).toHaveBeenCalledTimes(10);
     for (let i = 0; i < 10; i++) {
-      expect(subscriptionSpy).toHaveBeenNthCalledWith(i + 1, null, createMessage(i + 1));
+      expect(subscriptionSpy).toHaveBeenNthCalledWith(i + 1, null, createMessage(i));
     }
 
-    expect(ably.channels.get(channelName).subscribe).toHaveBeenCalledOnce();
+    expect(channel.subscribe).toHaveBeenCalledOnce();
   });
 
-  it<StreamTestContext>('subscribes with multiple listeners', async ({ ably, logger, channelName: channel }) => {
+  it<StreamTestContext>('subscribes with multiple listeners', async ({ ably, logger, channelName }) => {
     let messages = new Subject<Types.Message>();
-    ably.channels.get(channel).subscribe = vi.fn<any, any>((callback) => {
+    const channel = ably.channels.get(channelName);
+    channel.subscribe = vi.fn<any, any>((callback) => {
       messages.subscribe((message) => callback(message));
     });
+    channel.attach = vi.fn(
+      async (): Promise<Types.ChannelStateChange | null> => ({
+        current: 'attached',
+        previous: 'attaching',
+        resumed: false,
+        hasBacklog: false,
+      }),
+    );
+    channel.history = vi.fn<any, any>(
+      async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => ({
+        items: [],
+        hasNext: () => false,
+      }),
+    );
 
-    const stream = new Stream({ ably, logger, channelName: channel });
-    await stream.sync(0, '0');
+    const stream = new Stream({ ably, logger, channelName });
+    await stream.sync('0');
     await statePromise(stream, StreamState.READY);
 
     const subscriptionSpy1 = vi.fn();
@@ -108,35 +148,50 @@ describe('Stream', () => {
     const subscriptionSpy2 = vi.fn();
     stream.subscribe(subscriptionSpy2);
 
-    for (let i = 0; i < 11; i++) {
+    for (let i = 0; i < 10; i++) {
       messages.next(createMessage(i));
     }
 
     expect(subscriptionSpy1).toHaveBeenCalledTimes(10);
     expect(subscriptionSpy2).toHaveBeenCalledTimes(10);
     for (let i = 0; i < 10; i++) {
-      expect(subscriptionSpy1).toHaveBeenNthCalledWith(i + 1, null, createMessage(i + 1));
-      expect(subscriptionSpy2).toHaveBeenNthCalledWith(i + 1, null, createMessage(i + 1));
+      expect(subscriptionSpy1).toHaveBeenNthCalledWith(i + 1, null, createMessage(i));
+      expect(subscriptionSpy2).toHaveBeenNthCalledWith(i + 1, null, createMessage(i));
     }
 
-    expect(ably.channels.get(channel).subscribe).toHaveBeenCalledOnce();
+    expect(channel.subscribe).toHaveBeenCalledOnce();
   });
 
-  it<StreamTestContext>('unsubscribes to messages', async ({ ably, logger, channelName: channel }) => {
+  it<StreamTestContext>('unsubscribes to messages', async ({ ably, logger, channelName }) => {
     let messages = new Subject<Types.Message>();
-    ably.channels.get(channel).subscribe = vi.fn<any, any>((callback) => {
+    const channel = ably.channels.get(channelName);
+    channel.subscribe = vi.fn<any, any>((callback) => {
       messages.subscribe((message) => callback(message));
     });
+    channel.attach = vi.fn(
+      async (): Promise<Types.ChannelStateChange | null> => ({
+        current: 'attached',
+        previous: 'attaching',
+        resumed: false,
+        hasBacklog: false,
+      }),
+    );
+    channel.history = vi.fn<any, any>(
+      async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => ({
+        items: [],
+        hasNext: () => false,
+      }),
+    );
 
-    const stream = new Stream({ ably, logger, channelName: channel });
-    await stream.sync(0, '0');
+    const stream = new Stream({ ably, logger, channelName });
+    await stream.sync('0');
     await statePromise(stream, StreamState.READY);
 
     const subscriptionSpy = vi.fn();
     stream.subscribe(subscriptionSpy);
 
-    for (let i = 0; i < 11; i++) {
-      if (i == 6) {
+    for (let i = 0; i < 10; i++) {
+      if (i == 5) {
         stream.unsubscribe(subscriptionSpy);
       }
       messages.next(createMessage(i));
@@ -144,20 +199,35 @@ describe('Stream', () => {
 
     expect(subscriptionSpy).toHaveBeenCalledTimes(5);
     for (let i = 0; i < 5; i++) {
-      expect(subscriptionSpy).toHaveBeenNthCalledWith(i + 1, null, createMessage(i + 1));
+      expect(subscriptionSpy).toHaveBeenNthCalledWith(i + 1, null, createMessage(i));
     }
 
-    expect(ably.channels.get(channel).subscribe).toHaveBeenCalledOnce();
+    expect(channel.subscribe).toHaveBeenCalledOnce();
   });
 
-  it<StreamTestContext>('unsubscribes one of two listeners', async ({ ably, logger, channelName: channel }) => {
+  it<StreamTestContext>('unsubscribes one of two listeners', async ({ ably, logger, channelName }) => {
     let messages = new Subject<Types.Message>();
-    ably.channels.get(channel).subscribe = vi.fn<any, any>((callback) => {
+    const channel = ably.channels.get(channelName);
+    channel.subscribe = vi.fn<any, any>((callback) => {
       messages.subscribe((message) => callback(message));
     });
+    channel.attach = vi.fn(
+      async (): Promise<Types.ChannelStateChange | null> => ({
+        current: 'attached',
+        previous: 'attaching',
+        resumed: false,
+        hasBacklog: false,
+      }),
+    );
+    channel.history = vi.fn<any, any>(
+      async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => ({
+        items: [],
+        hasNext: () => false,
+      }),
+    );
 
-    const stream = new Stream({ ably, logger, channelName: channel });
-    await stream.sync(0, '0');
+    const stream = new Stream({ ably, logger, channelName });
+    await stream.sync('0');
     await statePromise(stream, StreamState.READY);
 
     const subscriptionSpy1 = vi.fn();
@@ -166,8 +236,8 @@ describe('Stream', () => {
     const subscriptionSpy2 = vi.fn();
     stream.subscribe(subscriptionSpy2);
 
-    for (let i = 0; i < 11; i++) {
-      if (i == 6) {
+    for (let i = 0; i < 10; i++) {
+      if (i == 5) {
         stream.unsubscribe(subscriptionSpy1);
       }
       messages.next(createMessage(i));
@@ -177,59 +247,110 @@ describe('Stream', () => {
     expect(subscriptionSpy2).toHaveBeenCalledTimes(10);
     for (let i = 0; i < 10; i++) {
       if (i < 5) {
-        expect(subscriptionSpy1).toHaveBeenNthCalledWith(i + 1, null, createMessage(i + 1));
+        expect(subscriptionSpy1).toHaveBeenNthCalledWith(i + 1, null, createMessage(i));
       }
-      expect(subscriptionSpy2).toHaveBeenNthCalledWith(i + 1, null, createMessage(i + 1));
+      expect(subscriptionSpy2).toHaveBeenNthCalledWith(i + 1, null, createMessage(i));
     }
 
-    expect(ably.channels.get(channel).subscribe).toHaveBeenCalledOnce();
+    expect(channel.subscribe).toHaveBeenCalledOnce();
   });
 
-  it<StreamTestContext>('pauses and resumes the stream', async ({ ably, logger, channelName: channel }) => {
-    const stream = new Stream({ ably, logger, channelName: channel });
-    await stream.sync(0, '0');
+  it<StreamTestContext>('pauses and resumes the stream', async ({ ably, logger, channelName }) => {
+    const channel = ably.channels.get(channelName);
+    channel.subscribe = vi.fn<any, any>();
+    channel.attach = vi.fn(
+      async (): Promise<Types.ChannelStateChange | null> => ({
+        current: 'attached',
+        previous: 'attaching',
+        resumed: false,
+        hasBacklog: false,
+      }),
+    );
+    channel.history = vi.fn<any, any>(
+      async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => ({
+        items: [],
+        hasNext: () => false,
+      }),
+    );
+
+    const stream = new Stream({ ably, logger, channelName });
+    await stream.sync('0');
 
     await statePromise(stream, StreamState.READY);
-    expect(ably.channels.get(channel).subscribe).toHaveBeenCalledOnce();
+    expect(channel.subscribe).toHaveBeenCalledOnce();
 
     stream.pause();
     await statePromise(stream, StreamState.PAUSED);
-    expect(ably.channels.get(channel).detach).toHaveBeenCalledOnce();
+    expect(channel.detach).toHaveBeenCalledOnce();
 
     stream.resume();
     await statePromise(stream, StreamState.READY);
-    expect(ably.channels.get(channel).attach).toHaveBeenCalledOnce();
+    expect(channel.attach).toHaveBeenCalledTimes(2);
   });
 
-  it<StreamTestContext>('disposes of the stream', async ({ ably, logger, channelName: channel }) => {
+  it<StreamTestContext>('disposes of the stream', async ({ ably, logger, channelName }) => {
+    const channel = ably.channels.get(channelName);
+    channel.subscribe = vi.fn<any, any>();
+    channel.attach = vi.fn(
+      async (): Promise<Types.ChannelStateChange | null> => ({
+        current: 'attached',
+        previous: 'attaching',
+        resumed: false,
+        hasBacklog: false,
+      }),
+    );
+    channel.history = vi.fn<any, any>(
+      async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => ({
+        items: [],
+        hasNext: () => false,
+      }),
+    );
     ably.channels.release = vi.fn();
-    const stream = new Stream({ ably, logger, channelName: channel });
-    await stream.sync(0, '0');
+
+    const stream = new Stream({ ably, logger, channelName });
+    await stream.sync('0');
 
     await statePromise(stream, StreamState.READY);
-    expect(ably.channels.get(channel).subscribe).toHaveBeenCalledOnce();
+    expect(channel.subscribe).toHaveBeenCalledOnce();
 
     stream.dispose();
     await statePromise(stream, StreamState.DISPOSED);
     expect(ably.channels.release).toHaveBeenCalledOnce();
   });
 
-  it<StreamTestContext>('disposes of the stream on channel failed', async ({ ably, logger, channelName: channel }) => {
+  it<StreamTestContext>('disposes of the stream on channel failed', async ({ ably, logger, channelName }) => {
+    const channel = ably.channels.get(channelName);
+    channel.subscribe = vi.fn<any, any>();
+    channel.attach = vi.fn(
+      async (): Promise<Types.ChannelStateChange | null> => ({
+        current: 'attached',
+        previous: 'attaching',
+        resumed: false,
+        hasBacklog: false,
+      }),
+    );
+    channel.history = vi.fn<any, any>(
+      async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => ({
+        items: [],
+        hasNext: () => false,
+      }),
+    );
     ably.channels.release = vi.fn();
+
     let fail: (...args: any[]) => void = () => {
       throw new Error('fail not defined');
     };
-    ably.channels.get(channel).on = vi.fn<any, any>(async (name: string, callback) => {
+    channel.on = vi.fn<any, any>(async (name: string, callback) => {
       if (name === 'failed') {
         fail = callback;
       }
     });
 
-    const stream = new Stream({ ably, logger, channelName: channel });
-    await stream.sync(0, '0');
+    const stream = new Stream({ ably, logger, channelName });
+    await stream.sync('0');
 
     await statePromise(stream, StreamState.READY);
-    expect(ably.channels.get(channel).subscribe).toHaveBeenCalledOnce();
+    expect(channel.subscribe).toHaveBeenCalledOnce();
 
     fail({ reason: 'test' });
     await statePromise(stream, StreamState.DISPOSED);
