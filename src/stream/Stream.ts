@@ -2,11 +2,13 @@ import { Types as AblyTypes } from 'ably';
 import { Logger } from 'pino';
 import { Subject, Subscription } from 'rxjs';
 
-import { OrderedSequenceResumer } from './Middleware.js';
+import { OrderedHistoryResumer } from './Middleware.js';
 import type { StandardCallback } from '../types/callbacks';
 import type { EventOrderer } from '../types/optimistic.js';
 import EventEmitter from '../utilities/EventEmitter.js';
 import { statePromise } from '../utilities/test/promises.js';
+
+export const HISTORY_PAGE_SIZE = 100;
 
 /**
  * StreamState represents the possible lifecycle states of a stream.
@@ -77,7 +79,7 @@ export interface IStream {
   get channelName(): string;
   pause(): Promise<void>;
   resume(): Promise<void>;
-  sync(rewind: number, sequenceID: string): Promise<void>;
+  sync(sequenceID: string): Promise<void>;
   subscribe(callback: StandardCallback<AblyTypes.Message>): Promise<void>;
   unsubscribe(callback: StandardCallback<AblyTypes.Message>): void;
   dispose(reason?: AblyTypes.ErrorInfo | string): Promise<void>;
@@ -92,7 +94,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
   private subscriptions = new Subject<AblyTypes.Message>();
   private subscriptionMap: WeakMap<StandardCallback<AblyTypes.Message>, Subscription> = new WeakMap();
   private ablyChannel?: AblyTypes.RealtimeChannelPromise;
-  private middleware?: OrderedSequenceResumer;
+  private middleware?: OrderedHistoryResumer;
 
   private readonly baseLogContext: Partial<{ scope: string; action: string }>;
   private readonly logger: Logger;
@@ -171,12 +173,12 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     }
   }
 
-  public async sync(rewind: number, sequenceID: string) {
+  public async sync(sequenceID: string) {
     this.logger.trace({ ...this.baseLogContext, action: 'sync()' });
     this.setState(StreamState.PREPARING);
     this.subscriptions.unsubscribe();
     this.subscriptions = new Subject<AblyTypes.Message>();
-    await this.init(rewind, sequenceID);
+    await this.init(sequenceID);
     this.setState(StreamState.READY);
   }
 
@@ -191,24 +193,53 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     } as StreamStateChange);
   }
 
-  private async init(rewind: number, sequenceID: string) {
+  private async init(sequenceID: string) {
     this.logger.trace({ ...this.baseLogContext, action: 'init()' });
     if (this.middleware) {
       this.middleware.unsubscribeAll();
     }
-    this.middleware = new OrderedSequenceResumer(
+    this.middleware = new OrderedHistoryResumer(
       sequenceID,
       this.options.eventBufferOptions?.bufferMs || 0,
       this.options.eventBufferOptions?.eventOrderer,
     );
     this.middleware.subscribe(this.onMiddlewareMessage.bind(this));
-    this.ablyChannel = this.ably.channels.get(this.options.channelName, { params: { rewind: `${rewind}s` } });
+    this.ablyChannel = this.ably.channels.get(this.options.channelName);
     this.ablyChannel.on('failed', (change) => this.dispose(change.reason));
     this.ablyChannel.on(['suspended', 'update'], () => {
       this.subscriptions.error(new Error('discontinuity in channel connection'));
     });
     await this.ably.connection.whenState('connected');
-    await this.ablyChannel.subscribe(this.onChannelMessage.bind(this));
+
+    const attachResult = await this.ablyChannel.attach();
+    if (!attachResult) {
+      throw new Error('the channel was already attached when calling attach()');
+    }
+    const subscribeResult = await this.ablyChannel.subscribe(this.onChannelMessage.bind(this));
+    if (subscribeResult) {
+      throw new Error('the channel was not attached when calling subscribe()');
+    }
+    let page = await this.ablyChannel.history({ untilAttach: true, limit: HISTORY_PAGE_SIZE });
+    if (page.items.length === 0) {
+      // If there is no history at all, we cannot resume from the sequenceID.
+      // Since we require that the state is no more than 2 mins stale (or 72 hours if persisted history is enabled)
+      // we assume that no updates have been made to the state in that time, and allow operation to continue as
+      // though we were able to resume correctly.
+      this.middleware.flush();
+    } else {
+      // We have at least one page of history, so we continue to paginate back until we reach the
+      // sequenceID or we run out of messages.
+      let done = this.middleware.addHistoricalMessages(page.items);
+      while (!done && page && page.hasNext()) {
+        page = await this.ablyChannel.history({ untilAttach: true, limit: HISTORY_PAGE_SIZE });
+        done = this.middleware.addHistoricalMessages(page.items);
+      }
+    }
+    // If the middleware is not ready it means we never reached the target sequenceID,
+    // so the target sequenceID was too stale and we should surface an error.
+    if (this.middleware.state !== 'ready') {
+      throw new Error(`insufficient history to seek to sequenceID ${sequenceID} in stream`);
+    }
   }
 
   private onChannelMessage(message: AblyTypes.Message) {
@@ -216,7 +247,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     if (!this.middleware) {
       throw new Error('received channel message before middleware was registered');
     }
-    this.middleware.next(message);
+    this.middleware.addLiveMessages(message);
   }
 
   private onMiddlewareMessage(err: Error | null, message: AblyTypes.Message | null) {

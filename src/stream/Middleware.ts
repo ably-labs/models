@@ -27,73 +27,20 @@ abstract class MiddlewareBase {
   public unsubscribeAll(): void {
     this.outputCallbacks = [];
   }
-}
 
-export class SequenceResumer extends MiddlewareBase {
-  private state: 'pending' | 'active' | 'error' = 'pending';
-  private lastMessageId: string | null = null;
-  private hasCrossedBoundary = false;
-
-  constructor(private sequenceID: string) {
-    super();
-  }
-
-  public next(message: AblyTypes.Message): void {
-    if (this.state === 'error') {
-      return;
-    }
-
-    if (this.lastMessageId && this.messageIdBeforeExclusive(message.id, this.lastMessageId)) {
-      this.state = 'error';
-      this.error(new Error(`out-of-sequence message received: ${message.id} after ${this.lastMessageId}`));
-      return;
-    }
-
-    this.lastMessageId = message.id;
-
-    switch (this.state) {
-      case 'pending':
-        if (this.messageIdBeforeInclusive(message.id, this.sequenceID)) {
-          // track that we've seen a message before the boundary and skip
-          this.hasCrossedBoundary = true;
-          return;
-        } else if (this.messageIdAfter(message.id, this.sequenceID)) {
-          if (!this.hasCrossedBoundary) {
-            // if we haven't seen a message before the boundary, we cannot guarantee that we have
-            // looked far back enough in the message stream to process all messages after the boundary
-            this.state = 'error';
-            this.error(
-              new Error(
-                `received message ${message.id} after the boundary at ${this.sequenceID} without seeing one before it`,
-              ),
-            );
-            return;
-          }
-          // we have crossed the boundary and can process the message
-          this.state = 'active';
-          super.next(message);
-          return;
-        }
-        break;
-      case 'active':
-        super.next(message);
-        break;
-    }
-  }
-
-  private compareIds(a: string, b: string): number {
+  protected compareIds(a: string, b: string): number {
     return a.localeCompare(b, 'en-US', { numeric: true });
   }
 
-  private messageIdBeforeInclusive(a: string, b: string) {
+  protected messageIdBeforeInclusive(a: string, b: string) {
     return this.compareIds(a, b) <= 0;
   }
 
-  private messageIdBeforeExclusive(a: string, b: string) {
+  protected messageIdBeforeExclusive(a: string, b: string) {
     return this.compareIds(a, b) < 0;
   }
 
-  private messageIdAfter(a: string, b: string) {
+  protected messageIdAfter(a: string, b: string) {
     return this.compareIds(a, b) > 0;
   }
 }
@@ -151,8 +98,11 @@ export class SlidingWindow extends MiddlewareBase {
   }
 }
 
-export class OrderedSequenceResumer extends MiddlewareBase {
-  private sequenceResumer: SequenceResumer;
+// TODO handle case when cannot paginate far back enough before finding sequence
+export class OrderedHistoryResumer extends MiddlewareBase {
+  private currentState: 'seeking' | 'ready' = 'seeking';
+  private historicalMessages: AblyTypes.Message[] = [];
+  private realtimeMessages: AblyTypes.Message[] = [];
   private slidingWindow: SlidingWindow;
 
   constructor(
@@ -161,25 +111,87 @@ export class OrderedSequenceResumer extends MiddlewareBase {
     private readonly eventOrderer: EventOrderer = defaultOrderLexicoId,
   ) {
     super();
-    this.sequenceResumer = new SequenceResumer(this.sequenceID);
     this.slidingWindow = new SlidingWindow(this.windowSizeMs, this.eventOrderer);
-    this.sequenceResumer.subscribe((err, message) => (err ? this.error(err) : super.next(message!)));
-    this.slidingWindow.subscribe((err, message) => (err ? this.error(err) : this.sequenceResumer.next(message!)));
+    this.slidingWindow.subscribe(this.onMessage.bind(this));
   }
 
-  public next(message: AblyTypes.Message) {
+  public get state() {
+    return this.currentState;
+  }
+
+  private onMessage(err: Error | null, message: AblyTypes.Message | null) {
+    if (err) {
+      super.error(err);
+      return;
+    }
+    super.next(message!);
+  }
+
+  private reverseOrderer(a: AblyTypes.Message, b: AblyTypes.Message) {
+    return this.eventOrderer(a, b) * -1;
+  }
+
+  public addHistoricalMessages(messages: AblyTypes.Message[]): boolean {
+    if (this.currentState !== 'seeking') {
+      throw new Error('can only add historical messages while in seeking state');
+    }
+    if (messages.length === 0) {
+      return true;
+    }
+    this.historicalMessages = this.historicalMessages.concat(messages);
+
+    // We sort the historical messages to handle any out-of-orderiness by sequenceID
+    // due to possible CGO order.
+    // It is not optimal to sort the entire thing with each page as out-of-orderiness
+    // is localised within a two minute window, but being more clever about this requires
+    // tracking message timestamps and complicates the logic.
+    // Given the number of messages is likely to be reasonably small, this approach is okay for now.
+    //
+    // Note that because of potential out-of-orderiness by sequenceID due to possible CGO order,
+    // it's possible this function discovers the boundary in the stream but a more recent message appears
+    // further back in the stream outside of the given page. A larger page size reduces this likelihood but
+    // doesn't solve it. The solution would require paging back 2 mins further to check for any such messages.
+    // This is sufficiently low likelihood that this can be ignored for now.
+    this.historicalMessages.sort(this.reverseOrderer.bind(this));
+
+    // seek backwards through history until we reach a message id <= the specified sequenceID
+    // (discarding anything older) before flushing out all messages > the sequenceID
+    for (let i = 0; i < this.historicalMessages.length; i++) {
+      if (this.messageIdBeforeInclusive(this.historicalMessages[i].id, this.sequenceID)) {
+        if (this.historicalMessages[i].id === this.sequenceID) {
+          i++;
+        }
+        this.historicalMessages.splice(0, i);
+        this.flush();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public flush() {
+    for (const message of this.historicalMessages) {
+      // we send historical messages through the sliding window too to catch
+      // any potential out-of-orderiness by sequenceID at the attach boundary
+      this.slidingWindow.next(message);
+    }
+    for (const message of this.realtimeMessages) {
+      this.slidingWindow.next(message);
+    }
+    this.historicalMessages = [];
+    this.currentState = 'ready';
+  }
+
+  public addLiveMessages(message: AblyTypes.Message) {
+    if (this.currentState === 'seeking') {
+      this.realtimeMessages.push(message);
+      return;
+    }
     this.slidingWindow.next(message);
   }
 
-  public unsubscribe(callback: (error: Error | null, message: AblyTypes.Message | null) => void): void {
-    this.slidingWindow.unsubscribe(callback);
-    this.sequenceResumer.unsubscribe(callback);
-    super.unsubscribe(callback);
-  }
-
   public unsubscribeAll(): void {
-    this.slidingWindow.unsubscribeAll();
-    this.sequenceResumer.unsubscribeAll();
+    this.slidingWindow.unsubscribe(this.onMessage.bind(this));
     super.unsubscribeAll();
   }
 }

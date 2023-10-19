@@ -3,7 +3,7 @@ import pino from 'pino';
 import { Subject } from 'rxjs';
 import { it, describe, expect, afterEach, vi, beforeEach } from 'vitest';
 
-import Model, { REWIND_INTERVAL_MARGIN_SECONDS } from './Model.js';
+import Model from './Model.js';
 import { StreamOptions, IStream, StreamState } from './stream/Stream.js';
 import { IStreamFactory } from './stream/StreamFactory.js';
 import type { ModelStateChange, ModelOptions } from './types/model.d.ts';
@@ -90,7 +90,7 @@ describe('Model', () => {
     const synchronised = new Promise((resolve) => (completeSync = resolve));
     const sync = vi.fn(async () => {
       await synchronised;
-      return { data: simpleTestData, sequenceID: '0', stateTimestamp: new Date() };
+      return { data: simpleTestData, sequenceID: '0' };
     });
     const model = new Model<TestData>('test', { sync: sync }, { ably, channelName, logger });
     await statePromise(model, 'initialized');
@@ -115,7 +115,7 @@ describe('Model', () => {
     const sync = vi.fn(async () => {
       await synchronised;
 
-      return { data: { ...simpleTestData, bar: { baz: ++counter } }, sequenceID: '0', stateTimestamp: new Date() };
+      return { data: { ...simpleTestData, bar: { baz: ++counter } }, sequenceID: '0' };
     });
 
     const model = new Model<TestData>('test', { sync: sync }, { ably, channelName, logger });
@@ -152,14 +152,8 @@ describe('Model', () => {
 
   it<ModelTestContext>('rewinds to the correct point in the stream', async ({ channelName, ably, logger, streams }) => {
     const stream = streams.newStream({ channelName });
-    let rewind: number | undefined;
-    let sequenceID: string | undefined;
-    stream.sync = vi.fn(async (rewindArg: number, sequenceIDArg: string) => {
-      rewind = rewindArg;
-      sequenceID = sequenceIDArg;
-    });
+    stream.sync = vi.fn();
 
-    const stateTimestamp = new Date();
     let i = 0;
     const sync = vi.fn(async () => {
       i++;
@@ -167,22 +161,14 @@ describe('Model', () => {
         return {
           data: 'data_0',
           sequenceID: '123',
-          stateTimestamp,
         };
       return {
-        data: 'data_0',
+        data: 'data_1',
         sequenceID: '456',
-        stateTimestamp: new Date(stateTimestamp.getTime() + 3000),
       };
     });
 
-    // override the implementation of `now()` to allow us to make assertions on the rewind interval
-    class ExtendedModel<T> extends Model<T> {
-      now() {
-        return new Date(stateTimestamp.getTime() + 10000);
-      }
-    }
-    const model = new ExtendedModel<string>('test', { ably, channelName, logger });
+    const model = new Model<string>('test', { ably, channelName, logger });
 
     const mergeFn = vi.fn(async (_, event) => event.data);
     await model.$register({
@@ -192,14 +178,12 @@ describe('Model', () => {
 
     expect(sync).toHaveBeenCalledOnce();
     expect(stream.sync).toHaveBeenCalledOnce();
-    expect(sequenceID).toEqual('123');
-    expect(rewind).toEqual(REWIND_INTERVAL_MARGIN_SECONDS + 10);
+    expect(stream.sync).toHaveBeenNthCalledWith(1, '123');
 
     await model.$sync();
     expect(sync).toHaveBeenCalledTimes(2);
     expect(stream.sync).toHaveBeenCalledTimes(2);
-    expect(sequenceID).toEqual('456');
-    expect(rewind).toEqual(REWIND_INTERVAL_MARGIN_SECONDS + 10 - 3);
+    expect(stream.sync).toHaveBeenNthCalledWith(2, '456');
   });
 
   it<ModelTestContext>('pauses and resumes the model', async ({ channelName, ably, logger, streams }) => {
@@ -210,7 +194,6 @@ describe('Model', () => {
     const sync = vi.fn(async () => ({
       data: simpleTestData,
       sequenceID: '0',
-      stateTimestamp: new Date(),
     }));
 
     const model = new Model<TestData>(
@@ -242,7 +225,6 @@ describe('Model', () => {
     const sync = vi.fn(async () => ({
       data: simpleTestData,
       sequenceID: '0',
-      stateTimestamp: new Date(),
     }));
 
     const model = new Model<TestData>(
@@ -277,7 +259,6 @@ describe('Model', () => {
     const sync = vi.fn(async () => ({
       data: 'data_0',
       sequenceID: '0',
-      stateTimestamp: new Date(),
     }));
 
     const mergeFn = vi.fn(async (_, event) => event.data);
@@ -337,7 +318,6 @@ describe('Model', () => {
     const sync = vi.fn(async () => ({
       data: 'data_0',
       sequenceID: '0',
-      stateTimestamp: new Date(),
     })); // defines initial version of model
     const model = new Model<string>('test', { sync }, { ably, channelName, logger });
 
@@ -373,7 +353,6 @@ describe('Model', () => {
         sync: async () => ({
           data: 'data_0',
           sequenceID: '0',
-          stateTimestamp: new Date(),
         }),
         merge: mergeFn,
       },
@@ -425,7 +404,6 @@ describe('Model', () => {
       sync: async () => ({
         data: 'data_0',
         sequenceID: '0',
-        stateTimestamp: new Date(),
       }),
       merge: mergeFn,
     }, { ably, channelName, logger });
@@ -466,7 +444,6 @@ describe('Model', () => {
         sync: async () => ({
           data: 'data_0',
           sequenceID: '0',
-          stateTimestamp: new Date(),
         }),
         merge: mergeFn,
       },
@@ -532,7 +509,6 @@ describe('Model', () => {
         sync: async () => ({
           data: 'data_0',
           sequenceID: '0',
-          stateTimestamp: new Date(),
         }),
         merge: mergeFn,
       },
@@ -595,7 +571,6 @@ describe('Model', () => {
         sync: async () => ({
           data: '0',
           sequenceID: '0',
-          stateTimestamp: new Date(),
         }),
         merge: mergeFn,
       },
@@ -684,7 +659,6 @@ describe('Model', () => {
         sync: async () => ({
           data: '0',
           sequenceID: '0',
-          stateTimestamp: new Date(),
         }),
         merge: mergeFn,
       },
@@ -771,7 +745,6 @@ describe('Model', () => {
         sync: async () => ({
           data: '0',
           sequenceID: '0',
-          stateTimestamp: new Date(),
         }),
         merge: mergeFn,
       },
@@ -818,7 +791,6 @@ describe('Model', () => {
     const sync = vi.fn(async () => ({
       data: `${counter}`,
       sequenceID: '0',
-      stateTimestamp: new Date(),
     }));
 
     const mergeFn = vi.fn(async (_, event) => {
@@ -888,7 +860,6 @@ describe('Model', () => {
         sync: async () => ({
           data: '0',
           sequenceID: '0',
-          stateTimestamp: new Date(),
         }),
         merge: mergeFn,
       },
@@ -928,7 +899,6 @@ describe('Model', () => {
         sync: async () => ({
           data: '0',
           sequenceID: '0',
-          stateTimestamp: new Date(),
         }),
         merge: mergeFn,
       },
@@ -962,7 +932,6 @@ describe('Model', () => {
         sync: async () => ({
           data: '0',
           sequenceID: '0',
-          stateTimestamp: new Date(),
         }),
         merge: mergeFn,
       },

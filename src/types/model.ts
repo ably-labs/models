@@ -107,7 +107,7 @@ export type OptimisticEventWithParams = OptimisticEvent & {
  * Defines a function which the library will use to pull the latest state of the model from the backend.
  * Invoked on initialisation and whenever some discontinuity occurs that requires a re-sync.
  */
-export type SyncFunc<T> = () => Promise<{ data: T; sequenceID: string; stateTimestamp: Date }>;
+export type SyncFunc<T> = () => Promise<{ data: T; sequenceID: string }>;
 
 /**
  * A state transition emitted as an event from the model describing a change to the model's lifecycle.
