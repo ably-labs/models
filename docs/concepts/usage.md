@@ -32,8 +32,8 @@ In order to instantiate the model, we need to pass some *registrations* which li
 const model = modelsClient.models.get<Post>({
   name: /* ... */,
   channelName: /* ... */,
-  $sync: /* ... */,
-  $merge: /* ... */,
+  sync: /* ... */,
+  merge: /* ... */,
 })
 
 // run the initial sync
@@ -59,7 +59,7 @@ async function sync() {
 }
 
 const model = modelsClient.models.get<Post>({
-  $sync: /* ... */,
+  sync: /* ... */,
   /* other registrations */
 })
 
@@ -159,16 +159,16 @@ model.subscribe((err, post) => { /* ... */ }, { optimistic: false });
 There may be cases where we want to pause or resume a model. We can do this using the methods available on the model instance:
 
 ```ts
-await model.$pause();
+await model.pause();
 // model paused: new events will not be processed and subscription callbacks will no longer be invoked
-await model.$resume();
+await model.resume();
 // processing of events has resumed and new changes will be made available to subscribers
 ```
 
 When we're done with the model, we can dispose of it to release all its resources:
 
 ```ts
-await model.$dispose();
+await model.dispose();
 // model disposed and can no longer be used
 ```
 

@@ -87,9 +87,9 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
       options.defaultOptimisticOptions,
     );
 
-    this.syncFunc = registration.$sync;
-    if (registration.$merge) {
-      this.merge = registration.$merge;
+    this.syncFunc = registration.sync;
+    if (registration.merge) {
+      this.merge = registration.merge;
     }
   }
 
@@ -139,7 +139,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
    * The sync function that allows the model to be manually resynced
    * @returns A promise that resolves when the model has successfully re-synchronised its state and is ready to start emitting updates.
    */
-  public get $sync() {
+  public get sync() {
     return () => {
       this.init();
       return new Promise((resolve) => this.whenState('ready', this.state, resolve));
@@ -150,7 +150,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
    * Pauses the current model by detaching from the underlying channels and pausing processing of updates.
    * @returns A promise that resolves when the model has been paused.
    */
-  public async $pause() {
+  public async pause() {
     this.logger.trace({ ...this.baseLogContext, action: 'pause()' });
     await this.stream.pause();
     this.setState('paused');
@@ -160,7 +160,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
    * Resumes the current model by re-synchronising and re-attaching to the underlying channels and resuming processing of updates.
    * @returns A promise that resolves when the model has been resumed.
    */
-  public async $resume() {
+  public async resume() {
     this.logger.trace({ ...this.baseLogContext, action: 'resume()' });
     await this.stream.resume();
     this.setState('ready');
@@ -172,7 +172,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
    * @param {Error?} reason - The optional reason for disposing the model.
    * @returns A promise that resolves when the model has been disposed.
    */
-  public async $dispose(reason?: Error) {
+  public async dispose(reason?: Error) {
     this.logger.trace({ ...this.baseLogContext, action: 'dispose()', reason });
     this.setState('disposed', reason);
     this.subscriptions.unsubscribe();
