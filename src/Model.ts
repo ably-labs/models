@@ -21,11 +21,7 @@ import type {
   OptimisticEvent,
   ConfirmedEvent,
 } from './types/model.js';
-import {
-  MODELS_EVENT_REJECT_HEADER,
-  MODELS_EVENT_UUID_HEADER,
-  type OptimisticEventOptions,
-} from './types/optimistic.js';
+import { MODELS_EVENT_REJECT_HEADER, MODELS_EVENT_UUID_HEADER, OptimisticEventOptions } from './types/optimistic.js';
 import EventEmitter from './utilities/EventEmitter.js';
 
 /**

@@ -28,9 +28,12 @@ describe('Models', () => {
     expectTypeOf(modelsClient.ably).toMatchTypeOf<Types.RealtimePromise>();
   });
 
-  it<ModelsTestContext>('getting a model with the same name returns the same instance', ({ ably, channelName }) => {
+  it<ModelsTestContext>('getting a model with the same name returns the same instance', async ({
+    ably,
+    channelName,
+  }) => {
     const modelsClient = new ModelsClient({ ably });
-    const model1 = modelsClient.models.get<string>({
+    const model1 = await modelsClient.models.get<string>({
       name: 'test',
       channelName: channelName,
       $sync: async () => 'initial data',
@@ -38,7 +41,7 @@ describe('Models', () => {
     });
     expect(model1.name).toEqual('test');
 
-    const model2 = modelsClient.models.get<string>({
+    const model2 = await modelsClient.models.get<string>({
       name: 'test',
       channelName: channelName,
       $sync: async () => 'initial data',

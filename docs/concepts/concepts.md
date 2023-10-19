@@ -4,7 +4,7 @@
 
 The Models SDK aims to make it easier for developers to efficiently and correctly synchronise state from the database to the client in realtime.
 
-- The database is treated as the *source of truth* of the state 
+- The database is treated as the *source of truth* of the state
 - Alterations to the state take place through your backend APIs
 - The client initialises its local copy of the state via your backend APIs
 - The client processes a stream of change events from the backend to compute the up-to-date state as it evolves
@@ -17,7 +17,7 @@ sequenceDiagram
     participant User
     participant Models SDK
     participant Backend
-    
+
     User->>Models SDK: Takes action to mutate model
     Models SDK->>Models SDK: Emit optimistic event
     Models SDK->>User: Display optimistic state
@@ -82,7 +82,7 @@ graph LR
     A[State v0] -->|event| B(State v1) --> |...| C(State vN)
 ```
 
-The next state is produced by an *update function*, which is a pure function of the previous state and the change event:
+The next state is produced by an *merge function*, which is a pure function of the previous state and the change event:
 
 ```ts
 (state, event) => state
@@ -95,7 +95,7 @@ graph LR
     A["[first comment]"] --> |add: second comment| B["[first comment, second comment]"]
 ```
 
-The update function might therefore be expressed as:
+The merge function might therefore be expressed as:
 
 ```ts
 (state, event) => ({
@@ -106,7 +106,7 @@ The update function might therefore be expressed as:
 
 ## Applying Updates to State
 
-Events are applied to model state via update function in the following way:
+Events are applied to model state via merge function in the following way:
 
 - The model state is initialised with two copies of the state: an optimistic and a confirmed copy.
 - If the incoming event is an *optimistic* event:
@@ -129,53 +129,43 @@ There may be cases where a confirmation event from your backend never arrives. F
 
 In this case, the optimistic update should be rolled back if a confirmation isn't received within some time period. This timeout interval defaults to 2 minutes, but you can override this behaviour by providing via mutation options:
 
-```ts
+```typescript
 // set a default timeout of 5s second via mutation options on the model
-const models = new Models({ ably }, {
-	timeout: 5000,
+const modelsClient = new ModelsClient({
+    ably: ably,
+	defaultOptimisticOptions: { timeout: 5000 } ,
 });
 
-// set a default timeout of 5s on a per-mutation basis 
-await model.$register({
-  $mutate: {
-    myMutation: {
-      func: myMutation,
-      options: { timeout: 5000 },
-    }
-  },
-});
-
-// set a timeout of 5s on a specific mutation invocation
-await model.mutations.myMutation.$expect({
-	events: myExpectedEvents,
+// set a timeout of 5s on a specific optimistic update invocation
+await model.optimistic({
+	event: myExpectedEvents,
 	options: {
 		timeout: 5000,
 	},
 })();
 ```
 
-
 ## Rejections
 
-In some cases you may wish to explicitly reject a mutation from your backend. You could do this by simply throwing an error from your mutation function, which would cause any optimistic events for that mutation to be rolled back:
+In some cases you may wish to explicitly reject an optimistic event from your backend.
+You can do this in the following ways:
 
+1. Using the optimistic event's cancel function.
+2. Throw an error from the `merge` function when processing an optimistic event.
+3. Using the `x-ably-models-reject` header on an event emitted from your backend.
 
-```ts
-await model.$register({
-  $mutate: {
-    myMutation: async () => {
-      throw new Error('mutation failed!');
-    },
-  },
-});
+Here's an example using the optimistic event's cancel function:
+```typescript
+const [confirmation, cancel] = await model.optimistic({ ... });
 
 try {
-  await model.mutations.myMutation.$expect({
-    events: myExpectedEvents,
-  })();
+  updateMyBackend();
 } catch (err) {
-  // mutation failed!
+  cancel();
 }
 ```
 
-Other times, you may wish to reject a mutation asynchronously to the lifetime of the backend request made from your mutation function. In this case, it is useful to emit an explicit rejection event from your backend. You can do this by including an `x-ably-models-reject` header on the confirmation event. The Models SDK will automatically treat confirmations with this header set as a rejection and rollback any corresponding optimistic events.
+Other times, you may wish to reject a mutation asynchronously to the lifetime of the backend request made from your mutation function.
+In this case, it is useful to emit an explicit rejection event from your backend.
+You can do this by including an `x-ably-models-reject` header on the confirmation event.
+The Models SDK will automatically treat confirmations with this header set as a rejection and rollback any corresponding optimistic events.

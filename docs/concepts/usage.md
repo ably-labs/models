@@ -1,11 +1,10 @@
-
 # Usage
 
 - [Usage](#usage)
 	- [Model](#model)
 	- [Sync Function](#sync-function)
-	- [Update Functions](#update-functions)
-	- [Mutation Functions](#mutation-functions)
+	- [Merge Functions](#merge-functions)
+	- [Optimistic Events](#optimistic-events)
 	- [Subscriptions](#subscriptions)
 	- [Model Lifecycle](#model-lifecycle)
 
@@ -27,16 +26,15 @@ type Post = {
 
 Note that we pass in the shape of our data model (`Post`) as a type parameter.
 
-> In addition, we pass in a type parameter that defines the set of available [*mutations*](#mutation-functions) on the data model, described below.
-
-Once your model is instantiated, we need to make some *registrations* which link up the model to your application code:
+In order to instantiate the model, we need to pass some *registrations* which link up the model to your application code.
 
 ```ts
-await model.$register({
-	$sync: /* ... */,
-	$update: /* ... */,
-	$mutate: /* ... */,
-});
+await modelsClient.models.get<Post>({
+  name: /* ... */,
+  channelName: /* ... */,
+  $sync: /* ... */,
+  $merge: /* ... */,
+})
 ```
 
 Let's take a look at each of these registrations in turn.
@@ -59,19 +57,19 @@ async function sync() {
   return result.json();
 }
 
-await model.$register({
-  $sync: sync,
+await modelsClient.models.get<Post>({
+  $sync: /* ... */,
   /* other registrations */
-});
+})
 ```
 
 The model will invoke this function at the start of its lifecycle to initialise your model state. Additionally, this function will be invoked if the model needs to re-synchronise at any point, for example after an extended period of network disconnectivity.
 
-## Update Functions
+## Merge Functions
 
-> *Update functions* tell your model how to calculate the next version of the data when a mutation event occurs.
+> *Merge functions* tell your model how to calculate the next version of the data when a mutation event is received.
 
-When changes occur to your data model in your backend, your backend is expected to emit *events* which describe the mutation that occurred. The Models SDK will consume these events and apply them to its local copy of the model state to produce the next updated version. The way the next state is calculated is expressed as an *update function*, which has the following type:
+When changes occur to your data model in your backend, your backend is expected to emit *events* which describe the result of the mutation that occurred. The Models SDK will consume these events and apply them to its local copy of the model state to produce the next updated version. The way the next state is calculated is expressed as an *update function*, which has the following type:
 
 ```ts
 type UpdateFunc<T> = (state: T, event: OptimisticEvent | ConfirmedEvent) => Promise<T>;
@@ -79,98 +77,58 @@ type UpdateFunc<T> = (state: T, event: OptimisticEvent | ConfirmedEvent) => Prom
 
 i.e. it is a function that accepts the previous model state and the event and returns the next model state.
 
-> An event can be either *optimistic* or *confirmed*. Events that come from your backend are always treated as *confirmed* events as they describe a mutation to the data which has been accepted by your backend. Soon, we will see how the Models SDK can also emit local *optimistic* events which describe mutations that have happened locally but have not yet been confirmed by your backend.
+> An event can be either *optimistic* or *confirmed*. Events that come from your backend are always treated as *confirmed* events as they describe a the result of a mutation to the data which has been accepted by your backend. Soon, we will see how the Models SDK can also emit local *optimistic* events which describe mutations that have happened locally but have not yet been confirmed by your backend.
 
 Confirmed events are emitted from your backend over Ably *[channels](https://ably.com/docs/channels)*. A model can consume events from any number of Ably channels.
 
 > **Note**
 > Ably's [Database Connector](https://github.com/ably-labs/adbc) makes it easy to emit change events over Ably transactionally with mutations to your data in your database.
 
-An update function is associated with a *channel name* and an *event name*; the model will invoke the update function whenever it receives an event with that name on the associated channel.
+A model is associated with a *channel name*; the model will invoke the update function for all events it receives on the associated channel.
 
-For example, we might define an update function which runs when we get an `update` event on the `posts` channel, where the payload is the new value of the post's `text` field:
+## Optimistic events
 
-```ts
-async function onPostUpdated(state, event) {
-  return {
-    ...state,
-    text: event.data, // replace the previous post text field with the new value
-  }
-}
+The Models SDK supports *optimistic updates* which allows you to render the latest changes to your data model before they have been confirmed by the backend. This makes for a really quick and snappy user experience where all updates feel instantaneous!
 
-await model.$register({
-  // update functions are registered on the model using a
-  // mapping of channel_name -> event_name -> update_function
-  $update: {
-    'posts': {
-      'update': onPostUpdated,
-    },
-  },
-  /* other registrations */
-});
-```
+> *Optimistic events* allow you to make local changes to your data optimistically that you expect you backend will later confirm or reject.
 
-## Mutation Functions
+To apply optimistic changes to your model, you can call with `.optimistic(...)` method on your model passing the optimistic event.
+You are also responsible for applying the change to your backend directly.
+You should pass the mutationId that you included on your model to help correlate optimistic events applied locally and confirmed events emitted by your backend.
 
-> *Mutation functions* allow you to make changes to your data in your backend and tell your model what changes to expect.
-
-In order to make changes to your data, you can register a set of *mutations* on the data model. It is a simple function which accepts any input arguments you like and returns a promise of a given type.
-
-Typically, you would implement this as a function which updates the model state in your backend over the network. For example, we might have a REST HTTP API endpoint which updates the data for our post:
-
-```ts
-async function updatePost(context: MutationContext, content: string) {
+```typescript
+// your method for applying the change to your backed
+async function updatePost(mutationId: string, content: string) {
   const result = await fetch(`/api/post`, {
     method: 'PUT',
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ mutationId, content }),
   });
   return result.json();
 }
 
-await model.$register({
-  $mutate: {
-    updatePost,
-  },
-  /* other registrations */
-});
+// optimistically apply the changes to the model
+const [confirmation, cancel] = await model.optimistic({
+    mutationId: 'my-mutation-id',
+    name: 'updatePost',
+    data: 'new post text',
+})
+
+// apply the changes in your backend
+updatePost('my-mutation-id', 'new post text')
 ```
 
-> Note that the first `context` argument gives your mutation function access to the expected events that were passed to the mutation function when it was invoked. See [Event Correlation](./event-correlation.md).
+> See [Event Correlation](./event-correlation.md).
 
-The backend API endpoint would then update the post data in the database and emit a confirmation event, which would be received and processed by our `onPostUpdated` update function described [above](#update-functions).
+This optimistic event will be passed to your merge function to be optimistically included in the local model state.
 
-It is possible to configure options on each mutation, for example to set a specific timeout within which the model will expect the mutation to be confirmed:
+You are responsible for making changes to the persisted model state, typically you would implement this as a function which updates the model state in your backend over the network. For example, we might have a REST HTTP API endpoint which updates the data for our post, as in the `updatePost(...)` method above.
 
-```ts
-await model.$register({
-  $mutate: {
-    updatePost: {
-      func: updatePost,
-      options: { timeout: 5000 },
-    }
-  },
-  /* other registrations */
-});
-```
+The backend API endpoint would then update the post data in the database and emit a confirmation event, which would be received and processed by our merge function described [above](#merge-functions).
 
-You can now invoke the registered mutation using the `mutations` handle on the model:
+The model returns a promise that resolves to two values from the `.optimsitic(...)` function.
 
-```ts
-const result = await model.mutations.updatePost('new value');
-```
-
-The Models SDK supports *optimistic updates* which allows you to render the latest changes to your data model before they have been confirmed by the backend. This makes for a really quick and snappy user experience where all updated feel instantaneous! To achieve this, when you invoke a mutation you can specify a set of *optimistic events* which will be applied to your data model immediately:
-
-```ts
-const [result, confirmed] = await model.mutations.updatePost.$expect([
-  { channel: 'post', name: 'update', text: 'new value' },	// optimistic event
-])('new value');
-
-await confirmed;
-// optimistic update was confirmed by the backend!
-```
-
-When a mutation is invoked in this way, the mutation returns not only the result from calling the mutation function but also an additional promise that will resolve when the expected events are ultimately confirmed by the backend.
+1. A `confirmation` promise that resolves when the optimistic update has been confirmed by that backend (or rejects if the update is rejected).
+2. A `cancel` function that allows you to rollback the optimistic update, for example if your backed HTTP API call failed.
 
 ## Subscriptions
 
