@@ -154,14 +154,11 @@ export class OrderedHistoryResumer extends MiddlewareBase {
     // This is sufficiently low likelihood that this can be ignored for now.
     this.historicalMessages.sort(this.reverseOrderer.bind(this));
 
-    // seek backwards through history until we reach a message id <= the specified sequenceID
-    // (discarding anything older) before flushing out all messages > the sequenceID
+    // Seek backwards through history until we reach a message id <= the specified sequenceID.
+    // Discard anything older (>= sequenceID) and flush out the remaining messages.
     for (let i = 0; i < this.historicalMessages.length; i++) {
       if (this.messageIdBeforeInclusive(this.historicalMessages[i].id, this.sequenceID)) {
-        if (this.historicalMessages[i].id === this.sequenceID) {
-          i++;
-        }
-        this.historicalMessages.splice(0, i);
+        this.historicalMessages.splice(i);
         this.flush();
         return true;
       }
@@ -170,10 +167,10 @@ export class OrderedHistoryResumer extends MiddlewareBase {
   }
 
   public flush() {
-    for (const message of this.historicalMessages) {
+    for (let i = this.historicalMessages.length - 1; i >= 0; i--) {
       // we send historical messages through the sliding window too to catch
       // any potential out-of-orderiness by sequenceID at the attach boundary
-      this.slidingWindow.next(message);
+      this.slidingWindow.next(this.historicalMessages[i]);
     }
     for (const message of this.realtimeMessages) {
       this.slidingWindow.next(message);
