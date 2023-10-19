@@ -44,7 +44,7 @@ export default class ModelsClient {
        * @param {registration} registration - The name, channelName, sync and merge functions for this model.
        * The names and funcitons will be automatically setup on the model returned.
        */
-      get: <T>(registration: registration<T>) => {
+      get: async <T>(registration: registration<T>) => {
         const name = registration.name;
         const channelName = registration.channelName;
 
@@ -59,7 +59,7 @@ export default class ModelsClient {
         const options: ModelOptions = { ...this.options, channelName: channelName };
 
         const model = new Model<T>(name, options);
-        model.$register(registration);
+        await model.$register(registration);
 
         this.modelInstances[name] = model;
         return model as Model<T>;

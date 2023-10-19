@@ -7,8 +7,8 @@
 By default the sliding window event buffer is off.
 It can be enabled but setting the number of millisecond to buffer events for, when instantiating the library:
 
-```ts
-const models = new Models({
+```typescript
+const modelsClient = new ModelsClient({
     ably,
     eventBufferOptions: {bufferMs: 100}
 });
@@ -22,7 +22,7 @@ That is, smaller message ids are moved earlier in the list of messages in the bu
 You can specify a custom ordering based on any part of the message by passing an eventOrderer function:
 
 ```ts
-const models = new Models({
+const modelsClient = new ModelsClient({
     ably,
     eventBufferOptions: {bufferMs: 100, eventOrderer: (a, b) => { ... }}
 });

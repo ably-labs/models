@@ -132,14 +132,14 @@ You should now be able to import `@ably-labs/models` in your project.
 
 ### Instantiation
 
-To instantiate the Models SDK, create an [Ably client](https://ably.com/docs/getting-started/setup) and pass it into the Models constructor:
+To instantiate the Models SDK, create an [Ably client](https://ably.com/docs/getting-started/setup) and pass it into the ModelsClient constructor:
 
-```ts
-import Models from '@ably-labs/models';
+```typescript
+import ModelsClient from '@ably-labs/models';
 import { Realtime } from 'ably';
 
 const ably = new Realtime.Promise({ key: "<API-key>" });
-const models = new Models({ ably });
+const modelsClient = new ModelsClient({ ably });
 ```
 
 ### Creating a Model
@@ -153,7 +153,7 @@ You create a model by defining:
 - How the model is updated when *events* are received from your backend
 - How the model can be *mutated* by the user
 
-```ts
+```typescript
 // this is the type for our model's data as represented in the frontend application
 type Post = {
   id: number;
@@ -167,38 +167,30 @@ async function sync() {
   return result.json();
 }
 
-// a function used by the model to update the model state when a change event is received
-async function onPostUpdated(state: Post, event: OptimisticEvent | ConfirmedEvent) {
+// a function used by the model to merge a change event that is received and the existing model state
+async function merge(state: Post, event: OptimisticEvent | ConfirmedEvent) {
   return {
     ...state,
     text: event.data, // replace the previous post text field with the new value
   }
 }
 
-// a function that the user can call to mutate the model data in your backend
-async function updatePost(context: MutationContext, content: string) {
+// a function that you might use to mutate the model data in your backend
+async function updatePost(mutationId: string, content: string) {
   const result = await fetch(`/api/post`, {
     method: 'PUT',
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ mutationId, content }),
   });
   return result.json();
 }
 
-// create a new model instance called 'post'
-const model = models.Model<Post, { updatePost: typeof updatePost }>('post');
-
-// register the functions we defined above
-await model.$register({
+// create a new model instance called 'post' by passing the sync and merge functions
+const model = await modelsClient.models.get<Post>({
+  name: 'post',
+  channelName: 'models:posts',
   $sync: sync,
-  $update: {
-    'posts': {
-      'update': onPostUpdated,
-    },
-  },
-  $mutate: {
-    updatePost,
-  },
-});
+  $merge: merge,
+})
 
 // subscribe to live changes to the model data!
 model.subscribe((err, post) => {
@@ -208,8 +200,18 @@ model.subscribe((err, post) => {
   console.log('post updated:', post);
 });
 
-// mutate the post
-const [result, confirmation] = await model.mutations.updatePost('new value');
+
+// apply an optimistic update to the model
+// confirmation is a promise that resolves when the optimistic update is confirmed by the backend.
+// cancel is a function that can be used to cancel and rollback the optimistic update.
+const [confirmation, cancel] = await model1.optimistic({
+    mutationId: 'my-mutation-id',
+    name: 'updatePost',
+    data: 'new post text',
+})
+
+// call your backend to apply the actual change
+updatePost('my-mutation-id', 'new post text')
 
 // wait for confirmation of the change from the backend
 await confirmation;
