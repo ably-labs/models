@@ -27,6 +27,7 @@ import {
   type OptimisticEventOptions,
 } from './types/optimistic.js';
 import EventEmitter from './utilities/EventEmitter.js';
+import { statePromise } from './utilities/promises.js';
 
 /**
  * A Model encapsulates an observable, collaborative data model backed by a transactional database in your backend.
@@ -141,7 +142,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
    */
   public async $sync() {
     await this.init();
-    return new Promise((resolve) => this.whenState('ready', this.state, resolve));
+    return statePromise(this, 'ready');
   }
 
   /**
@@ -183,7 +184,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
     await this.pendingConfirmationRegistry.finalise(reason);
     this.subscriptionMap = new WeakMap();
     this.streamSubscriptionsMap = new WeakMap();
-    return new Promise((resolve) => this.whenState('disposed', this.state, resolve));
+    return statePromise(this, 'disposed');
   }
 
   /**
@@ -208,9 +209,8 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
       this.merge = registration.$merge;
     }
 
-    const result = new Promise((resolve) => this.whenState('ready', this.state, resolve));
     await this.init();
-    return result;
+    return statePromise(this, 'ready');
   }
 
   /**

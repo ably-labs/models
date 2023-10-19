@@ -7,8 +7,9 @@ import Model from './Model.js';
 import { StreamOptions, IStream, StreamState } from './stream/Stream.js';
 import { IStreamFactory } from './stream/StreamFactory.js';
 import type { ModelState, ModelStateChange, ModelOptions } from './types/model.d.ts';
+import { statePromise, timeout } from './utilities/promises.js';
 import { createMessage, customMessage } from './utilities/test/messages.js';
-import { getNthEventPromise, getEventPromises, statePromise, timeout } from './utilities/test/promises.js';
+import { getNthEventPromise, getEventPromises } from './utilities/test/promises.js';
 
 vi.mock('ably/promises');
 
@@ -128,8 +129,8 @@ describe('Model', () => {
     await statePromise(model, 'preparing');
     completeSync();
 
-    await statePromise(model, 'ready');
-    await expect(ready).resolves.toEqual({ current: 'ready', previous: 'preparing', reason: undefined });
+    const registerResult = await ready;
+    expect([undefined, { current: 'ready', previous: 'preparing', reason: undefined }]).toContain(registerResult);
 
     expect(sync).toHaveBeenCalledOnce();
     expect(model.data.optimistic).toEqual(simpleTestData);
