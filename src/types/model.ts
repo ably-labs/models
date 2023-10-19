@@ -136,9 +136,9 @@ export type Registration<T> = {
   /**
    * The sync function used to pull the latest state of the model.
    */
-  $sync: SyncFunc<T>;
+  sync: SyncFunc<T>;
   /**
    * The merge function that is invoked when a message is received.
    */
-  $merge?: MergeFunc<T>;
+  merge?: MergeFunc<T>;
 };

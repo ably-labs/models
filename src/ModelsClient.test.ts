@@ -36,16 +36,16 @@ describe('Models', () => {
     const model1 = modelsClient.models.get<string>({
       name: 'test',
       channelName: channelName,
-      $sync: async () => 'initial data',
-      $merge: async () => 'merged',
+      sync: async () => 'initial data',
+      merge: async () => 'merged',
     });
     expect(model1.name).toEqual('test');
 
     const model2 = modelsClient.models.get<string>({
       name: 'test',
       channelName: channelName,
-      $sync: async () => 'initial data',
-      $merge: async () => 'merged',
+      sync: async () => 'initial data',
+      merge: async () => 'merged',
     });
     expect(model2.name).toEqual('test');
     expect(model1).toEqual(model2);

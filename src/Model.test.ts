@@ -92,9 +92,9 @@ describe('Model', () => {
       await synchronised;
       return simpleTestData;
     });
-    const model = new Model<TestData>('test', { $sync: sync }, { ably, channelName, logger });
+    const model = new Model<TestData>('test', { sync: sync }, { ably, channelName, logger });
     await statePromise(model, 'initialized');
-    const modelSynced = model.$sync();
+    const modelSynced = model.sync();
 
     await statePromise(model, 'preparing');
     completeSync();
@@ -117,8 +117,9 @@ describe('Model', () => {
 
       return { ...simpleTestData, bar: { baz: ++counter } };
     });
-    const model = new Model<TestData>('test', { $sync: sync }, { ably, channelName, logger });
-    const ready = model.$sync();
+
+    const model = new Model<TestData>('test', { sync: sync }, { ably, channelName, logger });
+    const ready = model.sync();
 
     await statePromise(model, 'preparing');
     completeSync();
@@ -137,7 +138,7 @@ describe('Model', () => {
       completeSync = resolve;
     });
 
-    const resynced = model.$sync();
+    const resynced = model.sync();
     await statePromise(model, 'preparing');
     completeSync();
     await resynced;
@@ -159,21 +160,21 @@ describe('Model', () => {
     const model = new Model<TestData>(
       'test',
       {
-        $sync: sync,
-        $merge: async (state) => state,
+        sync: sync,
+        merge: async (state) => state,
       },
       { ably, channelName, logger },
     );
 
-    model.$sync();
+    model.sync();
 
     expect(s1.subscribe).toHaveBeenCalledOnce();
 
-    await model.$pause();
+    await model.pause();
     expect(model.state).toBe('paused');
     expect(s1.pause).toHaveBeenCalledOnce();
 
-    await model.$resume();
+    await model.resume();
     expect(model.state).toBe('ready');
     expect(s1.resume).toHaveBeenCalledOnce();
   });
@@ -188,18 +189,18 @@ describe('Model', () => {
     const model = new Model<TestData>(
       'test',
       {
-        $sync: sync,
-        $merge: async (state) => state,
+        sync: sync,
+        merge: async (state) => state,
       },
       { ably, channelName, logger },
     );
 
-    await model.$sync();
+    await model.sync();
 
     expect(sync).toHaveBeenCalledOnce();
     expect(s1.subscribe).toHaveBeenCalledOnce();
 
-    await model.$dispose();
+    await model.dispose();
     expect(model.state).toBe('disposed');
     expect(s1.unsubscribe).toHaveBeenCalledOnce();
   });
@@ -215,9 +216,9 @@ describe('Model', () => {
 
     const sync = vi.fn(async () => 'data_0'); // defines initial version of model
     const mergeFn = vi.fn(async (_, event) => event.data);
-    const model = new Model<string>('test', { $sync: sync, $merge: mergeFn }, { ably, channelName, logger });
+    const model = new Model<string>('test', { sync: sync, merge: mergeFn }, { ably, channelName, logger });
 
-    await model.$sync();
+    await model.sync();
 
     expect(sync).toHaveBeenCalledOnce();
 
@@ -262,14 +263,14 @@ describe('Model', () => {
 
   it<ModelTestContext>('subscribes after initialisation', async ({ channelName, ably, logger }) => {
     const sync = vi.fn(async () => 'data_0'); // defines initial version of model
-    const model = new Model<string>('test', { $sync: sync }, { ably, channelName, logger });
+    const model = new Model<string>('test', { sync: sync }, { ably, channelName, logger });
 
-    await model.$sync();
+    await model.sync();
 
     expect(sync).toHaveBeenCalledOnce();
 
     // wait for the next event loop iteration so that any scheduled tasks on the tasks queue are cleared,
-    // specifically model state updates scheduled via setTimeout from the model init() call in $register()
+    // specifically model state updates scheduled via setTimeout from the model init() call in register()
     await timeout();
 
     let subscription = new Subject<void>();
@@ -293,13 +294,13 @@ describe('Model', () => {
     const model = new Model<string>(
       'test',
       {
-        $sync: async () => 'data_0',
-        $merge: mergeFn,
+        sync: async () => 'data_0',
+        merge: mergeFn,
       },
       { ably, channelName, logger },
     );
 
-    await model.$sync();
+    await model.sync();
 
     let optimisticSubscription = new Subject<void>();
     const optimisticSubscriptionCalls = getEventPromises(optimisticSubscription, 2);
@@ -343,13 +344,13 @@ describe('Model', () => {
     const model = new Model<string>(
       'test',
       {
-        $sync: async () => 'data_0',
-        $merge: mergeFn,
+        sync: async () => 'data_0',
+        merge: mergeFn,
       },
       { ably, channelName, logger },
     );
 
-    await model.$sync();
+    await model.sync();
 
     let optimisticSubscription = new Subject<void>();
     const optimisticSubscriptionCalls = getEventPromises(optimisticSubscription, 2);
@@ -406,13 +407,13 @@ describe('Model', () => {
     const model = new Model<string>(
       'test',
       {
-        $sync: async () => 'data_0',
-        $merge: mergeFn,
+        sync: async () => 'data_0',
+        merge: mergeFn,
       },
       { ably, channelName, logger },
     );
 
-    await model.$sync();
+    await model.sync();
 
     let optimisticSubscription = new Subject<void>();
     const optimisticSubscriptionCalls = getEventPromises(optimisticSubscription, 3);
@@ -465,13 +466,13 @@ describe('Model', () => {
     const model = new Model<string>(
       'test',
       {
-        $sync: async () => '0',
-        $merge: mergeFn,
+        sync: async () => '0',
+        merge: mergeFn,
       },
       { ably, channelName, logger },
     );
 
-    await model.$sync();
+    await model.sync();
 
     let optimisticSubscription = new Subject<void>();
     const optimisticSubscriptionCalls = getEventPromises(optimisticSubscription, 4);
@@ -550,13 +551,13 @@ describe('Model', () => {
     const model = new Model<string>(
       'test',
       {
-        $sync: async () => '0',
-        $merge: mergeFn,
+        sync: async () => '0',
+        merge: mergeFn,
       },
       { ably, channelName, logger },
     );
 
-    await model.$sync();
+    await model.sync();
 
     let optimisticSubscription = new Subject<void>();
     const optimisticSubscriptionCalls = getEventPromises(optimisticSubscription, 5);
@@ -633,13 +634,13 @@ describe('Model', () => {
     const model = new Model<string>(
       'test',
       {
-        $sync: async () => '0',
-        $merge: mergeFn,
+        sync: async () => '0',
+        merge: mergeFn,
       },
       { ably, channelName, logger },
     );
 
-    await model.$sync();
+    await model.sync();
 
     const [confirmation, cancel] = await model.optimistic({ mutationId: 'id_1', name: 'testEvent', data: '1' });
     const [confirmation2, cancel2] = await model.optimistic({ mutationId: 'id_2', name: 'testEvent', data: '2' });
@@ -684,9 +685,8 @@ describe('Model', () => {
       return event.data;
     });
 
-    const model = new Model<string>('test', { $sync: sync, $merge: mergeFn }, { ably, channelName, logger });
-
-    await model.$sync();
+    const model = new Model<string>('test', { sync: sync, merge: mergeFn }, { ably, channelName, logger });
+    await model.sync();
 
     expect(sync).toHaveBeenCalledOnce();
 
@@ -742,13 +742,13 @@ describe('Model', () => {
     const model = new Model<string>(
       'test',
       {
-        $sync: async () => '0',
-        $merge: mergeFn,
+        sync: async () => '0',
+        merge: mergeFn,
       },
       { ably, channelName, logger },
     );
 
-    await model.$sync();
+    await model.sync();
 
     await model.optimistic({ mutationId: 'id_1', name: 'testEvent', data: '123' });
 
@@ -778,13 +778,13 @@ describe('Model', () => {
     const model = new Model<string>(
       'test',
       {
-        $sync: async () => '0',
-        $merge: mergeFn,
+        sync: async () => '0',
+        merge: mergeFn,
       },
       { ably, channelName, logger },
     );
 
-    await model.$sync();
+    await model.sync();
 
     const [confirmation] = await model.optimistic({ mutationId: 'id_1', name: 'testEvent', data: '1' });
     expect(model.data.optimistic).toEqual('01');
@@ -808,13 +808,13 @@ describe('Model', () => {
     const model = new Model<string>(
       'test',
       {
-        $sync: async () => '0',
-        $merge: mergeFn,
+        sync: async () => '0',
+        merge: mergeFn,
       },
       { ably, channelName, logger },
     );
 
-    await model.$sync();
+    await model.sync();
 
     // Mutate and check the returned promise is rejected with a timeout.
     const [confirmation] = await model.optimistic({ mutationId: 'id_1', name: 'testEvent', data: '1' }, { timeout: 1 });

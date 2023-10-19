@@ -51,8 +51,8 @@ describe('Model', () => {
       return event.data;
     });
 
-    const model = new Model<string>('test', { $sync: sync, $merge: mergeFn }, { ably, channelName, logger });
-    await model.$sync();
+    const model = new Model<string>('test', { sync: sync, merge: mergeFn }, { ably, channelName, logger });
+    await model.sync();
 
     expect(sync).toHaveBeenCalledOnce();
 

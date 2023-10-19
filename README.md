@@ -188,8 +188,8 @@ async function updatePost(mutationId: string, content: string) {
 const model = modelsClient.models.get<Post>({
   name: 'post',
   channelName: 'models:posts',
-  $sync: sync,
-  $merge: merge,
+  sync: sync,
+  merge: merge,
 })
 
 // run the initial sync
