@@ -203,6 +203,7 @@ describe('Model', () => {
     await model.dispose();
     expect(model.state).toBe('disposed');
     expect(s1.unsubscribe).toHaveBeenCalledOnce();
+    expect(s1.dispose).toHaveBeenCalled();
   });
 
   it<ModelTestContext>('subscribes to updates', async ({ channelName, ably, logger, streams }) => {
