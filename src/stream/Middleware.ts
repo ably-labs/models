@@ -91,7 +91,16 @@ export class SlidingWindow extends MiddlewareBase {
   }
 }
 
-// TODO handle case when cannot paginate far back enough before finding sequence
+/**
+ * Middleware which emits messages from a position in the stream determined by a sequenceID.
+ * The caller paginates back through history and passes in each page which the middleware
+ * uses to seek for the specified position. Concurrently, incoming live messages can be buffered.
+ * Messages are re-ordered according to the sequence ID. For historical messages, the entire history
+ * is re-ordered; for live messages a sliding window is applied.
+ * When the position is reached, the middleware emits all messages in-order from the resume position
+ * forwards, which includes the historical plus the live messages.
+ * Subsequently live messages can continue to be added, re-ordered within a sliding window, and emitted.
+ */
 export class OrderedHistoryResumer extends MiddlewareBase {
   private currentState: 'seeking' | 'ready' = 'seeking';
   private historicalMessages: AblyTypes.Message[] = [];
@@ -108,10 +117,6 @@ export class OrderedHistoryResumer extends MiddlewareBase {
     this.slidingWindow.subscribe(this.onMessage.bind(this));
   }
 
-  public get state() {
-    return this.currentState;
-  }
-
   private onMessage(err: Error | null, message: AblyTypes.Message | null) {
     if (err) {
       super.error(err);
@@ -122,6 +127,10 @@ export class OrderedHistoryResumer extends MiddlewareBase {
 
   private reverseOrderer(a: string, b: string) {
     return this.eventOrderer(a, b) * -1;
+  }
+
+  public get state() {
+    return this.currentState;
   }
 
   public addHistoricalMessages(messages: AblyTypes.Message[]): boolean {
@@ -138,7 +147,7 @@ export class OrderedHistoryResumer extends MiddlewareBase {
     // It is not optimal to sort the entire thing with each page as out-of-orderiness
     // is localised within a two minute window, but being more clever about this requires
     // tracking message timestamps and complicates the logic.
-    // Given the number of messages is likely to be reasonably small, this approach is okay for now.
+    // Given the number of messages is likely to be reasonably small, this approach is fine.
     //
     // Note that because of potential out-of-orderiness by sequenceID due to possible CGO order,
     // it's possible this function discovers the boundary in the stream but a more recent message appears

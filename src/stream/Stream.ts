@@ -205,6 +205,12 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     }
   }
 
+  /**
+   * Resubscribe to the channel and emit messages from the position in the stream specified by the sequenceID.
+   * This is achieved by attaching to the channel and paginating back through history until the boundary determined by
+   * the specified sequenceID is reached.
+   * @param sequenceID The identifier that specifies the position in the message stream (by message ID) from which to resume.
+   */
   private async init(sequenceID: string) {
     this.logger.trace({ ...this.baseLogContext, action: 'init()' });
 
@@ -222,11 +228,14 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     });
     await this.ably.connection.whenState('connected');
 
+    // The attach callback is called synchronously upon receipt of an attach message from realtime
+    // and adding a channel subscription is also synchronous, so registering the subscription immediately
+    // after the attach guarantees that nothing else should execute between, so no messages will be missed.
     const attachResult = await this.ablyChannel.attach();
     if (!attachResult) {
       throw new Error('the channel was already attached when calling attach()');
     }
-    const subscribeResult = await this.ablyChannel.subscribe(this.onChannelMessage.bind(this));
+    const subscribeResult = await this.ablyChannel.subscribe(this.onChannelMessage.bind(this)); // live messages
     if (subscribeResult) {
       throw new Error('the channel was not attached when calling subscribe()');
     }
