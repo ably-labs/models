@@ -6,7 +6,6 @@ import { OrderedHistoryResumer } from './Middleware.js';
 import type { StandardCallback } from '../types/callbacks';
 import type { EventOrderer } from '../types/optimistic.js';
 import EventEmitter from '../utilities/EventEmitter.js';
-import { statePromise } from '../utilities/test/promises.js';
 
 export const HISTORY_PAGE_SIZE = 100;
 
@@ -37,6 +36,10 @@ export enum StreamState {
    * and its resources are available for garbage collection.
    */
   DISPOSED = 'disposed',
+  /**
+   * The stream has encountered an unrecoverable error and must be explicitly re-synced.
+   */
+  ERRORED = 'errored',
 }
 
 /**
@@ -80,7 +83,7 @@ export interface IStream {
   pause(): Promise<void>;
   resume(): Promise<void>;
   sync(sequenceID: string): Promise<void>;
-  subscribe(callback: StandardCallback<AblyTypes.Message>): Promise<void>;
+  subscribe(callback: StandardCallback<AblyTypes.Message>): void;
   unsubscribe(callback: StandardCallback<AblyTypes.Message>): void;
   dispose(reason?: AblyTypes.ErrorInfo | string): Promise<void>;
 }
@@ -130,7 +133,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     this.setState(StreamState.READY);
   }
 
-  public async subscribe(callback: StandardCallback<AblyTypes.Message>) {
+  public subscribe(callback: StandardCallback<AblyTypes.Message>) {
     this.logger.trace({ ...this.baseLogContext, action: 'subscribe()' });
     const subscription = this.subscriptions.subscribe({
       next: (message) => {
@@ -147,7 +150,6 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
       },
     });
     this.subscriptionMap.set(callback, subscription);
-    await statePromise(this, StreamState.READY);
   }
 
   public unsubscribe(callback: StandardCallback<AblyTypes.Message>) {
@@ -162,24 +164,24 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
   public async dispose(reason?: AblyTypes.ErrorInfo | string) {
     this.logger.trace({ ...this.baseLogContext, action: 'dispose()', reason });
     this.setState(StreamState.DISPOSED, reason);
-    if (this.middleware) {
-      this.middleware.unsubscribeAll();
-    }
+    await this.reset();
     this.subscriptions.unsubscribe();
+    this.subscriptions = new Subject<AblyTypes.Message>();
     this.subscriptionMap = new WeakMap();
-    if (this.ablyChannel) {
-      await this.ablyChannel.detach();
-      this.ably.channels.release(this.ablyChannel.name);
-    }
   }
 
   public async sync(sequenceID: string) {
     this.logger.trace({ ...this.baseLogContext, action: 'sync()' });
     this.setState(StreamState.PREPARING);
-    this.subscriptions.unsubscribe();
-    this.subscriptions = new Subject<AblyTypes.Message>();
-    await this.init(sequenceID);
-    this.setState(StreamState.READY);
+    try {
+      await this.reset();
+      await this.init(sequenceID);
+      this.setState(StreamState.READY);
+    } catch (err) {
+      this.logger.error('sync failed', { err });
+      this.setState(StreamState.ERRORED);
+      throw err; // surface the error to the caller
+    }
   }
 
   private setState(state: StreamState, reason?: AblyTypes.ErrorInfo | string) {
@@ -193,17 +195,26 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     } as StreamStateChange);
   }
 
-  private async init(sequenceID: string) {
-    this.logger.trace({ ...this.baseLogContext, action: 'init()' });
+  private async reset() {
     if (this.middleware) {
       this.middleware.unsubscribeAll();
     }
+    if (this.ablyChannel) {
+      await this.ablyChannel.detach();
+      this.ably.channels.release(this.ablyChannel.name);
+    }
+  }
+
+  private async init(sequenceID: string) {
+    this.logger.trace({ ...this.baseLogContext, action: 'init()' });
+
     this.middleware = new OrderedHistoryResumer(
       sequenceID,
       this.options.eventBufferOptions?.bufferMs || 0,
       this.options.eventBufferOptions?.eventOrderer,
     );
     this.middleware.subscribe(this.onMiddlewareMessage.bind(this));
+
     this.ablyChannel = this.ably.channels.get(this.options.channelName);
     this.ablyChannel.on('failed', (change) => this.dispose(change.reason));
     this.ablyChannel.on(['suspended', 'update'], () => {
@@ -219,6 +230,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     if (subscribeResult) {
       throw new Error('the channel was not attached when calling subscribe()');
     }
+
     let page = await this.ablyChannel.history({ untilAttach: true, limit: HISTORY_PAGE_SIZE });
     if (page.items.length === 0) {
       // If there is no history at all, we cannot resume from the sequenceID.
