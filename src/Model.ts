@@ -23,6 +23,7 @@ import type {
 } from './types/model.js';
 import { MODELS_EVENT_REJECT_HEADER, MODELS_EVENT_UUID_HEADER, OptimisticEventOptions } from './types/optimistic.js';
 import EventEmitter from './utilities/EventEmitter.js';
+import { statePromise } from './utilities/promises.js';
 
 /**
  * A Model encapsulates an observable, collaborative data model backed by a transactional database in your backend.
@@ -141,7 +142,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
    */
   public async sync() {
     await this.init();
-    return new Promise((resolve) => this.whenState('ready', this.state, resolve));
+    return statePromise(this, 'ready');
   }
 
   /**

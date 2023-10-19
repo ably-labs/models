@@ -3,8 +3,8 @@ import shuffle from 'lodash/shuffle.js';
 import { it, describe, expect, vi } from 'vitest';
 
 import { SlidingWindow, OrderedHistoryResumer, lexicographicOrderer } from './Middleware.js';
+import { timeout } from '../utilities/promises.js';
 import { createMessage } from '../utilities/test/messages.js';
-import { timeout } from '../utilities/test/promises.js';
 
 describe('SlidingWindow', () => {
   it('emits events immediately with no timeout', async () => {

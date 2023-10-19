@@ -5,7 +5,8 @@ import { it, describe, expect, vi, beforeEach } from 'vitest';
 
 import Model from './Model.js';
 import { ModelOptions } from './types/model.js';
-import { getEventPromises, statePromise } from './utilities/test/promises.js';
+import { statePromise } from './utilities/promises.js';
+import { getEventPromises } from './utilities/test/promises.js';
 
 vi.mock('ably/promises');
 
