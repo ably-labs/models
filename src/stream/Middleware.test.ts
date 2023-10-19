@@ -177,8 +177,8 @@ describe('OrderedHistoryResumer', () => {
     );
 
     expect(subscription).toHaveBeenCalledTimes(2);
-    expect(subscription).toHaveBeenNthCalledWith(1, null, history[3]);
-    expect(subscription).toHaveBeenNthCalledWith(2, null, history[4]);
+    expect(subscription).toHaveBeenNthCalledWith(1, null, history[1]);
+    expect(subscription).toHaveBeenNthCalledWith(2, null, history[0]);
   });
 
   it('emits messages after the boundary with sparse sequence', () => {
@@ -197,9 +197,10 @@ describe('OrderedHistoryResumer', () => {
     ];
     expect(middleware.addHistoricalMessages(shuffle(history))).toBe(true);
 
-    expect(subscription).toHaveBeenCalledTimes(2);
-    expect(subscription).toHaveBeenNthCalledWith(1, null, history[3]);
-    expect(subscription).toHaveBeenNthCalledWith(2, null, history[4]);
+    expect(subscription).toHaveBeenCalledTimes(3);
+    expect(subscription).toHaveBeenNthCalledWith(1, null, history[2]);
+    expect(subscription).toHaveBeenNthCalledWith(2, null, history[1]);
+    expect(subscription).toHaveBeenNthCalledWith(3, null, history[0]);
   });
 
   it('emits messages after the boundary from multiple pages', () => {
@@ -222,8 +223,8 @@ describe('OrderedHistoryResumer', () => {
     expect(middleware.addHistoricalMessages(shuffle(page2))).toBe(true);
 
     expect(subscription).toHaveBeenCalledTimes(2);
-    expect(subscription).toHaveBeenNthCalledWith(1, null, history[3]);
-    expect(subscription).toHaveBeenNthCalledWith(2, null, history[4]);
+    expect(subscription).toHaveBeenNthCalledWith(1, null, history[1]);
+    expect(subscription).toHaveBeenNthCalledWith(2, null, history[0]);
   });
 
   it('emitting messages requires explicit flush after end of history reached without crossing boundary', () => {
@@ -249,11 +250,11 @@ describe('OrderedHistoryResumer', () => {
 
     middleware.flush();
     expect(subscription).toHaveBeenCalledTimes(5);
-    expect(subscription).toHaveBeenNthCalledWith(1, null, history[0]);
-    expect(subscription).toHaveBeenNthCalledWith(2, null, history[1]);
+    expect(subscription).toHaveBeenNthCalledWith(1, null, history[4]);
+    expect(subscription).toHaveBeenNthCalledWith(2, null, history[3]);
     expect(subscription).toHaveBeenNthCalledWith(3, null, history[2]);
-    expect(subscription).toHaveBeenNthCalledWith(4, null, history[3]);
-    expect(subscription).toHaveBeenNthCalledWith(5, null, history[4]);
+    expect(subscription).toHaveBeenNthCalledWith(4, null, history[1]);
+    expect(subscription).toHaveBeenNthCalledWith(5, null, history[0]);
   });
 
   it('merges historical messages with live messages', () => {
@@ -276,8 +277,8 @@ describe('OrderedHistoryResumer', () => {
     expect(middleware.addHistoricalMessages(shuffle(history))).toBe(true);
 
     expect(subscription).toHaveBeenCalledTimes(4);
-    expect(subscription).toHaveBeenNthCalledWith(1, null, history[3]);
-    expect(subscription).toHaveBeenNthCalledWith(2, null, history[4]);
+    expect(subscription).toHaveBeenNthCalledWith(1, null, history[1]);
+    expect(subscription).toHaveBeenNthCalledWith(2, null, history[0]);
     expect(subscription).toHaveBeenNthCalledWith(3, null, live[0]);
     expect(subscription).toHaveBeenNthCalledWith(4, null, live[1]);
   });
@@ -310,8 +311,8 @@ describe('OrderedHistoryResumer', () => {
     expect(middleware.addHistoricalMessages(shuffle(page2))).toBe(true);
 
     expect(subscription).toHaveBeenCalledTimes(6);
-    expect(subscription).toHaveBeenNthCalledWith(1, null, history[3]);
-    expect(subscription).toHaveBeenNthCalledWith(2, null, history[4]);
+    expect(subscription).toHaveBeenNthCalledWith(1, null, history[1]);
+    expect(subscription).toHaveBeenNthCalledWith(2, null, history[0]);
     expect(subscription).toHaveBeenNthCalledWith(3, null, live[0]);
     expect(subscription).toHaveBeenNthCalledWith(4, null, live[1]);
     expect(subscription).toHaveBeenNthCalledWith(5, null, live[2]);
