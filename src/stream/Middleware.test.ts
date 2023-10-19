@@ -2,7 +2,7 @@ import { Types } from 'ably';
 import shuffle from 'lodash/shuffle.js';
 import { it, describe, expect, vi } from 'vitest';
 
-import { SlidingWindow, OrderedHistoryResumer } from './Middleware.js';
+import { SlidingWindow, OrderedHistoryResumer, lexicographicOrderer } from './Middleware.js';
 import { createMessage } from '../utilities/test/messages.js';
 import { timeout } from '../utilities/test/promises.js';
 
@@ -56,10 +56,9 @@ describe('SlidingWindow', () => {
   it('reorders events in the buffer with custom order', async () => {
     const subscription = vi.fn();
     const sliding = new SlidingWindow(1, (a, b) => {
-      if (a.id < b.id) {
+      if (a < b) {
         return 1;
       }
-
       return -1;
     });
     sliding.subscribe(subscription);
@@ -179,6 +178,46 @@ describe('OrderedHistoryResumer', () => {
     expect(subscription).toHaveBeenCalledTimes(2);
     expect(subscription).toHaveBeenNthCalledWith(1, null, history[1]);
     expect(subscription).toHaveBeenNthCalledWith(2, null, history[0]);
+  });
+
+  it('orders numerically', () => {
+    const sequenceID = 0;
+    const middleware = new OrderedHistoryResumer(`${sequenceID}`, 0);
+    const subscription = vi.fn();
+    middleware.subscribe(subscription);
+
+    // construct history page newest to oldest
+    let history: Types.Message[] = [createMessage(10), createMessage(2), createMessage(1), createMessage(0)];
+    // shuffle as the middleware should be resilient to some out-of-orderiness by sequenceID due to CGO
+    expect(middleware.addHistoricalMessages(shuffle(history))).toBe(true);
+    expect(() => middleware.addHistoricalMessages(history)).toThrowError(
+      'can only add historical messages while in seeking state',
+    );
+
+    expect(subscription).toHaveBeenCalledTimes(3);
+    expect(subscription).toHaveBeenNthCalledWith(1, null, history[2]);
+    expect(subscription).toHaveBeenNthCalledWith(2, null, history[1]);
+    expect(subscription).toHaveBeenNthCalledWith(3, null, history[0]);
+  });
+
+  it('orders lexicographically', () => {
+    const sequenceID = 0;
+    const middleware = new OrderedHistoryResumer(`${sequenceID}`, 0, lexicographicOrderer);
+    const subscription = vi.fn();
+    middleware.subscribe(subscription);
+
+    // construct history page newest to oldest
+    let history: Types.Message[] = [createMessage(10), createMessage(2), createMessage(1), createMessage(0)];
+    // shuffle as the middleware should be resilient to some out-of-orderiness by sequenceID due to CGO
+    expect(middleware.addHistoricalMessages(shuffle(history))).toBe(true);
+    expect(() => middleware.addHistoricalMessages(history)).toThrowError(
+      'can only add historical messages while in seeking state',
+    );
+
+    expect(subscription).toHaveBeenCalledTimes(3);
+    expect(subscription).toHaveBeenNthCalledWith(1, null, history[2]);
+    expect(subscription).toHaveBeenNthCalledWith(2, null, history[0]);
+    expect(subscription).toHaveBeenNthCalledWith(3, null, history[1]);
   });
 
   it('emits messages after the boundary with sparse sequence', () => {
