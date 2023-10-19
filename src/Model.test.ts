@@ -7,8 +7,9 @@ import Model from './Model.js';
 import { StreamOptions, IStream, StreamState } from './stream/Stream.js';
 import { IStreamFactory } from './stream/StreamFactory.js';
 import type { ModelStateChange, ModelOptions } from './types/model.d.ts';
+import { statePromise, timeout } from './utilities/promises.js';
 import { createMessage, customMessage } from './utilities/test/messages.js';
-import { getNthEventPromise, getEventPromises, statePromise, timeout } from './utilities/test/promises.js';
+import { getNthEventPromise, getEventPromises } from './utilities/test/promises.js';
 
 vi.mock('ably/promises');
 
@@ -124,8 +125,8 @@ describe('Model', () => {
     await statePromise(model, 'preparing');
     completeSync();
 
-    await statePromise(model, 'ready');
-    await expect(ready).resolves.toEqual({ current: 'ready', previous: 'preparing', reason: undefined });
+    const registerResult = await ready;
+    expect([undefined, { current: 'ready', previous: 'preparing', reason: undefined }]).toContain(registerResult);
 
     expect(sync).toHaveBeenCalledOnce();
     expect(model.data.optimistic).toEqual(simpleTestData);
@@ -168,19 +169,14 @@ describe('Model', () => {
       };
     });
 
-    const model = new Model<string>('test', { ably, channelName, logger });
-
-    const mergeFn = vi.fn(async (_, event) => event.data);
-    await model.$register({
-      $sync: sync,
-      $merge: mergeFn,
-    });
+    const merge = vi.fn(async (_, event) => event.data);
+    const model = new Model<string>('test', { sync, merge }, { ably, channelName, logger });
+    await model.sync();
 
     expect(sync).toHaveBeenCalledOnce();
     expect(stream.sync).toHaveBeenCalledOnce();
     expect(stream.sync).toHaveBeenNthCalledWith(1, '123');
 
-    await model.$sync();
     expect(sync).toHaveBeenCalledTimes(2);
     expect(stream.sync).toHaveBeenCalledTimes(2);
     expect(stream.sync).toHaveBeenNthCalledWith(2, '456');

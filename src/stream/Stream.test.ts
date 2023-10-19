@@ -4,8 +4,8 @@ import { Subject } from 'rxjs';
 import { it, describe, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import Stream, { HISTORY_PAGE_SIZE, StreamOptions, StreamState } from './Stream.js';
+import { statePromise } from '../utilities/promises.js';
 import { createMessage } from '../utilities/test/messages.js';
-import { statePromise } from '../utilities/test/promises.js';
 
 vi.mock('ably/promises');
 
