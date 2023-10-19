@@ -27,35 +27,28 @@ abstract class MiddlewareBase {
   public unsubscribeAll(): void {
     this.outputCallbacks = [];
   }
-
-  protected compareIds(a: string, b: string): number {
-    return a.localeCompare(b, 'en-US', { numeric: true });
-  }
-
-  protected messageIdBeforeInclusive(a: string, b: string) {
-    return this.compareIds(a, b) <= 0;
-  }
-
-  protected messageIdBeforeExclusive(a: string, b: string) {
-    return this.compareIds(a, b) < 0;
-  }
-
-  protected messageIdAfter(a: string, b: string) {
-    return this.compareIds(a, b) > 0;
-  }
 }
 
-// TODO unify orderer
-function defaultOrderLexicoId(a: AblyTypes.Message, b: AblyTypes.Message): number {
-  if (a.id < b.id) {
+export function lexicographicOrderer(a: string | number, b: string | number): number {
+  if (a < b) {
     return -1;
   }
-
-  if (a.id === b.id) {
+  if (a === b) {
     return 0;
   }
-
   return 1;
+}
+
+export function numericOtherwiseLexicographicOrderer(a: string, b: string): number {
+  let idA: number | string, idB: number | string;
+  try {
+    idA = Number(a);
+    idB = Number(b);
+  } catch (err) {
+    idA = a;
+    idB = b;
+  }
+  return lexicographicOrderer(idA, idB);
 }
 
 export class SlidingWindow extends MiddlewareBase {
@@ -63,7 +56,7 @@ export class SlidingWindow extends MiddlewareBase {
 
   constructor(
     private readonly windowSizeMs: number,
-    private readonly eventOrderer: EventOrderer = defaultOrderLexicoId,
+    private readonly eventOrderer: EventOrderer = numericOtherwiseLexicographicOrderer,
   ) {
     super();
   }
@@ -79,7 +72,7 @@ export class SlidingWindow extends MiddlewareBase {
     }
 
     this.messages.push(message);
-    this.messages.sort(this.eventOrderer);
+    this.messages.sort((a, b) => this.eventOrderer(a.id, b.id));
 
     setTimeout(() => {
       this.expire(message);
@@ -108,7 +101,7 @@ export class OrderedHistoryResumer extends MiddlewareBase {
   constructor(
     private sequenceID: string,
     private readonly windowSizeMs: number,
-    private readonly eventOrderer: EventOrderer = defaultOrderLexicoId,
+    private readonly eventOrderer: EventOrderer = numericOtherwiseLexicographicOrderer,
   ) {
     super();
     this.slidingWindow = new SlidingWindow(this.windowSizeMs, this.eventOrderer);
@@ -127,7 +120,7 @@ export class OrderedHistoryResumer extends MiddlewareBase {
     super.next(message!);
   }
 
-  private reverseOrderer(a: AblyTypes.Message, b: AblyTypes.Message) {
+  private reverseOrderer(a: string, b: string) {
     return this.eventOrderer(a, b) * -1;
   }
 
@@ -152,12 +145,12 @@ export class OrderedHistoryResumer extends MiddlewareBase {
     // further back in the stream outside of the given page. A larger page size reduces this likelihood but
     // doesn't solve it. The solution would require paging back 2 mins further to check for any such messages.
     // This is sufficiently low likelihood that this can be ignored for now.
-    this.historicalMessages.sort(this.reverseOrderer.bind(this));
+    this.historicalMessages.sort((a, b) => this.reverseOrderer(a.id, b.id));
 
     // Seek backwards through history until we reach a message id <= the specified sequenceID.
     // Discard anything older (>= sequenceID) and flush out the remaining messages.
     for (let i = 0; i < this.historicalMessages.length; i++) {
-      if (this.messageIdBeforeInclusive(this.historicalMessages[i].id, this.sequenceID)) {
+      if (this.eventOrderer(this.historicalMessages[i].id, this.sequenceID) <= 0) {
         this.historicalMessages.splice(i);
         this.flush();
         return true;

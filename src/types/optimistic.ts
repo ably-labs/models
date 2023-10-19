@@ -1,5 +1,3 @@
-import { Types as AblyTypes } from 'ably';
-
 import type { Event } from './model';
 
 /**
@@ -13,7 +11,7 @@ export type EventComparator = (optimistic: Event, confirmed: Event) => boolean;
  * to return a negative value of the first argument is less than the second argument, zero
  * if they are equal, and a positive value otherwise.
  */
-export type EventOrderer = (a: AblyTypes.Message, b: AblyTypes.Message) => number;
+export type EventOrderer = (a: string, b: string) => number;
 
 /**
  * OptimisticEventOptions can be used to configure options on individual optimistic events.
