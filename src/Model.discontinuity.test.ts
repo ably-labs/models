@@ -39,8 +39,21 @@ describe('Model', () => {
         };
       }
     });
-    channel.subscribe = vi.fn<any, any>();
-    channel.attach = vi.fn<any, any>();
+    channel.attach = vi.fn(
+      async (): Promise<Types.ChannelStateChange | null> => ({
+        current: 'attached',
+        previous: 'attaching',
+        resumed: false,
+        hasBacklog: false,
+      }),
+    );
+    channel.subscribe = vi.fn<any, any>(async (): Promise<Types.ChannelStateChange | null> => null);
+    channel.history = vi.fn<any, any>(
+      async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => ({
+        items: [],
+        hasNext: () => false,
+      }),
+    );
     channel.detach = vi.fn<any, any>();
     ably.channels.release = vi.fn<any, any>();
 
@@ -49,7 +62,6 @@ describe('Model', () => {
     const sync = vi.fn(async () => ({
       data: `${counter++}`,
       sequenceID: '0',
-      stateTimestamp: new Date(),
     }));
     const model = new Model<string>('test', { ably, channelName, logger });
     const mergeFn = vi.fn(async (_, event) => {

@@ -28,8 +28,6 @@ import {
 } from './types/optimistic.js';
 import EventEmitter from './utilities/EventEmitter.js';
 
-export const REWIND_INTERVAL_MARGIN_SECONDS = 5;
-
 /**
  * A Model encapsulates an observable, collaborative data model backed by a transactional database in your backend.
  *
@@ -307,8 +305,8 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
     this.logger.trace({ ...this.baseLogContext, action: 'init()', reason });
     this.setState('preparing', reason);
     this.removeStream();
-    const { data, sequenceID, stateTimestamp } = await this.syncFunc();
-    await this.addStream(sequenceID, stateTimestamp);
+    const { data, sequenceID } = await this.syncFunc();
+    await this.addStream(sequenceID);
     this.setOptimisticData(data);
     this.setConfirmedData(data);
     this.setState('ready');
@@ -323,20 +321,8 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
     this.streamSubscriptionsMap.delete(this.stream);
   }
 
-  // class method for getting current time so that it can be overridden in tests
-  protected now() {
-    return new Date();
-  }
-
-  private async addStream(sequenceID: string, stateTimestamp: Date) {
-    const interval =
-      Math.floor((this.now().getTime() - stateTimestamp.getTime()) / 1000) + REWIND_INTERVAL_MARGIN_SECONDS;
-    if (interval > 2 * 60) {
-      throw new Error(
-        `rewind interval ${interval}s from state timestamp ${stateTimestamp.toString()} is greater than 2 minutes`,
-      );
-    }
-    await this.stream.sync(interval, sequenceID);
+  private async addStream(sequenceID: string) {
+    await this.stream.sync(sequenceID);
     const callback = this.onStreamMessage.bind(this);
     this.stream.subscribe(callback);
     this.streamSubscriptionsMap.set(this.stream, callback);
