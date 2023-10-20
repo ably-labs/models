@@ -185,7 +185,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
     await this.pendingConfirmationRegistry.finalise(reason);
     this.subscriptionMap = new WeakMap();
     this.streamSubscriptionsMap = new WeakMap();
-    this.stream.dispose();
+    await this.stream.dispose();
     return new Promise((resolve) => this.whenState('disposed', this.state, resolve));
   }
 
