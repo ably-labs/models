@@ -33,7 +33,7 @@ vi.mock('./stream/StreamFactory', () => {
     async subscribe() {}
     unsubscribe(): void {}
     async dispose() {}
-    async sync() {}
+    async replay() {}
   }
 
   const streams: { [key: string]: IStream } = {};
@@ -153,7 +153,7 @@ describe('Model', () => {
 
   it<ModelTestContext>('rewinds to the correct point in the stream', async ({ channelName, ably, logger, streams }) => {
     const stream = streams.newStream({ channelName });
-    stream.sync = vi.fn();
+    stream.replay = vi.fn();
 
     let i = 0;
     const sync = vi.fn(async () => {
@@ -174,12 +174,12 @@ describe('Model', () => {
     await model.sync();
 
     expect(sync).toHaveBeenCalledOnce();
-    expect(stream.sync).toHaveBeenCalledOnce();
-    expect(stream.sync).toHaveBeenNthCalledWith(1, '123');
+    expect(stream.replay).toHaveBeenCalledOnce();
+    expect(stream.replay).toHaveBeenNthCalledWith(1, '123');
 
     expect(sync).toHaveBeenCalledTimes(2);
-    expect(stream.sync).toHaveBeenCalledTimes(2);
-    expect(stream.sync).toHaveBeenNthCalledWith(2, '456');
+    expect(stream.replay).toHaveBeenCalledTimes(2);
+    expect(stream.replay).toHaveBeenNthCalledWith(2, '456');
   });
 
   it<ModelTestContext>('pauses and resumes the model', async ({ channelName, ably, logger, streams }) => {

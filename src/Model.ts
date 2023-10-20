@@ -297,7 +297,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
   }
 
   private async addStream(sequenceID: string) {
-    await this.stream.sync(sequenceID);
+    await this.stream.replay(sequenceID);
     const callback = this.onStreamMessage.bind(this);
     this.stream.subscribe(callback);
     this.streamSubscriptionsMap.set(this.stream, callback);
