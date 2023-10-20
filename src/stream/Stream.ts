@@ -240,22 +240,14 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
       throw new Error('the channel was not attached when calling subscribe()');
     }
 
-    let page = await this.ablyChannel.history({ untilAttach: true, limit: HISTORY_PAGE_SIZE });
-    if (page.items.length === 0) {
-      // If there is no history at all, we cannot resume from the sequenceID.
-      // Since we require that the state is no more than 2 mins stale (or 72 hours if persisted history is enabled)
-      // we assume that no updates have been made to the state in that time, and allow operation to continue as
-      // though we were able to resume correctly.
-      this.middleware.flush();
-    } else {
-      // We have at least one page of history, so we continue to paginate back until we reach the
-      // sequenceID or we run out of messages.
-      let done = this.middleware.addHistoricalMessages(page.items);
-      while (!done && page && page.hasNext()) {
-        page = await this.ablyChannel.history({ untilAttach: true, limit: HISTORY_PAGE_SIZE });
-        done = this.middleware.addHistoricalMessages(page.items);
-      }
-    }
+    // Paginate back until we reach the sequenceID or we run out of messages.
+    let done = false;
+    let page: AblyTypes.PaginatedResult<AblyTypes.Message>;
+    do {
+      page = await this.ablyChannel.history({ untilAttach: true, limit: HISTORY_PAGE_SIZE });
+      done = this.middleware.addHistoricalMessages(page.items);
+    } while (page && page.items && page.items.length > 0 && page.hasNext() && !done);
+
     // If the middleware is not ready it means we never reached the target sequenceID,
     // so the target sequenceID was too stale and we should surface an error.
     if (this.middleware.state !== 'ready') {
