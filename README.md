@@ -192,6 +192,9 @@ const model = await modelsClient.models.get<Post>({
   $merge: merge,
 })
 
+// run the initial sync
+await model.$sync()
+
 // subscribe to live changes to the model data!
 model.subscribe((err, post) => {
   if (err) {
