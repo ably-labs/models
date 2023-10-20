@@ -33,7 +33,7 @@ describe('Models', () => {
     channelName,
   }) => {
     const modelsClient = new ModelsClient({ ably });
-    const model1 = await modelsClient.models.get<string>({
+    const model1 = modelsClient.models.get<string>({
       name: 'test',
       channelName: channelName,
       $sync: async () => 'initial data',
@@ -41,7 +41,7 @@ describe('Models', () => {
     });
     expect(model1.name).toEqual('test');
 
-    const model2 = await modelsClient.models.get<string>({
+    const model2 = modelsClient.models.get<string>({
       name: 'test',
       channelName: channelName,
       $sync: async () => 'initial data',

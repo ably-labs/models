@@ -45,7 +45,7 @@ export default class ModelsClient {
        * The names and funcitons will be automatically setup on the model returned.
        * The model will not start until you call model.sync()
        */
-      get: async <T>(registration: registration<T>) => {
+      get: <T>(registration: registration<T>) => {
         const name = registration.name;
         const channelName = registration.channelName;
 
