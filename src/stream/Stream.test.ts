@@ -196,6 +196,71 @@ describe('Stream', () => {
     expect(channel.history).toHaveBeenNthCalledWith(4, { untilAttach: true, limit: HISTORY_PAGE_SIZE });
   });
 
+  it<StreamTestContext>('fails to sync if sequenceID boundary not found in history with final empty page', async ({
+    ably,
+    logger,
+    channelName,
+  }) => {
+    const channel = ably.channels.get(channelName);
+    ably.channels.release = vi.fn();
+    channel.attach = vi.fn(
+      async (): Promise<Types.ChannelStateChange | null> => ({
+        current: 'attached',
+        previous: 'attaching',
+        resumed: false,
+        hasBacklog: false,
+      }),
+    );
+    channel.subscribe = vi.fn<any, any>(async (): Promise<Types.ChannelStateChange | null> => null);
+    let i = 0;
+    channel.history = vi.fn<any, any>(async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => {
+      i++;
+      if (i === 1) {
+        return {
+          items: [createMessage(7), createMessage(6), createMessage(5)],
+          hasNext: () => true,
+        };
+      } else if (i === 2) {
+        return {
+          items: [createMessage(4), createMessage(3), createMessage(2)],
+          hasNext: () => true,
+        };
+      }
+      return {
+        items: [],
+        hasNext: () => false,
+      };
+    });
+
+    const stream = new Stream({ ably, logger, channelName: 'foobar' });
+    let synced = stream.sync('1');
+
+    await statePromise(stream, StreamState.PREPARING);
+    await expect(synced).rejects.toThrow(/insufficient history to seek to sequenceID 1 in stream/);
+    expect(stream.state).toBe(StreamState.ERRORED);
+
+    expect(channel.attach).toHaveBeenCalledOnce();
+    expect(channel.subscribe).toHaveBeenCalledOnce();
+    expect(channel.history).toHaveBeenCalledTimes(3);
+    expect(channel.history).toHaveBeenNthCalledWith(1, { untilAttach: true, limit: HISTORY_PAGE_SIZE });
+    expect(channel.history).toHaveBeenNthCalledWith(2, { untilAttach: true, limit: HISTORY_PAGE_SIZE });
+    expect(channel.history).toHaveBeenNthCalledWith(3, { untilAttach: true, limit: HISTORY_PAGE_SIZE });
+
+    i = 0;
+    synced = stream.sync('2');
+
+    await statePromise(stream, StreamState.PREPARING);
+    await expect(synced).resolves.toBeUndefined();
+    expect(stream.state).toBe(StreamState.READY);
+    expect(ably.channels.release).toHaveBeenCalledOnce();
+
+    expect(channel.attach).toHaveBeenCalledTimes(2);
+    expect(channel.subscribe).toHaveBeenCalledTimes(2);
+    expect(channel.history).toHaveBeenCalledTimes(5);
+    expect(channel.history).toHaveBeenNthCalledWith(4, { untilAttach: true, limit: HISTORY_PAGE_SIZE });
+    expect(channel.history).toHaveBeenNthCalledWith(5, { untilAttach: true, limit: HISTORY_PAGE_SIZE });
+  });
+
   it<StreamTestContext>('subscribes to messages', async ({ ably, logger, channelName }) => {
     const channel = ably.channels.get(channelName);
     channel.attach = vi.fn(

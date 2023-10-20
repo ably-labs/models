@@ -102,7 +102,7 @@ export class SlidingWindow extends MiddlewareBase {
  * Subsequently live messages can continue to be added, re-ordered within a sliding window, and emitted.
  */
 export class OrderedHistoryResumer extends MiddlewareBase {
-  private currentState: 'seeking' | 'ready' = 'seeking';
+  private currentState: 'seeking' | 'success' = 'seeking';
   private historicalMessages: AblyTypes.Message[] = [];
   private realtimeMessages: AblyTypes.Message[] = [];
   private slidingWindow: SlidingWindow;
@@ -144,7 +144,13 @@ export class OrderedHistoryResumer extends MiddlewareBase {
     // It is possible that we retrieve a page of history that is empty, such as when
     // the messages expired before the next page was requested.
     if (messages.length === 0) {
+      // If there were some messages in history then there have definitely been changes to the state
+      // and we can't reach back far enough to resume from the correct point.
+      const noHistory = this.historicalMessages.length === 0;
       this.flush();
+      if (noHistory) {
+        this.currentState = 'success';
+      }
       return true;
     }
     this.historicalMessages = this.historicalMessages.concat(messages);
@@ -169,6 +175,7 @@ export class OrderedHistoryResumer extends MiddlewareBase {
       if (this.messageBeforeInclusive(this.historicalMessages[i].id, this.sequenceID)) {
         this.historicalMessages.splice(i);
         this.flush();
+        this.currentState = 'success';
         return true;
       }
     }
@@ -185,7 +192,6 @@ export class OrderedHistoryResumer extends MiddlewareBase {
       this.slidingWindow.next(message);
     }
     this.historicalMessages = [];
-    this.currentState = 'ready';
   }
 
   public addLiveMessages(message: AblyTypes.Message) {
