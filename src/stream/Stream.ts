@@ -82,7 +82,7 @@ export interface IStream {
   get channelName(): string;
   pause(): Promise<void>;
   resume(): Promise<void>;
-  sync(sequenceID: string): Promise<void>;
+  replay(sequenceID: string): Promise<void>;
   subscribe(callback: StandardCallback<AblyTypes.Message>): void;
   unsubscribe(callback: StandardCallback<AblyTypes.Message>): void;
   dispose(reason?: AblyTypes.ErrorInfo | string): Promise<void>;
@@ -170,8 +170,8 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     this.subscriptionMap = new WeakMap();
   }
 
-  public async sync(sequenceID: string) {
-    this.logger.trace({ ...this.baseLogContext, action: 'sync()' });
+  public async replay(sequenceID: string) {
+    this.logger.trace({ ...this.baseLogContext, action: 'replay()' });
     this.setState(StreamState.PREPARING);
     try {
       await this.reset();

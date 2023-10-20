@@ -60,10 +60,10 @@ describe('Stream', () => {
     );
 
     const stream = new Stream({ ably, logger, channelName: 'foobar' });
-    const synced = stream.sync('0');
+    const replayPromise = stream.replay('0');
 
     await statePromise(stream, StreamState.PREPARING);
-    await expect(synced).resolves.toBeUndefined();
+    await expect(replayPromise).resolves.toBeUndefined();
     expect(stream.state).toBe(StreamState.READY);
 
     expect(channel.subscribe).toHaveBeenCalledOnce();
@@ -82,10 +82,10 @@ describe('Stream', () => {
     );
 
     const stream = new Stream({ ably, logger, channelName: 'foobar' });
-    const synced = stream.sync('0');
+    const replayPromise = stream.replay('0');
 
     await statePromise(stream, StreamState.PREPARING);
-    await expect(synced).rejects.toThrow(/the channel was already attached when calling subscribe()/);
+    await expect(replayPromise).rejects.toThrow(/the channel was already attached when calling subscribe()/);
     expect(stream.state).toBe(StreamState.ERRORED);
 
     expect(channel.subscribe).toHaveBeenCalledTimes(1);
@@ -123,10 +123,10 @@ describe('Stream', () => {
     });
 
     const stream = new Stream({ ably, logger, channelName: 'foobar' });
-    let synced = stream.sync('1');
+    let replayPromise = stream.replay('1');
 
     await statePromise(stream, StreamState.PREPARING);
-    await expect(synced).rejects.toThrow(/insufficient history to seek to sequenceID 1 in stream/);
+    await expect(replayPromise).rejects.toThrow(/insufficient history to seek to sequenceID 1 in stream/);
     expect(stream.state).toBe(StreamState.ERRORED);
 
     expect(channel.subscribe).toHaveBeenCalledOnce();
@@ -135,10 +135,10 @@ describe('Stream', () => {
     expect(channel.history).toHaveBeenNthCalledWith(2, { untilAttach: true, limit: HISTORY_PAGE_SIZE });
 
     i = 0;
-    synced = stream.sync('2');
+    replayPromise = stream.replay('2');
 
     await statePromise(stream, StreamState.PREPARING);
-    await expect(synced).resolves.toBeUndefined();
+    await expect(replayPromise).resolves.toBeUndefined();
     expect(stream.state).toBe(StreamState.READY);
     expect(ably.channels.release).toHaveBeenCalledOnce();
 
@@ -184,10 +184,10 @@ describe('Stream', () => {
     });
 
     const stream = new Stream({ ably, logger, channelName: 'foobar' });
-    let synced = stream.sync('1');
+    let replayPromise = stream.replay('1');
 
     await statePromise(stream, StreamState.PREPARING);
-    await expect(synced).rejects.toThrow(/insufficient history to seek to sequenceID 1 in stream/);
+    await expect(replayPromise).rejects.toThrow(/insufficient history to seek to sequenceID 1 in stream/);
     expect(stream.state).toBe(StreamState.ERRORED);
 
     expect(channel.subscribe).toHaveBeenCalledOnce();
@@ -197,10 +197,10 @@ describe('Stream', () => {
     expect(channel.history).toHaveBeenNthCalledWith(3, { untilAttach: true, limit: HISTORY_PAGE_SIZE });
 
     i = 0;
-    synced = stream.sync('2');
+    replayPromise = stream.replay('2');
 
     await statePromise(stream, StreamState.PREPARING);
-    await expect(synced).resolves.toBeUndefined();
+    await expect(replayPromise).resolves.toBeUndefined();
     expect(stream.state).toBe(StreamState.READY);
     expect(ably.channels.release).toHaveBeenCalledOnce();
 
@@ -230,7 +230,7 @@ describe('Stream', () => {
     });
 
     const stream = new Stream({ ably, logger, channelName });
-    await stream.sync('0');
+    await stream.replay('0');
     await statePromise(stream, StreamState.READY);
 
     const subscriptionSpy = vi.fn<any, any>();
@@ -273,7 +273,7 @@ describe('Stream', () => {
     const subscriptionSpy = vi.fn<any, any>();
     stream.subscribe(subscriptionSpy);
 
-    await stream.sync('3');
+    await stream.replay('3');
     await statePromise(stream, StreamState.READY);
 
     // live messages
@@ -322,7 +322,7 @@ describe('Stream', () => {
     const subscriptionSpy = vi.fn<any, any>();
     stream.subscribe(subscriptionSpy);
 
-    await stream.sync('1');
+    await stream.replay('1');
     await statePromise(stream, StreamState.READY);
 
     // live messages
@@ -359,7 +359,7 @@ describe('Stream', () => {
     );
 
     const stream = new Stream({ ably, logger, channelName });
-    await stream.sync('0');
+    await stream.replay('0');
     await statePromise(stream, StreamState.READY);
 
     const subscriptionSpy1 = vi.fn();
@@ -402,7 +402,7 @@ describe('Stream', () => {
     );
 
     const stream = new Stream({ ably, logger, channelName });
-    await stream.sync('0');
+    await stream.replay('0');
     await statePromise(stream, StreamState.READY);
 
     const subscriptionSpy = vi.fn();
@@ -443,7 +443,7 @@ describe('Stream', () => {
     );
 
     const stream = new Stream({ ably, logger, channelName });
-    await stream.sync('0');
+    await stream.replay('0');
     await statePromise(stream, StreamState.READY);
 
     const subscriptionSpy1 = vi.fn();
@@ -488,7 +488,7 @@ describe('Stream', () => {
     );
 
     const stream = new Stream({ ably, logger, channelName });
-    await stream.sync('0');
+    await stream.replay('0');
 
     await statePromise(stream, StreamState.READY);
     expect(channel.subscribe).toHaveBeenCalledOnce();
@@ -519,7 +519,7 @@ describe('Stream', () => {
     ably.channels.release = vi.fn();
 
     const stream = new Stream({ ably, logger, channelName });
-    await stream.sync('0');
+    await stream.replay('0');
 
     await statePromise(stream, StreamState.READY);
     expect(channel.subscribe).toHaveBeenCalledOnce();
@@ -555,7 +555,7 @@ describe('Stream', () => {
     });
 
     const stream = new Stream({ ably, logger, channelName });
-    await stream.sync('0');
+    await stream.replay('0');
 
     await statePromise(stream, StreamState.READY);
     expect(channel.subscribe).toHaveBeenCalledOnce();
