@@ -266,7 +266,7 @@ describe('OrderedHistoryResumer', () => {
     expect(subscription).toHaveBeenNthCalledWith(2, null, history[0]);
   });
 
-  it('emitting messages requires explicit flush after end of history reached without crossing boundary', () => {
+  it('flushes when empty history page reached', () => {
     const sequenceID = 0; // out of reach
     const middleware = new OrderedHistoryResumer(`${sequenceID}`, 0);
     const subscription = vi.fn();
@@ -285,9 +285,6 @@ describe('OrderedHistoryResumer', () => {
     expect(middleware.addHistoricalMessages(shuffle(page1))).toBe(false);
     expect(middleware.addHistoricalMessages(shuffle(page2))).toBe(true);
 
-    expect(subscription).toHaveBeenCalledTimes(0);
-
-    middleware.flush();
     expect(subscription).toHaveBeenCalledTimes(5);
     expect(subscription).toHaveBeenNthCalledWith(1, null, history[4]);
     expect(subscription).toHaveBeenNthCalledWith(2, null, history[3]);

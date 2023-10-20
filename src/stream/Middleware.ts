@@ -137,7 +137,10 @@ export class OrderedHistoryResumer extends MiddlewareBase {
     if (this.currentState !== 'seeking') {
       throw new Error('can only add historical messages while in seeking state');
     }
+    // It is possible that we retrieve a page of history that is empty, such as when
+    // the messages expired before the next page was requested.
     if (messages.length === 0) {
+      this.flush();
       return true;
     }
     this.historicalMessages = this.historicalMessages.concat(messages);
