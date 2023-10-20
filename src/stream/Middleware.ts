@@ -129,6 +129,10 @@ export class OrderedHistoryResumer extends MiddlewareBase {
     return this.eventOrderer(a, b) * -1;
   }
 
+  private messageBeforeInclusive(a: string, b: string) {
+    return this.eventOrderer(a, b) <= 0;
+  }
+
   public get state() {
     return this.currentState;
   }
@@ -162,7 +166,7 @@ export class OrderedHistoryResumer extends MiddlewareBase {
     // Seek backwards through history until we reach a message id <= the specified sequenceID.
     // Discard anything older (>= sequenceID) and flush out the remaining messages.
     for (let i = 0; i < this.historicalMessages.length; i++) {
-      if (this.eventOrderer(this.historicalMessages[i].id, this.sequenceID) <= 0) {
+      if (this.messageBeforeInclusive(this.historicalMessages[i].id, this.sequenceID)) {
         this.historicalMessages.splice(i);
         this.flush();
         return true;
