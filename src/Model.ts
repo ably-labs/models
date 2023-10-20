@@ -38,7 +38,6 @@ import EventEmitter from './utilities/EventEmitter.js';
  * @extends {EventEmitter<Record<ModelState, ModelStateChange>>} Allows you to listen for model state changes to hook into the model lifecycle.
  */
 export default class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
-  private wasRegistered = false;
   private currentState: ModelState = 'initialized';
   private optimisticData!: T;
   private confirmedData!: T;
@@ -68,7 +67,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
    * @param {string} name - A unique name used to identify this model in your application.
    * @param {ModelOptions} options - Options used to configure this model instance.
    */
-  constructor(readonly name: string, options: ModelOptions) {
+  constructor(readonly name: string, registration: Registration<T>, options: ModelOptions) {
     super();
     this.logger = options.logger;
     this.baseLogContext = { scope: `Model:${name}` };
@@ -87,6 +86,11 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
       },
       options.defaultOptimisticOptions,
     );
+
+    this.syncFunc = registration.$sync;
+    if (registration.$merge) {
+      this.merge = registration.$merge;
+    }
   }
 
   /**
@@ -182,32 +186,6 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
     this.subscriptionMap = new WeakMap();
     this.streamSubscriptionsMap = new WeakMap();
     return new Promise((resolve) => this.whenState('disposed', this.state, resolve));
-  }
-
-  /**
-   * Registers a sync function and a merge function for use by this model.
-   * This should be called once by your application before you subscribe to the model state.
-   * @param {Registration<T>} registration - The set of methods to register.
-   * @returns A promise that resolves when the model has completed the registrtion and is ready to start emitting updates.
-   */
-  public $register(registration: Registration<T>) {
-    if (this.wasRegistered) {
-      throw new Error('$register was already called');
-    }
-    if (this.state !== 'initialized') {
-      throw new Error(
-        `$register can only be called when the model is in the ${'initialized'} state (current: ${this.state})`,
-      );
-    }
-    this.wasRegistered = true;
-    this.syncFunc = registration.$sync;
-
-    if (registration.$merge) {
-      this.merge = registration.$merge;
-    }
-
-    this.init();
-    return new Promise((resolve) => this.whenState('ready', this.state, resolve));
   }
 
   /**

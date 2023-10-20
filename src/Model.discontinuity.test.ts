@@ -47,11 +47,12 @@ describe('Model', () => {
     let counter = 0;
 
     const sync = vi.fn(async () => `${counter++}`);
-    const model = new Model<string>('test', { ably, channelName, logger });
     const mergeFn = vi.fn(async (_, event) => {
       return event.data;
     });
-    await model.$register({ $sync: sync, $merge: mergeFn });
+
+    const model = new Model<string>('test', { $sync: sync, $merge: mergeFn }, { ably, channelName, logger });
+    await model.$sync();
 
     expect(sync).toHaveBeenCalledOnce();
 
