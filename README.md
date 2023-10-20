@@ -185,7 +185,7 @@ async function updatePost(mutationId: string, content: string) {
 }
 
 // create a new model instance called 'post' by passing the sync and merge functions
-const model = await modelsClient.models.get<Post>({
+const model = modelsClient.models.get<Post>({
   name: 'post',
   channelName: 'models:posts',
   $sync: sync,
