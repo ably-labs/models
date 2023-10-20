@@ -241,6 +241,13 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     }
 
     // Paginate back until we reach the sequenceID or we run out of messages.
+    //
+    // Note that the state returned by the sync function may be loaded from a cache.
+    // When the cached state is older than the message retention period configured on the channel (i.e. 2mins/24hours/72hours), we have two situations:
+    // - The state *has not* changed at all since the cache was populated
+    // - The state *has* changed since the cache was populated
+    // In both cases, the message history will be empty. We cannot distinguish between these two cases.
+    // So the onus is on the user to return state that isn't too stale relative to subsequent changes to that state when bootstrapping.
     let done = false;
     let page: AblyTypes.PaginatedResult<AblyTypes.Message>;
     do {
@@ -248,9 +255,9 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
       done = this.middleware.addHistoricalMessages(page.items);
     } while (page && page.items && page.items.length > 0 && page.hasNext() && !done);
 
-    // If the middleware is not ready it means we never reached the target sequenceID,
-    // so the target sequenceID was too stale and we should surface an error.
-    if (this.middleware.state !== 'ready') {
+    // If the middleware is not in the success state it means there were some history messages and we never reached the target sequenceID.
+    // This means the target sequenceID was too old and a re-sync from a newer state snapshot is required.
+    if (this.middleware.state !== 'success') {
       throw new Error(`insufficient history to seek to sequenceID ${sequenceID} in stream`);
     }
   }
