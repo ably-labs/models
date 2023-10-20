@@ -228,16 +228,9 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     });
     await this.ably.connection.whenState('connected');
 
-    // The attach callback is called synchronously upon receipt of an attach message from realtime
-    // and adding a channel subscription is also synchronous, so registering the subscription immediately
-    // after the attach guarantees that nothing else should execute between, so no messages will be missed.
-    const attachResult = await this.ablyChannel.attach();
-    if (!attachResult) {
-      throw new Error('the channel was already attached when calling attach()');
-    }
     const subscribeResult = await this.ablyChannel.subscribe(this.onChannelMessage.bind(this)); // live messages
-    if (subscribeResult) {
-      throw new Error('the channel was not attached when calling subscribe()');
+    if (!subscribeResult) {
+      throw new Error('the channel was already attached when calling subscribe()');
     }
 
     // Paginate back until we reach the sequenceID or we run out of messages.
