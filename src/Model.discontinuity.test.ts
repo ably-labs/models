@@ -40,7 +40,7 @@ describe('Model', () => {
         };
       }
     });
-    channel.attach = vi.fn(
+    channel.subscribe = vi.fn<any, any>(
       async (): Promise<Types.ChannelStateChange | null> => ({
         current: 'attached',
         previous: 'attaching',
@@ -48,7 +48,6 @@ describe('Model', () => {
         hasBacklog: false,
       }),
     );
-    channel.subscribe = vi.fn<any, any>(async (): Promise<Types.ChannelStateChange | null> => null);
     channel.history = vi.fn<any, any>(
       async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => ({
         items: [],
