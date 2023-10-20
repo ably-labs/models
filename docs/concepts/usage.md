@@ -29,7 +29,7 @@ Note that we pass in the shape of our data model (`Post`) as a type parameter.
 In order to instantiate the model, we need to pass some *registrations* which link up the model to your application code.
 
 ```ts
-const model = await modelsClient.models.get<Post>({
+const model = modelsClient.models.get<Post>({
   name: /* ... */,
   channelName: /* ... */,
   $sync: /* ... */,
@@ -58,7 +58,7 @@ async function sync() {
   return result.json();
 }
 
-const model = await modelsClient.models.get<Post>({
+const model = modelsClient.models.get<Post>({
   $sync: /* ... */,
   /* other registrations */
 })
