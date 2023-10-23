@@ -50,19 +50,18 @@ export type StreamState =
    */
   | 'initialized'
   /**
-   * The stream is attempting to establish a realtime connection and attach to the channel.
-   * The preparing state is entered as soon as the library has completed initialization,
-   * and is reentered each time connection is re-attempted following detachment or disconnection.
+   * The stream is establishing a realtime connection, attaching to a channel and
+   * seeking through message history to replay messages from the correct point in the stream.
    */
-  | 'preparing'
+  | 'seeking'
   /**
-   * The stream has a realtime connection, is attached to the channel and is delivering messages.
+   * The stream is delivering messages in realtime.
    */
   | 'ready'
   /**
-   * The user has paused the stream.
+   * The stream has been reset and is not attached to the channel or delivering messages.
    */
-  | 'paused'
+  | 'reset'
   /**
    * The stream has been disposed, either by the user disposing it or an unrecoverable error,
    * and its resources are available for garbage collection.

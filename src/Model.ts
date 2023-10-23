@@ -142,7 +142,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
    * @returns A promise that resolves when the model has successfully re-synchronised its state and is ready to start emitting updates.
    */
   public async sync() {
-    await this.init();
+    await this.resync();
     return statePromise(this, 'ready');
   }
 
@@ -152,7 +152,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
    */
   public async pause() {
     this.logger.trace({ ...this.baseLogContext, action: 'pause()' });
-    await this.stream.pause();
+    await this.stream.reset();
     this.setState('paused');
   }
 
@@ -162,7 +162,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
    */
   public async resume() {
     this.logger.trace({ ...this.baseLogContext, action: 'resume()' });
-    await this.stream.resume();
+    await this.stream.replay('123'); // todo get seqeuence id
     this.setState('ready');
   }
 
@@ -277,13 +277,13 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
     } as ModelStateChange);
   }
 
-  private async init(reason?: Error) {
-    this.logger.trace({ ...this.baseLogContext, action: 'init()', reason });
-    this.setState('preparing', reason);
+  private async resync(reason?: Error) {
+    this.logger.trace({ ...this.baseLogContext, action: 'resync()', reason });
+    this.setState('syncing', reason);
     this.removeStream();
     const { data, sequenceID } = await this.syncFunc();
     await this.addStream(sequenceID);
-    this.setOptimisticData(data);
+    this.setOptimisticData(data); // todo rebase optimistic events
     this.setConfirmedData(data);
     this.setState('ready');
   }
@@ -333,7 +333,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
 
       await this.onStreamEvent(modelsEvent);
     } catch (err) {
-      await this.init(toError(err));
+      await this.resync(toError(err));
     }
   }
 

@@ -30,8 +30,7 @@ vi.mock('./stream/StreamFactory', () => {
     get channelName() {
       return this.options.channelName;
     }
-    async pause() {}
-    async resume() {}
+    async reset() {}
     async subscribe() {}
     unsubscribe(): void {}
     async dispose() {}
@@ -115,14 +114,14 @@ describe('Model', () => {
     await statePromise(model, 'initialized');
     const modelSynced = model.sync();
 
-    await statePromise(model, 'preparing');
+    await statePromise(model, 'syncing');
     completeSync();
     await statePromise(model, 'ready');
     expect(sync).toHaveBeenCalledOnce();
     expect(model.data.optimistic).toEqual(simpleTestData);
     expect(model.data.confirmed).toEqual(simpleTestData);
     const syncResult = await modelSynced;
-    expect([undefined, { current: 'ready', previous: 'preparing', reason: undefined }]).toContain(syncResult);
+    expect([undefined, { current: 'ready', previous: 'syncing', reason: undefined }]).toContain(syncResult);
   });
 
   it<ModelTestContext>('allows sync to be called manually', async ({ channelName, ably, logger }) => {
@@ -152,11 +151,11 @@ describe('Model', () => {
     );
     const ready = model.sync();
 
-    await statePromise(model, 'preparing');
+    await statePromise(model, 'syncing');
     completeSync();
 
     const registerResult = await ready;
-    expect([undefined, { current: 'ready', previous: 'preparing', reason: undefined }]).toContain(registerResult);
+    expect([undefined, { current: 'ready', previous: 'syncing', reason: undefined }]).toContain(registerResult);
 
     expect(sync).toHaveBeenCalledOnce();
     expect(model.data.optimistic).toEqual(simpleTestData);
@@ -170,7 +169,7 @@ describe('Model', () => {
     });
 
     const resynced = model.sync();
-    await statePromise(model, 'preparing');
+    await statePromise(model, 'syncing');
     completeSync();
     await resynced;
     await statePromise(model, 'ready');
@@ -227,8 +226,8 @@ describe('Model', () => {
   it<ModelTestContext>('pauses and resumes the model', async ({ channelName, ably, logger, streams }) => {
     const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
-    s1.pause = vi.fn();
-    s1.resume = vi.fn();
+    s1.reset = vi.fn();
+    s1.replay = vi.fn();
     const sync = vi.fn(async () => ({
       data: simpleTestData,
       sequenceID: '0',
@@ -253,14 +252,15 @@ describe('Model', () => {
     await model.sync();
 
     expect(s1.subscribe).toHaveBeenCalledOnce();
+    expect(s1.replay).toHaveBeenCalledOnce();
 
     await model.pause();
     expect(model.state).toBe('paused');
-    expect(s1.pause).toHaveBeenCalledOnce();
+    expect(s1.reset).toHaveBeenCalledOnce();
 
     await model.resume();
     expect(model.state).toBe('ready');
-    expect(s1.resume).toHaveBeenCalledOnce();
+    expect(s1.replay).toHaveBeenCalledTimes(2);
   });
 
   it<ModelTestContext>('disposes of the model', async ({ channelName, ably, logger, streams }) => {
@@ -900,7 +900,7 @@ describe('Model', () => {
     expect(model.data.optimistic).toEqual('0');
   });
 
-  // If applying a received stream update throws, the model reverts to the PREPARING state and re-syncs.
+  // If applying a received stream update throws, the model reverts to the syncing state and re-syncs.
   it<ModelTestContext>('resync if stream apply update fails', async ({ channelName, ably, logger, streams }) => {
     const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
@@ -967,9 +967,9 @@ describe('Model', () => {
 
     // The 3rd event throws when applying the update, which should
     // trigger a resync and get the latest counter value.
-    const preparingPromise = statePromise(model, 'preparing');
+    const syncingPromise = statePromise(model, 'syncing');
     events.channelEvents.next(customMessage('id_3', 'testEvent', String(++counter)));
-    const { reason } = (await preparingPromise) as ModelStateChange;
+    const { reason } = (await syncingPromise) as ModelStateChange;
     expect(reason).to.toBeDefined();
     expect(reason!.message).toEqual('test');
     await subscriptionCalls[3];
