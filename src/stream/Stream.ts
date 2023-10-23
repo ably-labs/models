@@ -4,77 +4,8 @@ import { Subject, Subscription } from 'rxjs';
 
 import { OrderedHistoryResumer } from './Middleware.js';
 import type { StandardCallback } from '../types/callbacks';
-import type { EventOrderer, SyncOptions } from '../types/optimistic.js';
+import type { StreamStateChange, StreamOptions, StreamState } from '../types/stream.js';
 import EventEmitter from '../utilities/EventEmitter.js';
-
-/**
- * StreamState represents the possible lifecycle states of a stream.
- */
-export enum StreamState {
-  /**
-   * The stream has been initialized but no attach has yet been attempted.
-   */
-  INITIALIZED = 'initialized',
-  /**
-   * The stream is attempting to establish a realtime connection and attach to the channel.
-   * The preparing state is entered as soon as the library has completed initialization,
-   * and is reentered each time connection is re-attempted following detachment or disconnection.
-   */
-  PREPARING = 'preparing',
-  /**
-   * The stream has a realtime connection, is attached to the channel and is delivering messages.
-   */
-  READY = 'ready',
-  /**
-   * The user has paused the stream.
-   */
-  PAUSED = 'paused',
-  /**
-   * The stream has been disposed, either by the user disposing it or an unrecoverable error,
-   * and its resources are available for garbage collection.
-   */
-  DISPOSED = 'disposed',
-  /**
-   * The stream has encountered an unrecoverable error and must be explicitly re-synced.
-   */
-  ERRORED = 'errored',
-}
-
-/**
- * Options used to configure a stream instance.
- */
-export type StreamOptions = {
-  channelName: string;
-  ably: AblyTypes.RealtimePromise;
-  logger: Logger;
-  syncOptions: SyncOptions;
-  eventBufferOptions: EventBufferOptions;
-};
-
-export type EventBufferOptions = {
-  /**
-   * bufferms is the period of time events are held in a buffer
-   * for reordering and deduplicating. By default this is zero,
-   * which disables the buffer. Setting bufferMs to a non-zero
-   * value enables the buffer. The buffer is a sliding window.
-   */
-  bufferMs: number;
-  /**
-   * eventOrderer defines the correct order of events. By default,
-   * when the buffer is enabled the event order is the lexicographical
-   * order of the message ids within the buffer.
-   */
-  eventOrderer: EventOrderer;
-};
-
-/**
- * A state transition emitted as an event from the stream describing a change to the stream's lifecycle.
- */
-export type StreamStateChange = {
-  current: StreamState;
-  previous: StreamState;
-  reason?: AblyTypes.ErrorInfo | string;
-};
 
 export interface IStream {
   get state(): StreamState;
@@ -92,7 +23,7 @@ export interface IStream {
  */
 export default class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> implements IStream {
   private readonly ably: AblyTypes.RealtimePromise;
-  private currentState: StreamState = StreamState.INITIALIZED;
+  private currentState: StreamState = 'initialized';
   private subscriptions = new Subject<AblyTypes.Message>();
   private subscriptionMap: WeakMap<StandardCallback<AblyTypes.Message>, Subscription> = new WeakMap();
   private ablyChannel?: AblyTypes.RealtimeChannelPromise;
@@ -117,7 +48,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
   }
 
   public async pause() {
-    this.setState(StreamState.PAUSED);
+    this.setState('paused');
     if (this.ablyChannel) {
       await this.ablyChannel.detach();
     }
@@ -129,7 +60,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
       throw new Error('no ably channel configured on the stream');
     }
     await this.ablyChannel.attach();
-    this.setState(StreamState.READY);
+    this.setState('ready');
   }
 
   public subscribe(callback: StandardCallback<AblyTypes.Message>) {
@@ -162,7 +93,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
 
   public async dispose(reason?: AblyTypes.ErrorInfo | string) {
     this.logger.trace({ ...this.baseLogContext, action: 'dispose()', reason });
-    this.setState(StreamState.DISPOSED, reason);
+    this.setState('disposed', reason);
     await this.reset();
     this.subscriptions.unsubscribe();
     this.subscriptions = new Subject<AblyTypes.Message>();
@@ -171,14 +102,14 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
 
   public async replay(sequenceID: string) {
     this.logger.trace({ ...this.baseLogContext, action: 'replay()' });
-    this.setState(StreamState.PREPARING);
+    this.setState('preparing');
     try {
       await this.reset();
       await this.init(sequenceID);
-      this.setState(StreamState.READY);
+      this.setState('ready');
     } catch (err) {
       this.logger.error('sync failed', { err });
-      this.setState(StreamState.ERRORED);
+      this.setState('errored');
       throw err; // surface the error to the caller
     }
   }

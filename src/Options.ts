@@ -1,6 +1,6 @@
-import { numericOtherwiseLexicographicOrderer } from '../stream/Middleware.js';
-import type { EventBufferOptions } from '../stream/Stream.js';
-import type { OptimisticEventOptions, SyncOptions } from '../types/optimistic.js';
+import { numericOtherwiseLexicographicOrderer } from './stream/Middleware.js';
+import type { OptimisticEventOptions, SyncOptions } from './types/optimistic.js';
+import type { EventBufferOptions } from './types/stream.js';
 
 export const defaultSyncOptions: SyncOptions = {
   historyPageSize: 100,

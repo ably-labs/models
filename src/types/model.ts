@@ -3,7 +3,7 @@ import type { Logger } from 'pino';
 
 import type { MergeFunc } from './merge';
 import type { SyncOptions, OptimisticEventOptions } from './optimistic';
-import type { EventBufferOptions } from '../stream/Stream';
+import type { EventBufferOptions } from './stream';
 
 /**
  * Options used to configure a model instance.

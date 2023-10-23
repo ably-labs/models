@@ -3,8 +3,9 @@ import pino, { type Logger } from 'pino';
 import { Subject } from 'rxjs';
 import { it, describe, expect, beforeEach, afterEach, vi } from 'vitest';
 
-import Stream, { StreamOptions, StreamState } from './Stream.js';
-import { defaultSyncOptions, defaultEventBufferOptions } from '../options/options.js';
+import Stream from './Stream.js';
+import { defaultSyncOptions, defaultEventBufferOptions } from '../Options.js';
+import type { StreamOptions } from '../types/stream.js';
 import { statePromise } from '../utilities/promises.js';
 import { createMessage } from '../utilities/test/messages.js';
 
@@ -69,9 +70,9 @@ describe('Stream', () => {
     });
     const replayPromise = stream.replay('0');
 
-    await statePromise(stream, StreamState.PREPARING);
+    await statePromise(stream, 'preparing');
     await expect(replayPromise).resolves.toBeUndefined();
-    expect(stream.state).toBe(StreamState.READY);
+    expect(stream.state).toBe('ready');
 
     expect(channel.subscribe).toHaveBeenCalledOnce();
     expect(channel.history).toHaveBeenCalledOnce();
@@ -100,9 +101,9 @@ describe('Stream', () => {
     });
     const replayPromise = stream.replay('0');
 
-    await statePromise(stream, StreamState.PREPARING);
+    await statePromise(stream, 'preparing');
     await expect(replayPromise).rejects.toThrow(/the channel was already attached when calling subscribe()/);
-    expect(stream.state).toBe(StreamState.ERRORED);
+    expect(stream.state).toBe('errored');
 
     expect(channel.subscribe).toHaveBeenCalledTimes(1);
     expect(channel.history).toHaveBeenCalledTimes(0);
@@ -147,9 +148,9 @@ describe('Stream', () => {
     });
     let replayPromise = stream.replay('1');
 
-    await statePromise(stream, StreamState.PREPARING);
+    await statePromise(stream, 'preparing');
     await expect(replayPromise).rejects.toThrow(/insufficient history to seek to sequenceID 1 in stream/);
-    expect(stream.state).toBe(StreamState.ERRORED);
+    expect(stream.state).toBe('errored');
 
     expect(channel.subscribe).toHaveBeenCalledOnce();
     expect(channel.history).toHaveBeenCalledTimes(2);
@@ -165,9 +166,9 @@ describe('Stream', () => {
     i = 0;
     replayPromise = stream.replay('2');
 
-    await statePromise(stream, StreamState.PREPARING);
+    await statePromise(stream, 'preparing');
     await expect(replayPromise).resolves.toBeUndefined();
-    expect(stream.state).toBe(StreamState.READY);
+    expect(stream.state).toBe('ready');
     expect(ably.channels.release).toHaveBeenCalledOnce();
 
     expect(channel.subscribe).toHaveBeenCalledTimes(2);
@@ -226,9 +227,9 @@ describe('Stream', () => {
     });
     let replayPromise = stream.replay('1');
 
-    await statePromise(stream, StreamState.PREPARING);
+    await statePromise(stream, 'preparing');
     await expect(replayPromise).rejects.toThrow(/insufficient history to seek to sequenceID 1 in stream/);
-    expect(stream.state).toBe(StreamState.ERRORED);
+    expect(stream.state).toBe('errored');
 
     expect(channel.subscribe).toHaveBeenCalledOnce();
     expect(channel.history).toHaveBeenCalledTimes(3);
@@ -248,9 +249,9 @@ describe('Stream', () => {
     i = 0;
     replayPromise = stream.replay('2');
 
-    await statePromise(stream, StreamState.PREPARING);
+    await statePromise(stream, 'preparing');
     await expect(replayPromise).resolves.toBeUndefined();
-    expect(stream.state).toBe(StreamState.READY);
+    expect(stream.state).toBe('ready');
     expect(ably.channels.release).toHaveBeenCalledOnce();
 
     expect(channel.subscribe).toHaveBeenCalledTimes(2);
@@ -292,7 +293,7 @@ describe('Stream', () => {
       eventBufferOptions: defaultEventBufferOptions,
     });
     await stream.replay('0');
-    await statePromise(stream, StreamState.READY);
+    await statePromise(stream, 'ready');
 
     const subscriptionSpy = vi.fn<any, any>();
     stream.subscribe(subscriptionSpy);
@@ -341,7 +342,7 @@ describe('Stream', () => {
     stream.subscribe(subscriptionSpy);
 
     await stream.replay('3');
-    await statePromise(stream, StreamState.READY);
+    await statePromise(stream, 'ready');
 
     // live messages
     for (let i = 6; i <= 10; i++) {
@@ -396,7 +397,7 @@ describe('Stream', () => {
     stream.subscribe(subscriptionSpy);
 
     await stream.replay('1');
-    await statePromise(stream, StreamState.READY);
+    await statePromise(stream, 'ready');
 
     // live messages
     for (let i = 6; i < 10; i++) {
@@ -439,7 +440,7 @@ describe('Stream', () => {
       eventBufferOptions: defaultEventBufferOptions,
     });
     await stream.replay('0');
-    await statePromise(stream, StreamState.READY);
+    await statePromise(stream, 'ready');
 
     const subscriptionSpy1 = vi.fn();
     stream.subscribe(subscriptionSpy1);
@@ -488,7 +489,7 @@ describe('Stream', () => {
       eventBufferOptions: defaultEventBufferOptions,
     });
     await stream.replay('0');
-    await statePromise(stream, StreamState.READY);
+    await statePromise(stream, 'ready');
 
     const subscriptionSpy = vi.fn();
     stream.subscribe(subscriptionSpy);
@@ -535,7 +536,7 @@ describe('Stream', () => {
       eventBufferOptions: defaultEventBufferOptions,
     });
     await stream.replay('0');
-    await statePromise(stream, StreamState.READY);
+    await statePromise(stream, 'ready');
 
     const subscriptionSpy1 = vi.fn();
     stream.subscribe(subscriptionSpy1);
@@ -587,15 +588,15 @@ describe('Stream', () => {
     });
     await stream.replay('0');
 
-    await statePromise(stream, StreamState.READY);
+    await statePromise(stream, 'ready');
     expect(channel.subscribe).toHaveBeenCalledOnce();
 
     stream.pause();
-    await statePromise(stream, StreamState.PAUSED);
+    await statePromise(stream, 'paused');
     expect(channel.detach).toHaveBeenCalledOnce();
 
     stream.resume();
-    await statePromise(stream, StreamState.READY);
+    await statePromise(stream, 'ready');
     expect(channel.attach).toHaveBeenCalledOnce();
   });
 
@@ -624,11 +625,11 @@ describe('Stream', () => {
     });
     await stream.replay('0');
 
-    await statePromise(stream, StreamState.READY);
+    await statePromise(stream, 'ready');
     expect(channel.subscribe).toHaveBeenCalledOnce();
 
     stream.dispose();
-    await statePromise(stream, StreamState.DISPOSED);
+    await statePromise(stream, 'disposed');
     expect(ably.channels.release).toHaveBeenCalledOnce();
   });
 
@@ -666,11 +667,11 @@ describe('Stream', () => {
     });
     await stream.replay('0');
 
-    await statePromise(stream, StreamState.READY);
+    await statePromise(stream, 'ready');
     expect(channel.subscribe).toHaveBeenCalledOnce();
 
     fail({ reason: 'test' });
-    await statePromise(stream, StreamState.DISPOSED);
+    await statePromise(stream, 'disposed');
     expect(ably.channels.release).toHaveBeenCalledOnce();
   });
 });

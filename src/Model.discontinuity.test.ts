@@ -4,6 +4,7 @@ import { Subject } from 'rxjs';
 import { it, describe, expect, vi, beforeEach } from 'vitest';
 
 import Model from './Model.js';
+import { defaultEventBufferOptions, defaultOptimisticEventOptions, defaultSyncOptions } from './Options.js';
 import { ModelOptions } from './types/model.js';
 import { statePromise } from './utilities/promises.js';
 import { getEventPromises } from './utilities/test/promises.js';
@@ -67,7 +68,18 @@ describe('Model', () => {
       return event.data;
     });
 
-    const model = new Model<string>('test', { sync: sync, merge: mergeFn }, { ably, channelName, logger });
+    const model = new Model<string>(
+      'test',
+      { sync: sync, merge: mergeFn },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: defaultSyncOptions,
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
+    );
     await model.sync();
 
     expect(sync).toHaveBeenCalledOnce();
