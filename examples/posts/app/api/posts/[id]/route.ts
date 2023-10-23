@@ -9,8 +9,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     } catch (error) {
       return NextResponse.json({ message: 'failed to read :id url parameter', error }, { status: 400 });
     }
-    const data = await getPost(id);
-    return NextResponse.json({ data });
+    const [data, sequenceID] = await getPost(id);
+    return NextResponse.json({ sequenceID, data });
   } catch (error) {
     return NextResponse.json({ message: 'failed to get post', error }, { status: 500 });
   }

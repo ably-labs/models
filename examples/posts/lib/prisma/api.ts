@@ -35,13 +35,27 @@ export async function getPosts(): Promise<Post[]> {
   });
 }
 
-export async function getPost(id: number): Promise<Post> {
-  return await prisma.post.findUniqueOrThrow({
+export async function getPost(id: number): Promise<[Post, number]> {
+  return await prisma.$transaction(async (tx) => {
+    const post = await getPostTx(tx, id);
+
+    type r = { nextval: number };
+    const [{ nextval }] = await tx.$queryRaw<r[]>`SELECT nextval('outbox_sequence_id_seq')::integer`;
+
+    return [post, nextval];
+  });
+}
+
+async function getPostTx(tx: TxClient, id: number) {
+  return await tx.post.findUniqueOrThrow({
     where: { id },
     include: {
       comments: {
         include: {
           author: true,
+        },
+        orderBy: {
+          createdAt: 'asc',
         },
       },
     },
@@ -59,32 +73,47 @@ export type TxClient = Omit<PrismaClient, runtime.ITXClientDenyList>;
 
 export async function addComment(
   tx: TxClient,
+  mutationID: string,
   postId: number,
   authorId: number,
   content: string,
 ): Promise<Prisma.outboxCreateInput> {
-  const comment = await tx.comment.create({
+  await tx.comment.create({
     data: { postId, authorId, content },
     include: { author: true },
   });
-  return { channel: 'comments', name: 'add', data: comment, headers: { postId: comment.postId } };
+
+  return outboxPost(tx, mutationID, postId);
 }
 
-export async function editComment(tx: TxClient, id: number, content: string): Promise<Prisma.outboxCreateInput> {
+export async function editComment(
+  tx: TxClient,
+  mutationID: string,
+  id: number,
+  content: string,
+): Promise<Prisma.outboxCreateInput> {
   await tx.comment.findUniqueOrThrow({ where: { id } });
   const comment = await tx.comment.update({
     where: { id },
     data: { content },
     include: { author: true },
   });
-  return { channel: 'comments', name: 'edit', data: comment, headers: { postId: comment.postId } };
+
+  return outboxPost(tx, mutationID, comment.postId);
 }
 
-export async function deleteComment(tx: TxClient, id: number): Promise<Prisma.outboxCreateInput> {
+export async function deleteComment(tx: TxClient, mutationID: string, id: number): Promise<Prisma.outboxCreateInput> {
   const comment = await tx.comment.delete({
     where: { id },
   });
-  return { channel: 'comments', name: 'delete', data: { id }, headers: { postId: comment.postId } };
+
+  return outboxPost(tx, mutationID, comment.postId);
+}
+
+async function outboxPost(tx: TxClient, mutationID: string, id: number): Promise<Prisma.outboxCreateInput> {
+  const post = await getPostTx(tx, id);
+
+  return { mutation_id: mutationID, channel: `post:${post.id}`, name: 'post', data: post, headers: {} };
 }
 
 export async function withOutboxWrite(
@@ -92,9 +121,9 @@ export async function withOutboxWrite(
   ...args: any[]
 ) {
   return await prisma.$transaction(async (tx) => {
-    const { channel, name, data, headers } = await op(tx, ...args);
+    const { mutation_id, channel, name, data, headers } = await op(tx, ...args);
     await tx.outbox.create({
-      data: { channel, name, data, headers },
+      data: { mutation_id, channel, name, data, headers },
     });
   });
 }
