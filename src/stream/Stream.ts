@@ -10,8 +10,8 @@ import EventEmitter from '../utilities/EventEmitter.js';
 export interface IStream {
   get state(): StreamState;
   get channelName(): string;
-  pause(): Promise<void>;
-  resume(): Promise<void>;
+
+  reset(): Promise<void>;
   replay(sequenceID: string): Promise<void>;
   subscribe(callback: StandardCallback<AblyTypes.Message>): void;
   unsubscribe(callback: StandardCallback<AblyTypes.Message>): void;
@@ -47,22 +47,6 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     return this.options.channelName;
   }
 
-  public async pause() {
-    this.setState('paused');
-    if (this.ablyChannel) {
-      await this.ablyChannel.detach();
-    }
-  }
-
-  public async resume() {
-    await this.ably.connection.whenState('connected');
-    if (!this.ablyChannel) {
-      throw new Error('no ably channel configured on the stream');
-    }
-    await this.ablyChannel.attach();
-    this.setState('ready');
-  }
-
   public subscribe(callback: StandardCallback<AblyTypes.Message>) {
     this.logger.trace({ ...this.baseLogContext, action: 'subscribe()' });
     const subscription = this.subscriptions.subscribe({
@@ -91,10 +75,30 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     }
   }
 
+  public async reset() {
+    if (this.currentState === 'reset') {
+      return;
+    }
+    this.logger.trace({ ...this.baseLogContext, action: 'reset()' });
+    this.setState('reset');
+    if (this.middleware) {
+      this.middleware.unsubscribeAll();
+    }
+    if (this.ablyChannel) {
+      await this.ablyChannel.detach();
+      this.ably.channels.release(this.ablyChannel.name);
+    }
+  }
+
   public async dispose(reason?: AblyTypes.ErrorInfo | string) {
+    if (this.currentState === 'disposed') {
+      return;
+    }
     this.logger.trace({ ...this.baseLogContext, action: 'dispose()', reason });
+    if (this.currentState !== 'reset') {
+      await this.reset();
+    }
     this.setState('disposed', reason);
-    await this.reset();
     this.subscriptions.unsubscribe();
     this.subscriptions = new Subject<AblyTypes.Message>();
     this.subscriptionMap = new WeakMap();
@@ -102,10 +106,11 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
 
   public async replay(sequenceID: string) {
     this.logger.trace({ ...this.baseLogContext, action: 'replay()' });
-    this.setState('preparing');
     try {
-      await this.reset();
-      await this.init(sequenceID);
+      if (this.currentState !== 'reset') {
+        await this.reset();
+      }
+      await this.seek(sequenceID);
       this.setState('ready');
     } catch (err) {
       this.logger.error('sync failed', { err });
@@ -125,24 +130,15 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     } as StreamStateChange);
   }
 
-  private async reset() {
-    if (this.middleware) {
-      this.middleware.unsubscribeAll();
-    }
-    if (this.ablyChannel) {
-      await this.ablyChannel.detach();
-      this.ably.channels.release(this.ablyChannel.name);
-    }
-  }
-
   /**
    * Resubscribe to the channel and emit messages from the position in the stream specified by the sequenceID.
    * This is achieved by attaching to the channel and paginating back through history until the boundary determined by
    * the specified sequenceID is reached.
    * @param sequenceID The identifier that specifies the position in the message stream (by message ID) from which to resume.
    */
-  private async init(sequenceID: string) {
-    this.logger.trace({ ...this.baseLogContext, action: 'init()' });
+  private async seek(sequenceID: string) {
+    this.logger.trace({ ...this.baseLogContext, action: 'seek()' });
+    this.setState('seeking');
 
     this.middleware = new OrderedHistoryResumer(
       sequenceID,

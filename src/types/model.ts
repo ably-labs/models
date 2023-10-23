@@ -26,12 +26,9 @@ export type ModelState =
    */
   | 'initialized'
   /**
-   * The model is attempting to synchronise its state via a synchronisation call.
-   * The preparing state is entered as soon as the library has completed initialization,
-   * and is reentered each time there is a discontinuity in one of the underlying streams,
-   * or if there is an error updating the model.
+   * The model is synchronising its state.
    */
-  | 'preparing'
+  | 'syncing'
   /**
    * The model's underlying streams are in the READY state and the model is operating correctly.
    */
