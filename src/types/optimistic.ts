@@ -26,6 +26,18 @@ export type OptimisticEventOptions = {
 };
 
 /**
+ * SyncOptions can be used to configure options on how model state is synchronised.
+ */
+export type SyncOptions = {
+  /**
+   * The limit used when querying for paginated history used to subscribe to changes from the correct
+   * point in the channel.
+   * @see https://ably.com/docs/storage-history/history?lang=javascript#channel-parameters
+   */
+  historyPageSize: number;
+};
+
+/**
  * OptimisticInvocationParams are parameters passed when submitting a set of optimistic events.
  */
 export type OptimisticInvocationParams = {

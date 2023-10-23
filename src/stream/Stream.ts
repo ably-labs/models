@@ -4,10 +4,8 @@ import { Subject, Subscription } from 'rxjs';
 
 import { OrderedHistoryResumer } from './Middleware.js';
 import type { StandardCallback } from '../types/callbacks';
-import type { EventOrderer } from '../types/optimistic.js';
+import type { EventOrderer, SyncOptions } from '../types/optimistic.js';
 import EventEmitter from '../utilities/EventEmitter.js';
-
-export const HISTORY_PAGE_SIZE = 100;
 
 /**
  * StreamState represents the possible lifecycle states of a stream.
@@ -49,7 +47,8 @@ export type StreamOptions = {
   channelName: string;
   ably: AblyTypes.RealtimePromise;
   logger: Logger;
-  eventBufferOptions?: EventBufferOptions;
+  syncOptions: SyncOptions;
+  eventBufferOptions: EventBufferOptions;
 };
 
 export type EventBufferOptions = {
@@ -59,13 +58,13 @@ export type EventBufferOptions = {
    * which disables the buffer. Setting bufferMs to a non-zero
    * value enables the buffer. The buffer is a sliding window.
    */
-  bufferMs?: number;
+  bufferMs: number;
   /**
    * eventOrderer defines the correct order of events. By default,
    * when the buffer is enabled the event order is the lexicographical
    * order of the message ids within the buffer.
    */
-  eventOrderer?: EventOrderer;
+  eventOrderer: EventOrderer;
 };
 
 /**
@@ -216,8 +215,8 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
 
     this.middleware = new OrderedHistoryResumer(
       sequenceID,
-      this.options.eventBufferOptions?.bufferMs || 0,
-      this.options.eventBufferOptions?.eventOrderer,
+      this.options.eventBufferOptions.bufferMs,
+      this.options.eventBufferOptions.eventOrderer,
     );
     this.middleware.subscribe(this.onMiddlewareMessage.bind(this));
 
@@ -244,7 +243,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     let done = false;
     let page: AblyTypes.PaginatedResult<AblyTypes.Message>;
     do {
-      page = await this.ablyChannel.history({ untilAttach: true, limit: HISTORY_PAGE_SIZE });
+      page = await this.ablyChannel.history({ untilAttach: true, limit: this.options.syncOptions.historyPageSize });
       done = this.middleware.addHistoricalMessages(page.items);
     } while (page && page.items && page.items.length > 0 && page.hasNext() && !done);
 
