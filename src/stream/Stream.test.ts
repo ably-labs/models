@@ -4,7 +4,7 @@ import { Subject } from 'rxjs';
 import { it, describe, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import Stream, { StreamOptions, StreamState } from './Stream.js';
-import { defaultEventBufferOptions, defaultSyncOptions } from './StreamFactory.js';
+import { defaultSyncOptions, defaultEventBufferOptions } from '../options/options.js';
 import { statePromise } from '../utilities/promises.js';
 import { createMessage } from '../utilities/test/messages.js';
 

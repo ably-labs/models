@@ -4,6 +4,7 @@ import { Subject } from 'rxjs';
 import { it, describe, expect, afterEach, vi, beforeEach } from 'vitest';
 
 import Model from './Model.js';
+import { defaultSyncOptions, defaultEventBufferOptions, defaultOptimisticEventOptions } from './options/options.js';
 import { StreamOptions, IStream, StreamState } from './stream/Stream.js';
 import { IStreamFactory } from './stream/StreamFactory.js';
 import type { ModelStateChange, ModelOptions } from './types/model.d.ts';
@@ -93,7 +94,18 @@ describe('Model', () => {
       await synchronised;
       return { data: simpleTestData, sequenceID: '0' };
     });
-    const model = new Model<TestData>('test', { sync: sync }, { ably, channelName, logger });
+    const model = new Model<TestData>(
+      'test',
+      { sync: sync },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: defaultSyncOptions,
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
+    );
     await statePromise(model, 'initialized');
     const modelSynced = model.sync();
 
@@ -120,7 +132,18 @@ describe('Model', () => {
       return { data: { ...simpleTestData, bar: { baz: ++counter } }, sequenceID: '0' };
     });
 
-    const model = new Model<TestData>('test', { sync: sync }, { ably, channelName, logger });
+    const model = new Model<TestData>(
+      'test',
+      { sync: sync },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: defaultSyncOptions,
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
+    );
     const ready = model.sync();
 
     await statePromise(model, 'preparing');
@@ -171,7 +194,18 @@ describe('Model', () => {
     });
 
     const merge = vi.fn(async (_, event) => event.data);
-    const model = new Model<string>('test', { sync, merge }, { ably, channelName, logger });
+    const model = new Model<string>(
+      'test',
+      { sync, merge },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: defaultSyncOptions,
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
+    );
     await model.sync();
 
     expect(sync).toHaveBeenCalledOnce();
@@ -200,7 +234,14 @@ describe('Model', () => {
         sync: sync,
         merge: async (state) => state,
       },
-      { ably, channelName, logger },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: defaultSyncOptions,
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
     );
 
     await model.sync();
@@ -232,7 +273,14 @@ describe('Model', () => {
         sync: sync,
         merge: async (state) => state,
       },
-      { ably, channelName, logger },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: defaultSyncOptions,
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
     );
 
     await model.sync();
@@ -261,7 +309,18 @@ describe('Model', () => {
     }));
 
     const mergeFn = vi.fn(async (_, event) => event.data);
-    const model = new Model<string>('test', { sync: sync, merge: mergeFn }, { ably, channelName, logger });
+    const model = new Model<string>(
+      'test',
+      { sync: sync, merge: mergeFn },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: defaultSyncOptions,
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
+    );
 
     await model.sync();
 
@@ -318,7 +377,18 @@ describe('Model', () => {
       data: 'data_0',
       sequenceID: '0',
     })); // defines initial version of model
-    const model = new Model<string>('test', { sync }, { ably, channelName, logger });
+    const model = new Model<string>(
+      'test',
+      { sync },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: defaultSyncOptions,
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
+    );
 
     await model.sync();
 
@@ -355,7 +425,14 @@ describe('Model', () => {
         }),
         merge: mergeFn,
       },
-      { ably, channelName, logger },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: defaultSyncOptions,
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
     );
 
     await model.sync();
@@ -408,7 +485,14 @@ describe('Model', () => {
         }),
         merge: mergeFn,
       },
-      { ably, channelName, logger },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: defaultSyncOptions,
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
     );
     await model.sync();
 
@@ -451,7 +535,14 @@ describe('Model', () => {
         }),
         merge: mergeFn,
       },
-      { ably, channelName, logger },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: defaultSyncOptions,
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
     );
 
     await model.sync();
@@ -516,7 +607,14 @@ describe('Model', () => {
         }),
         merge: mergeFn,
       },
-      { ably, channelName, logger },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: defaultSyncOptions,
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
     );
 
     await model.sync();
@@ -578,7 +676,14 @@ describe('Model', () => {
         }),
         merge: mergeFn,
       },
-      { ably, channelName, logger },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: defaultSyncOptions,
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
     );
 
     await model.sync();
@@ -666,7 +771,14 @@ describe('Model', () => {
         }),
         merge: mergeFn,
       },
-      { ably, channelName, logger },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: defaultSyncOptions,
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
     );
 
     await model.sync();
@@ -752,7 +864,14 @@ describe('Model', () => {
         }),
         merge: mergeFn,
       },
-      { ably, channelName, logger },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: defaultSyncOptions,
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
     );
 
     await model.sync();
@@ -804,7 +923,18 @@ describe('Model', () => {
       return event.data;
     });
 
-    const model = new Model<string>('test', { sync: sync, merge: mergeFn }, { ably, channelName, logger });
+    const model = new Model<string>(
+      'test',
+      { sync: sync, merge: mergeFn },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: defaultSyncOptions,
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
+    );
     await model.sync();
 
     expect(sync).toHaveBeenCalledOnce();
@@ -867,7 +997,14 @@ describe('Model', () => {
         }),
         merge: mergeFn,
       },
-      { ably, channelName, logger },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: defaultSyncOptions,
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
     );
 
     await model.sync();
@@ -906,7 +1043,14 @@ describe('Model', () => {
         }),
         merge: mergeFn,
       },
-      { ably, channelName, logger },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: defaultSyncOptions,
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
     );
 
     await model.sync();
@@ -939,7 +1083,14 @@ describe('Model', () => {
         }),
         merge: mergeFn,
       },
-      { ably, channelName, logger },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: defaultSyncOptions,
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
     );
 
     await model.sync();

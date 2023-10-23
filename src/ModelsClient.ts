@@ -1,17 +1,29 @@
-import pino from 'pino';
+import pino, { LevelWithSilent } from 'pino';
 
 import Model from './Model.js';
-import type { ModelsOptions, ModelOptions } from './types/model.js';
-import { Registration } from './types/model.js';
+import { defaultEventBufferOptions, defaultOptimisticEventOptions, defaultSyncOptions } from './options/options.js';
+import type { EventBufferOptions } from './stream/Stream.js';
+import type { OptionalFields, OptionalValues } from './types/helpers.js';
+import type { ModelOptions } from './types/model.js';
+import type { Registration } from './types/model.js';
+import type { OptimisticEventOptions, SyncOptions } from './types/optimistic.js';
 
 type registration<T> = { name: string; channelName: string } & Registration<T>;
+
+export type ModelsOptions = OptionalValues<
+  OptionalFields<
+    Omit<ModelOptions, 'logger' | 'channelName'> & { logLevel?: LevelWithSilent },
+    'optimisticEventOptions' | 'eventBufferOptions' | 'syncOptions'
+  >,
+  'optimisticEventOptions' | 'eventBufferOptions' | 'syncOptions'
+>;
 
 /**
  * ModelsClient captures the set of named Model instances used by your application.
  * And provides methods to construct a new model.
  */
 export default class ModelsClient {
-  private readonly options: Pick<ModelOptions, 'logger' | 'ably' | 'eventBufferOptions' | 'defaultOptimisticOptions'>;
+  private opts: Omit<ModelOptions, 'channelName'>;
   private modelInstances: Record<string, Model<any>> = {};
 
   readonly version = '0.0.1';
@@ -19,13 +31,25 @@ export default class ModelsClient {
   /**
    * @param {ModelOptions} options - Options used to configure all models instantiated here, including the underlying Ably client.
    */
-  constructor(options: ModelsOptions) {
+  constructor(private readonly options: ModelsOptions) {
     this.modelInstances = {};
-    this.options = {
+    const optimisticEventOptions: OptimisticEventOptions = Object.assign(
+      {},
+      defaultOptimisticEventOptions,
+      this.options.optimisticEventOptions,
+    );
+    const eventBufferOptions: EventBufferOptions = Object.assign(
+      {},
+      defaultEventBufferOptions,
+      this.options.eventBufferOptions,
+    );
+    const syncOptions: SyncOptions = Object.assign({}, defaultSyncOptions, this.options.syncOptions);
+    this.opts = {
       logger: pino({ level: options.logLevel || 'silent' }),
       ably: options.ably,
-      ...(options.defaultOptimisticOptions && { defaultOptimisticOptions: options.defaultOptimisticOptions }),
-      eventBufferOptions: options.eventBufferOptions,
+      syncOptions,
+      optimisticEventOptions,
+      eventBufferOptions,
     };
     this.options.ably.time();
   }
@@ -57,10 +81,7 @@ export default class ModelsClient {
           return this.modelInstances[name] as Model<T>;
         }
 
-        const options: ModelOptions = { ...this.options, channelName: channelName };
-
-        const model = new Model<T>(name, registration, options);
-
+        const model = new Model<T>(name, registration, { ...this.opts, channelName });
         this.modelInstances[name] = model;
         return model as Model<T>;
       },
