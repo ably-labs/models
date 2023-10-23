@@ -10,7 +10,7 @@ interface ModelsTestContext {
 
 vi.mock('ably/promises');
 
-describe('Models', () => {
+describe('ModelsClient', () => {
   beforeEach<ModelsTestContext>((context) => {
     context.ably = new Realtime({ key: 'abc:def' });
     context.channelName = 'models:myTestModel:updates';
@@ -36,7 +36,7 @@ describe('Models', () => {
     const model1 = modelsClient.models.get<string>({
       name: 'test',
       channelName: channelName,
-      sync: async () => 'initial data',
+      sync: async () => ({ data: 'initial data', sequenceID: '0' }),
       merge: async () => 'merged',
     });
     expect(model1.name).toEqual('test');
@@ -44,7 +44,7 @@ describe('Models', () => {
     const model2 = modelsClient.models.get<string>({
       name: 'test',
       channelName: channelName,
-      sync: async () => 'initial data',
+      sync: async () => ({ data: 'initial data', sequenceID: '0' }),
       merge: async () => 'merged',
     });
     expect(model2.name).toEqual('test');
