@@ -68,25 +68,25 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
    * @param {string} name - A unique name used to identify this model in your application.
    * @param {ModelOptions} options - Options used to configure this model instance.
    */
-  constructor(readonly name: string, registration: Registration<T>, options: ModelOptions) {
+  constructor(readonly name: string, registration: Registration<T>, readonly options: ModelOptions) {
     super();
-    this.logger = options.logger;
+    this.logger = this.options.logger;
     this.baseLogContext = { scope: `Model:${name}` };
 
     this.streamFactory = new StreamFactory({
-      ably: options.ably,
-      logger: options.logger,
-      syncOptions: options.syncOptions,
-      eventBufferOptions: options.eventBufferOptions,
+      ably: this.options.ably,
+      logger: this.options.logger,
+      syncOptions: this.options.syncOptions,
+      eventBufferOptions: this.options.eventBufferOptions,
     });
-    this.stream = this.streamFactory.newStream({ channelName: options.channelName });
+    this.stream = this.streamFactory.newStream({ channelName: this.options.channelName });
 
     this.mutationsRegistry = new MutationsRegistry(
       {
         apply: this.applyOptimisticEvents.bind(this),
         rollback: this.rollbackOptimisticEvents.bind(this),
       },
-      options.defaultOptimisticOptions,
+      this.options.optimisticEventOptions,
     );
 
     this.syncFunc = registration.sync;

@@ -1,19 +1,9 @@
 import type { Types as AblyTypes } from 'ably/promises';
-import type { Logger, LevelWithSilent } from 'pino';
+import type { Logger } from 'pino';
 
 import type { MergeFunc } from './merge';
 import type { SyncOptions, OptimisticEventOptions } from './optimistic';
 import type { EventBufferOptions } from '../stream/Stream';
-
-/**
- * Options used to configure all model instances.
- */
-export type ModelsOptions = {
-  ably: AblyTypes.RealtimePromise;
-  logLevel?: LevelWithSilent;
-  defaultOptimisticOptions?: Partial<OptimisticEventOptions>;
-  eventBufferOptions?: EventBufferOptions;
-};
 
 /**
  * Options used to configure a model instance.
@@ -22,9 +12,9 @@ export type ModelOptions = {
   ably: AblyTypes.RealtimePromise;
   channelName: string;
   logger: Logger;
-  syncOptions?: Partial<SyncOptions>;
-  defaultOptimisticOptions?: Partial<OptimisticEventOptions>;
-  eventBufferOptions?: EventBufferOptions;
+  syncOptions: SyncOptions;
+  optimisticEventOptions: OptimisticEventOptions;
+  eventBufferOptions: EventBufferOptions;
 };
 
 /**
