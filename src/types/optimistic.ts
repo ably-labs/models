@@ -35,6 +35,13 @@ export type SyncOptions = {
    * @see https://ably.com/docs/storage-history/history?lang=javascript#channel-parameters
    */
   historyPageSize: number;
+  /**
+   * The message retention period configured on the Ably channel.
+   * This is used to determine whether the model state can be brought up to
+   * date from message history rather than via a re-sync.
+   * @see https://ably.com/docs/storage-history/storage
+   */
+  messageRetentionPeriod: '2m' | '24h' | '72h';
 };
 
 /**

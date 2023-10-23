@@ -19,7 +19,7 @@ channel.publish({
 	data: { /* ... */ },
 	extras: {
 		headers: {
-			'x-ably-models-event-uuid': mutationId,
+			'x-ably-models-event-uuid': mutationID,
 		},
 	},
 });

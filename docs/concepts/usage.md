@@ -1,12 +1,12 @@
 # Usage
 
 - [Usage](#usage)
-	- [Model](#model)
-	- [Sync Function](#sync-function)
-	- [Merge Functions](#merge-functions)
-	- [Optimistic Events](#optimistic-events)
-	- [Subscriptions](#subscriptions)
-	- [Model Lifecycle](#model-lifecycle)
+  - [Model](#model)
+  - [Sync Function](#sync-function)
+  - [Merge Functions](#merge-functions)
+  - [Optimistic events](#optimistic-events)
+  - [Subscriptions](#subscriptions)
+  - [Model Lifecycle](#model-lifecycle)
 
 ## Model
 
@@ -97,21 +97,21 @@ The Models SDK supports *optimistic updates* which allows you to render the late
 
 To apply optimistic changes to your model, you can call with `.optimistic(...)` method on your model passing the optimistic event.
 You are also responsible for applying the change to your backend directly.
-You should pass the mutationId that you included on your model to help correlate optimistic events applied locally and confirmed events emitted by your backend.
+You should pass the mutationID that you included on your model to help correlate optimistic events applied locally and confirmed events emitted by your backend.
 
 ```typescript
 // your method for applying the change to your backed
-async function updatePost(mutationId: string, content: string) {
+async function updatePost(mutationID: string, content: string) {
   const result = await fetch(`/api/post`, {
     method: 'PUT',
-    body: JSON.stringify({ mutationId, content }),
+    body: JSON.stringify({ mutationID, content }),
   });
   return result.json();
 }
 
 // optimistically apply the changes to the model
 const [confirmation, cancel] = await model.optimistic({
-    mutationId: 'my-mutation-id',
+    mutationID: 'my-mutation-id',
     name: 'updatePost',
     data: 'new post text',
 })

@@ -59,7 +59,7 @@ describe('StreamFactory', () => {
       ably,
       logger,
       eventBufferOptions: defaultEventBufferOptions,
-      syncOptions: { historyPageSize: 1 },
+      syncOptions: { historyPageSize: 1, messageRetentionPeriod: '2m' },
     });
   });
 
@@ -83,7 +83,7 @@ describe('StreamFactory', () => {
         ably,
         logger,
         eventBufferOptions: defaultEventBufferOptions,
-        syncOptions: { historyPageSize: 0 },
+        syncOptions: { historyPageSize: 0, messageRetentionPeriod: '2m' },
       });
       expect(true).toBe(false);
     } catch (err) {
@@ -97,7 +97,7 @@ describe('StreamFactory', () => {
         ably,
         logger,
         eventBufferOptions: defaultEventBufferOptions,
-        syncOptions: { historyPageSize: -1 },
+        syncOptions: { historyPageSize: -1, messageRetentionPeriod: '2m' },
       });
       expect(true).toBe(false);
     } catch (err) {

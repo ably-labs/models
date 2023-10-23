@@ -47,7 +47,7 @@ export type ModelState =
  * Represents a change event that can be applied to a model via an update function.
  */
 export type Event = {
-  mutationId: string;
+  mutationID: string;
   name: string;
   data?: any;
 };
@@ -74,6 +74,7 @@ export type OptimisticEvent = Event & {
  */
 export type ConfirmedEvent = Event & {
   confirmed: true;
+  sequenceID: string;
   /**
    * If true, indicates that the backend is (asynchronously) explicitly rejecting this optimistic change.
    * This is useful if the server cannot reject the change synchronously with the mutation request
