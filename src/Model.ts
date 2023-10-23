@@ -76,6 +76,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
     this.streamFactory = new StreamFactory({
       ably: options.ably,
       logger: options.logger,
+      syncOptions: options.syncOptions,
       eventBufferOptions: options.eventBufferOptions,
     });
     this.stream = this.streamFactory.newStream({ channelName: options.channelName });

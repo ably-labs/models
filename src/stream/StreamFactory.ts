@@ -1,32 +1,60 @@
-import Stream, { IStream, StreamOptions } from './Stream.js';
+import { numericOtherwiseLexicographicOrderer } from './Middleware.js';
+import Stream, { EventBufferOptions, IStream, StreamOptions } from './Stream.js';
+import { OptionalValues, OptionalFields, OptionalFieldsExcept } from '../types/helpers.js';
+import { SyncOptions } from '../types/optimistic.js';
+
+export const defaultSyncOptions: SyncOptions = {
+  historyPageSize: 100,
+};
+
+export const defaultEventBufferOptions: EventBufferOptions = {
+  bufferMs: 0,
+  eventOrderer: numericOtherwiseLexicographicOrderer,
+};
 
 export interface IStreamFactory {
   newStream(options: Pick<StreamOptions, 'channelName'>): IStream;
 }
+
+type StreamFactoryOptions = OptionalValues<
+  OptionalFields<StreamOptions, 'channelName' | 'syncOptions' | 'eventBufferOptions'>,
+  'syncOptions'
+>;
 
 /**
  * The StreamFactory class creates Stream instances that are
  * used to deliver change events to a model.
  */
 export default class StreamFactory implements IStreamFactory {
+  private opts: Omit<StreamOptions, 'channelName'>;
+
   /**
-   * @param {Pick<StreamOptions, 'ably' | 'logger'>} options - The default options used when instantiating a stream.
+   * @param {StreamFactoryOptions} options - The base options used when instantiating a stream.
    */
-  constructor(private readonly options: Pick<StreamOptions, 'ably' | 'logger' | 'eventBufferOptions'>) {
-    if (options.eventBufferOptions) {
-      const bufferMs = options.eventBufferOptions?.bufferMs || 0;
-      if (bufferMs < 0) {
-        throw new Error(`EventBufferOptions bufferMs cannot be less than zero: ${bufferMs}`);
-      }
+  constructor(private readonly options: StreamFactoryOptions) {
+    const eventBufferOptions: EventBufferOptions = Object.assign(
+      defaultEventBufferOptions,
+      this.options.eventBufferOptions,
+    );
+    if (eventBufferOptions.bufferMs < 0) {
+      throw new Error(`EventBufferOptions bufferMs cannot be less than zero: ${eventBufferOptions.bufferMs}`);
     }
+    const syncOptions: SyncOptions = Object.assign(defaultSyncOptions, this.options.syncOptions);
+    if (syncOptions.historyPageSize <= 0 || syncOptions.historyPageSize > 1000) {
+      throw new Error(`SyncOptions historyPageSize ${syncOptions.historyPageSize} must be > 0 and <= 1000`);
+    }
+    this.opts = Object.assign(this.options, {
+      eventBufferOptions,
+      syncOptions,
+    });
   }
 
   /**
    * Create a new Stream instance for the given channel.
-   * @param {Pick<StreamOptions, 'channel'>} options - The options used in conjunction with the default options when instantiating a stream
+   * @param {Pick<StreamOptions, 'channel'>} options - Field-level overrides of the base options used to instantiate the stream.
    * @returns {IStream} The newly created stream instance.
    */
-  newStream(options: Pick<StreamOptions, 'channelName'>) {
-    return new Stream(Object.assign(this.options, options));
+  newStream(options: OptionalFieldsExcept<StreamOptions, 'channelName'>) {
+    return new Stream(Object.assign(this.opts, options));
   }
 }

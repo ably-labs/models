@@ -3,7 +3,8 @@ import pino, { type Logger } from 'pino';
 import { Subject } from 'rxjs';
 import { it, describe, expect, beforeEach, afterEach, vi } from 'vitest';
 
-import Stream, { HISTORY_PAGE_SIZE, StreamOptions, StreamState } from './Stream.js';
+import Stream, { StreamOptions, StreamState } from './Stream.js';
+import { defaultEventBufferOptions, defaultSyncOptions } from './StreamFactory.js';
 import { statePromise } from '../utilities/promises.js';
 import { createMessage } from '../utilities/test/messages.js';
 
@@ -59,7 +60,13 @@ describe('Stream', () => {
       }),
     );
 
-    const stream = new Stream({ ably, logger, channelName: 'foobar' });
+    const stream = new Stream({
+      ably,
+      logger,
+      channelName: 'foobar',
+      syncOptions: defaultSyncOptions,
+      eventBufferOptions: defaultEventBufferOptions,
+    });
     const replayPromise = stream.replay('0');
 
     await statePromise(stream, StreamState.PREPARING);
@@ -68,7 +75,10 @@ describe('Stream', () => {
 
     expect(channel.subscribe).toHaveBeenCalledOnce();
     expect(channel.history).toHaveBeenCalledOnce();
-    expect(channel.history).toHaveBeenNthCalledWith(1, { untilAttach: true, limit: HISTORY_PAGE_SIZE });
+    expect(channel.history).toHaveBeenNthCalledWith(1, {
+      untilAttach: true,
+      limit: defaultSyncOptions.historyPageSize,
+    });
   });
 
   it<StreamTestContext>('fails to sync if channel is already attached', async ({ ably, logger, channelName }) => {
@@ -81,7 +91,13 @@ describe('Stream', () => {
       }),
     );
 
-    const stream = new Stream({ ably, logger, channelName: 'foobar' });
+    const stream = new Stream({
+      ably,
+      logger,
+      channelName: 'foobar',
+      syncOptions: defaultSyncOptions,
+      eventBufferOptions: defaultEventBufferOptions,
+    });
     const replayPromise = stream.replay('0');
 
     await statePromise(stream, StreamState.PREPARING);
@@ -122,7 +138,13 @@ describe('Stream', () => {
       };
     });
 
-    const stream = new Stream({ ably, logger, channelName: 'foobar' });
+    const stream = new Stream({
+      ably,
+      logger,
+      channelName: 'foobar',
+      syncOptions: defaultSyncOptions,
+      eventBufferOptions: defaultEventBufferOptions,
+    });
     let replayPromise = stream.replay('1');
 
     await statePromise(stream, StreamState.PREPARING);
@@ -131,8 +153,14 @@ describe('Stream', () => {
 
     expect(channel.subscribe).toHaveBeenCalledOnce();
     expect(channel.history).toHaveBeenCalledTimes(2);
-    expect(channel.history).toHaveBeenNthCalledWith(1, { untilAttach: true, limit: HISTORY_PAGE_SIZE });
-    expect(channel.history).toHaveBeenNthCalledWith(2, { untilAttach: true, limit: HISTORY_PAGE_SIZE });
+    expect(channel.history).toHaveBeenNthCalledWith(1, {
+      untilAttach: true,
+      limit: defaultSyncOptions.historyPageSize,
+    });
+    expect(channel.history).toHaveBeenNthCalledWith(2, {
+      untilAttach: true,
+      limit: defaultSyncOptions.historyPageSize,
+    });
 
     i = 0;
     replayPromise = stream.replay('2');
@@ -144,8 +172,14 @@ describe('Stream', () => {
 
     expect(channel.subscribe).toHaveBeenCalledTimes(2);
     expect(channel.history).toHaveBeenCalledTimes(4);
-    expect(channel.history).toHaveBeenNthCalledWith(3, { untilAttach: true, limit: HISTORY_PAGE_SIZE });
-    expect(channel.history).toHaveBeenNthCalledWith(4, { untilAttach: true, limit: HISTORY_PAGE_SIZE });
+    expect(channel.history).toHaveBeenNthCalledWith(3, {
+      untilAttach: true,
+      limit: defaultSyncOptions.historyPageSize,
+    });
+    expect(channel.history).toHaveBeenNthCalledWith(4, {
+      untilAttach: true,
+      limit: defaultSyncOptions.historyPageSize,
+    });
   });
 
   it<StreamTestContext>('fails to sync if sequenceID boundary not found in history with final empty page', async ({
@@ -183,7 +217,13 @@ describe('Stream', () => {
       };
     });
 
-    const stream = new Stream({ ably, logger, channelName: 'foobar' });
+    const stream = new Stream({
+      ably,
+      logger,
+      channelName: 'foobar',
+      syncOptions: defaultSyncOptions,
+      eventBufferOptions: defaultEventBufferOptions,
+    });
     let replayPromise = stream.replay('1');
 
     await statePromise(stream, StreamState.PREPARING);
@@ -192,9 +232,18 @@ describe('Stream', () => {
 
     expect(channel.subscribe).toHaveBeenCalledOnce();
     expect(channel.history).toHaveBeenCalledTimes(3);
-    expect(channel.history).toHaveBeenNthCalledWith(1, { untilAttach: true, limit: HISTORY_PAGE_SIZE });
-    expect(channel.history).toHaveBeenNthCalledWith(2, { untilAttach: true, limit: HISTORY_PAGE_SIZE });
-    expect(channel.history).toHaveBeenNthCalledWith(3, { untilAttach: true, limit: HISTORY_PAGE_SIZE });
+    expect(channel.history).toHaveBeenNthCalledWith(1, {
+      untilAttach: true,
+      limit: defaultSyncOptions.historyPageSize,
+    });
+    expect(channel.history).toHaveBeenNthCalledWith(2, {
+      untilAttach: true,
+      limit: defaultSyncOptions.historyPageSize,
+    });
+    expect(channel.history).toHaveBeenNthCalledWith(3, {
+      untilAttach: true,
+      limit: defaultSyncOptions.historyPageSize,
+    });
 
     i = 0;
     replayPromise = stream.replay('2');
@@ -206,8 +255,14 @@ describe('Stream', () => {
 
     expect(channel.subscribe).toHaveBeenCalledTimes(2);
     expect(channel.history).toHaveBeenCalledTimes(5);
-    expect(channel.history).toHaveBeenNthCalledWith(4, { untilAttach: true, limit: HISTORY_PAGE_SIZE });
-    expect(channel.history).toHaveBeenNthCalledWith(5, { untilAttach: true, limit: HISTORY_PAGE_SIZE });
+    expect(channel.history).toHaveBeenNthCalledWith(4, {
+      untilAttach: true,
+      limit: defaultSyncOptions.historyPageSize,
+    });
+    expect(channel.history).toHaveBeenNthCalledWith(5, {
+      untilAttach: true,
+      limit: defaultSyncOptions.historyPageSize,
+    });
   });
 
   it<StreamTestContext>('subscribes to messages', async ({ ably, logger, channelName }) => {
@@ -229,7 +284,13 @@ describe('Stream', () => {
       };
     });
 
-    const stream = new Stream({ ably, logger, channelName });
+    const stream = new Stream({
+      ably,
+      logger,
+      channelName,
+      syncOptions: defaultSyncOptions,
+      eventBufferOptions: defaultEventBufferOptions,
+    });
     await stream.replay('0');
     await statePromise(stream, StreamState.READY);
 
@@ -268,7 +329,13 @@ describe('Stream', () => {
       };
     });
 
-    const stream = new Stream({ ably, logger, channelName });
+    const stream = new Stream({
+      ably,
+      logger,
+      channelName,
+      syncOptions: defaultSyncOptions,
+      eventBufferOptions: defaultEventBufferOptions,
+    });
 
     const subscriptionSpy = vi.fn<any, any>();
     stream.subscribe(subscriptionSpy);
@@ -317,7 +384,13 @@ describe('Stream', () => {
       };
     });
 
-    const stream = new Stream({ ably, logger, channelName });
+    const stream = new Stream({
+      ably,
+      logger,
+      channelName,
+      syncOptions: defaultSyncOptions,
+      eventBufferOptions: defaultEventBufferOptions,
+    });
 
     const subscriptionSpy = vi.fn<any, any>();
     stream.subscribe(subscriptionSpy);
@@ -358,7 +431,13 @@ describe('Stream', () => {
       }),
     );
 
-    const stream = new Stream({ ably, logger, channelName });
+    const stream = new Stream({
+      ably,
+      logger,
+      channelName,
+      syncOptions: defaultSyncOptions,
+      eventBufferOptions: defaultEventBufferOptions,
+    });
     await stream.replay('0');
     await statePromise(stream, StreamState.READY);
 
@@ -401,7 +480,13 @@ describe('Stream', () => {
       }),
     );
 
-    const stream = new Stream({ ably, logger, channelName });
+    const stream = new Stream({
+      ably,
+      logger,
+      channelName,
+      syncOptions: defaultSyncOptions,
+      eventBufferOptions: defaultEventBufferOptions,
+    });
     await stream.replay('0');
     await statePromise(stream, StreamState.READY);
 
@@ -442,7 +527,13 @@ describe('Stream', () => {
       }),
     );
 
-    const stream = new Stream({ ably, logger, channelName });
+    const stream = new Stream({
+      ably,
+      logger,
+      channelName,
+      syncOptions: defaultSyncOptions,
+      eventBufferOptions: defaultEventBufferOptions,
+    });
     await stream.replay('0');
     await statePromise(stream, StreamState.READY);
 
@@ -487,7 +578,13 @@ describe('Stream', () => {
       }),
     );
 
-    const stream = new Stream({ ably, logger, channelName });
+    const stream = new Stream({
+      ably,
+      logger,
+      channelName,
+      syncOptions: defaultSyncOptions,
+      eventBufferOptions: defaultEventBufferOptions,
+    });
     await stream.replay('0');
 
     await statePromise(stream, StreamState.READY);
@@ -518,7 +615,13 @@ describe('Stream', () => {
     );
     ably.channels.release = vi.fn();
 
-    const stream = new Stream({ ably, logger, channelName });
+    const stream = new Stream({
+      ably,
+      logger,
+      channelName,
+      syncOptions: defaultSyncOptions,
+      eventBufferOptions: defaultEventBufferOptions,
+    });
     await stream.replay('0');
 
     await statePromise(stream, StreamState.READY);
@@ -554,7 +657,13 @@ describe('Stream', () => {
       }
     });
 
-    const stream = new Stream({ ably, logger, channelName });
+    const stream = new Stream({
+      ably,
+      logger,
+      channelName,
+      syncOptions: defaultSyncOptions,
+      eventBufferOptions: defaultEventBufferOptions,
+    });
     await stream.replay('0');
 
     await statePromise(stream, StreamState.READY);
