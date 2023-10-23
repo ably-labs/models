@@ -5,7 +5,7 @@ import PostPlaceholder from '@/components/post-placeholder';
 
 export default async function Page({ params }: { params: { id: number } }) {
   const id = Number(params.id);
-  const post = await getPost(id);
+  const [post] = await getPost(id);
   const user = await getRandomUser();
   return (
     <Suspense fallback={<PostPlaceholder />}>

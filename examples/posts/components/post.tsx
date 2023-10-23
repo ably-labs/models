@@ -1,32 +1,22 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { Event } from '@ably-labs/models';
 import type { Post as PostType, Author as AuthorType } from '@/lib/prisma/api';
 import { AuthorProvider } from '@/context/author';
 import { AlertProvider, useAlert } from '@/context/alert';
 import Comments from '@/components/comments';
 import PostPlaceholder from '@/components/post-placeholder';
 import AlertContainer from '@/components/alert';
-import { useModel, type ModelType } from '@/lib/models/hook';
-
-// compare optimistic and confirmed comment mutation events by content,
-// ignoring other attributes not available on the optimistic event.
-function compareComments(optimistic: Event, confirmed: Event) {
-  return (
-    optimistic.channel === confirmed.channel &&
-    optimistic.name === confirmed.name &&
-    optimistic.data?.content === confirmed.data?.content
-  );
-}
+import { useModel, ModelType } from '@/lib/models/hook';
+import { addComment, deleteComment, editComment } from '@/lib/models/mutations';
+import { v4 as uuidv4 } from 'uuid';
 
 function Post({ model }: { model: ModelType }) {
   const { setAlert } = useAlert();
-  const [post, setPost] = useState<PostType>(model.confirmed);
+  const [post, setPost] = useState<PostType>(model.data.confirmed);
 
   useEffect(() => {
     const onUpdate = (err: Error | null, post?: PostType) => {
-      console.log('subscribe: ', err, post);
       if (err) {
         console.error(err);
         return;
@@ -40,50 +30,60 @@ function Post({ model }: { model: ModelType }) {
   }, []);
 
   async function onAdd(author: AuthorType, postId: number, content: string) {
+    const mutationID = uuidv4();
+    const [confirmed, cancel] = await model.optimistic({
+      mutationID: mutationID,
+      name: 'add',
+      data: { id: uuidv4(), postId, author, content, optimistic: true },
+    });
+    setAlert('Optimistically added comment', 'info');
+
     try {
-      const [, confirmation] = await model.mutations.addComment.$expect({
-        events: [{ channel: 'comments', name: 'add', data: { author, content } }],
-        options: {
-          comparator: compareComments,
-        },
-      })(author, postId, content);
-      setAlert('Optimistically added comment', 'info');
-      await confirmation;
+      await addComment(mutationID, author, postId, content);
+      await confirmed;
       setAlert('Add comment confirmed!', 'success');
     } catch (err) {
       setAlert(`Error adding comment: ${err}`, 'error');
+      cancel();
     }
   }
 
-  async function onEdit(id: number, content: string) {
+  async function onEdit(commentId: number, content: string) {
+    const mutationID = uuidv4();
+    const editedComment = { ...post.comments.findLast((c) => c.id === commentId)!, content: content, optimistic: true };
+    const [confirmed, cancel] = await model.optimistic({
+      mutationID: mutationID,
+      name: 'edit',
+      data: editedComment,
+    });
+    setAlert('Optimistically edited comment', 'info');
+
     try {
-      const [, confirmation] = await model.mutations.editComment.$expect({
-        events: [{ channel: 'comments', name: 'edit', data: { id, content } }],
-        options: {
-          comparator: compareComments,
-        },
-      })(id, content);
-      setAlert('Optimistically edited comment', 'info');
-      await confirmation;
+      await editComment(mutationID, commentId, content);
+      await confirmed;
       setAlert('Edit comment confirmed!', 'success');
     } catch (err) {
       setAlert(`Error editing comment: ${err}`, 'error');
+      cancel();
     }
   }
 
-  async function onDelete(id: number) {
+  async function onDelete(commentId: number) {
+    const mutationID = uuidv4();
+    const [confirmed, cancel] = await model.optimistic({
+      mutationID: mutationID,
+      name: 'delete',
+      data: { id: commentId },
+    });
+    setAlert('Optimistically deleted comment', 'info');
+
     try {
-      const [, confirmation] = await model.mutations.deleteComment.$expect({
-        events: [{ channel: 'comments', name: 'delete', data: { id } }],
-        options: {
-          comparator: compareComments,
-        },
-      })(id);
-      setAlert('Optimistically deleted comment', 'info');
-      await confirmation;
+      await deleteComment(mutationID, commentId);
+      await confirmed;
       setAlert('Delete comment confirmed!', 'success');
     } catch (err) {
       setAlert(`Error deleting comment: ${err}`, 'error');
+      cancel();
     }
   }
 

@@ -16,9 +16,11 @@ model nodes {
 }
 
 model outbox {
-  id          Int       @id @default(autoincrement())
+  sequence_id Int       @id @default(autoincrement())
+  mutation_id String
   channel     String
   name        String
+  rejected    Boolean   @default(false)
   data        Json?
   headers     Json?
   locked_by   String?
@@ -40,10 +42,11 @@ model Post {
 }
 
 model Comment {
-  id       Int    @id @default(autoincrement())
-  content  String
-  postId   Int
-  post     Post   @relation(fields: [postId], references: [id])
-  authorId Int
-  author   User   @relation(fields: [authorId], references: [id])
+  id         Int       @id @default(autoincrement())
+  content    String
+  postId     Int
+  post       Post      @relation(fields: [postId], references: [id])
+  authorId   Int
+  author     User      @relation(fields: [authorId], references: [id])
+  createdAt  DateTime  @default(now())
 }

@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
 import { assertConfiguration } from '@ably-labs/react-hooks';
 import type { Post as PostType } from '@/lib/prisma/api';
-import * as Mutations from '@/lib/models/mutations';
-import * as Updates from './updates';
-import Models, { type Model } from '@ably-labs/models';
+import ModelsClient, { Model } from '@ably-labs/models';
 import { configureAbly } from '@ably-labs/react-hooks';
+import { merge } from '@/lib/models/mutations';
 
 configureAbly({ key: process.env.NEXT_PUBLIC_ABLY_API_KEY });
 
-export type ModelType = Model<PostType, typeof Mutations>;
+export type ModelType = Model<PostType>;
 
 export async function getPost(id: number) {
   const response = await fetch(`/api/posts/${id}`, {
@@ -18,8 +17,9 @@ export async function getPost(id: number) {
   if (!response.ok) {
     throw new Error(`GET /api/posts/:id: ${response.status} ${JSON.stringify(await response.json())}`);
   }
-  const { data } = (await response.json()) as { data: PostType };
-  return data;
+  const { sequenceID, data } = (await response.json()) as { sequenceID: string; data: PostType };
+
+  return { sequenceID, data };
 }
 
 export const useModel = (id: number) => {
@@ -27,42 +27,25 @@ export const useModel = (id: number) => {
 
   useEffect(() => {
     const ably = assertConfiguration();
-    const models = new Models({ ably });
+    const modelsClient = new ModelsClient({ ably, optimisticEventOptions: { timeout: 5000 } });
     const init = async () => {
-      const model = models.Model<PostType, typeof Mutations>(`post:${id}`);
-      await model.$register({
-        $sync: async () => getPost(id),
-        $update: {
-          comments: {
-            add: Updates.addComment,
-            edit: Updates.editComment,
-            delete: Updates.deleteComment,
-          },
-        },
-        $mutate: {
-          addComment: {
-            func: Mutations.addComment,
-            options: { timeout: 5000 },
-          },
-          editComment: {
-            func: Mutations.editComment,
-            options: { timeout: 5000 },
-          },
-          deleteComment: {
-            func: Mutations.deleteComment,
-            options: { timeout: 5000 },
-          },
-        },
+      const model = modelsClient.models.get<PostType>({
+        name: `post:${id}`,
+        channelName: `post:${id}`,
+        sync: async () => getPost(id),
+        merge: merge,
       });
+      await model.sync();
+
       setModel(model);
     };
+
     if (!model) {
       init();
     }
-    // return () => {
-    // 	// disposing creates problems ObjectUnsubscribedError: object unsubscribed when model.subscribe called
-    //   model?.$dispose()
-    // };
+    return () => {
+      model?.dispose();
+    };
   });
   return model;
 };
