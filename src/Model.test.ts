@@ -4,10 +4,11 @@ import { Subject } from 'rxjs';
 import { it, describe, expect, afterEach, vi, beforeEach } from 'vitest';
 
 import Model from './Model.js';
-import { defaultSyncOptions, defaultEventBufferOptions, defaultOptimisticEventOptions } from './options/options.js';
-import { StreamOptions, IStream, StreamState } from './stream/Stream.js';
+import { defaultSyncOptions, defaultEventBufferOptions, defaultOptimisticEventOptions } from './Options.js';
+import { IStream } from './stream/Stream.js';
 import { IStreamFactory } from './stream/StreamFactory.js';
 import type { ModelStateChange, ModelOptions } from './types/model.d.ts';
+import type { StreamOptions, StreamState } from './types/stream.js';
 import { statePromise, timeout } from './utilities/promises.js';
 import { createMessage, customMessage } from './utilities/test/messages.js';
 import { getNthEventPromise, getEventPromises } from './utilities/test/promises.js';
@@ -23,8 +24,8 @@ vi.mock('ably/promises');
 vi.mock('./stream/StreamFactory', () => {
   class MockStream implements IStream {
     constructor(readonly options: Pick<StreamOptions, 'channelName'>) {}
-    get state() {
-      return StreamState.READY;
+    get state(): StreamState {
+      return 'ready';
     }
     get channelName() {
       return this.options.channelName;
@@ -76,7 +77,12 @@ describe('Model', () => {
     context.ably = ably;
     context.logger = logger;
     const { default: provider } = await import('./stream/StreamFactory.js');
-    context.streams = new provider({ ably, logger });
+    context.streams = new provider({
+      ably,
+      logger,
+      syncOptions: defaultSyncOptions,
+      eventBufferOptions: defaultEventBufferOptions,
+    });
     context.channelName = 'models:myModelTest:events';
   });
 

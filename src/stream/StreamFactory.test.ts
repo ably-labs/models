@@ -3,8 +3,9 @@ import pino from 'pino';
 import { it, describe, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import { numericOtherwiseLexicographicOrderer } from './Middleware.js';
-import { type StreamOptions } from './Stream.js';
 import StreamFactory from './StreamFactory.js';
+import { defaultEventBufferOptions, defaultSyncOptions } from '../Options.js';
+import type { StreamOptions } from '../types/stream.js';
 
 vi.mock('ably/promises');
 
@@ -35,27 +36,40 @@ describe('StreamFactory', () => {
   });
 
   it<StreamTestContext>('succeeds with valid configurations', async ({ ably, logger }) => {
-    new StreamFactory({ ably, logger });
+    new StreamFactory({ ably, logger, eventBufferOptions: defaultEventBufferOptions, syncOptions: defaultSyncOptions });
     new StreamFactory({
+      ably,
+      logger,
       eventBufferOptions: { bufferMs: 0, eventOrderer: numericOtherwiseLexicographicOrderer },
-      ably,
-      logger,
+      syncOptions: defaultSyncOptions,
     });
     new StreamFactory({
-      eventBufferOptions: { bufferMs: 1, eventOrderer: numericOtherwiseLexicographicOrderer },
       ably,
       logger,
+      eventBufferOptions: { bufferMs: 1, eventOrderer: numericOtherwiseLexicographicOrderer },
+      syncOptions: defaultSyncOptions,
     });
-    new StreamFactory({ eventBufferOptions: { bufferMs: 1, eventOrderer: () => -1 }, ably, logger });
-    new StreamFactory({ syncOptions: { historyPageSize: 1 }, ably, logger });
+    new StreamFactory({
+      ably,
+      logger,
+      eventBufferOptions: { bufferMs: 1, eventOrderer: () => -1 },
+      syncOptions: defaultSyncOptions,
+    });
+    new StreamFactory({
+      ably,
+      logger,
+      eventBufferOptions: defaultEventBufferOptions,
+      syncOptions: { historyPageSize: 1 },
+    });
   });
 
   it<StreamTestContext>('fails with lt zero event buffer ms', async ({ ably, logger }) => {
     try {
       new StreamFactory({
-        eventBufferOptions: { bufferMs: -1, eventOrderer: numericOtherwiseLexicographicOrderer },
         ably,
         logger,
+        eventBufferOptions: { bufferMs: -1, eventOrderer: numericOtherwiseLexicographicOrderer },
+        syncOptions: defaultSyncOptions,
       });
       expect(true).toBe(false);
     } catch (err) {
@@ -65,7 +79,12 @@ describe('StreamFactory', () => {
 
   it<StreamTestContext>('fails with zero history page size', async ({ ably, logger }) => {
     try {
-      new StreamFactory({ syncOptions: { historyPageSize: 0 }, ably, logger });
+      new StreamFactory({
+        ably,
+        logger,
+        eventBufferOptions: defaultEventBufferOptions,
+        syncOptions: { historyPageSize: 0 },
+      });
       expect(true).toBe(false);
     } catch (err) {
       expect(err.toString(), 'Stream registry should have thrown an error').not.toContain('AssertionError');
@@ -74,7 +93,12 @@ describe('StreamFactory', () => {
 
   it<StreamTestContext>('fails with lt zero history page size', async ({ ably, logger }) => {
     try {
-      new StreamFactory({ syncOptions: { historyPageSize: -1 }, ably, logger });
+      new StreamFactory({
+        ably,
+        logger,
+        eventBufferOptions: defaultEventBufferOptions,
+        syncOptions: { historyPageSize: -1 },
+      });
       expect(true).toBe(false);
     } catch (err) {
       expect(err.toString(), 'Stream registry should have thrown an error').not.toContain('AssertionError');

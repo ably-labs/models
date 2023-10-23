@@ -1,12 +1,11 @@
 import pino, { LevelWithSilent } from 'pino';
 
 import Model from './Model.js';
-import { defaultEventBufferOptions, defaultOptimisticEventOptions, defaultSyncOptions } from './options/options.js';
-import type { EventBufferOptions } from './stream/Stream.js';
+import { defaultEventBufferOptions, defaultOptimisticEventOptions, defaultSyncOptions } from './Options.js';
 import type { OptionalFields, OptionalValues } from './types/helpers.js';
-import type { ModelOptions } from './types/model.js';
-import type { Registration } from './types/model.js';
+import type { ModelOptions, Registration } from './types/model.js';
 import type { OptimisticEventOptions, SyncOptions } from './types/optimistic.js';
+import type { EventBufferOptions } from './types/stream.js';
 
 type registration<T> = { name: string; channelName: string } & Registration<T>;
 
