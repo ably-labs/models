@@ -3,14 +3,13 @@ import type { Logger } from 'pino';
 import { Subject, Subscription } from 'rxjs';
 
 import { toError } from './Errors.js';
-import MutationsRegistry, { mutationIdComparator } from './MutationsRegistry.js';
+import MutationsRegistry, { mutationIDComparator } from './MutationsRegistry.js';
 import PendingConfirmationRegistry from './PendingConfirmationRegistry.js';
 import { IStream } from './stream/Stream.js';
 import StreamFactory, { IStreamFactory as IStreamFactory } from './stream/StreamFactory.js';
 import type { StandardCallback } from './types/callbacks';
 import { MergeFunc } from './types/merge.js';
 import type {
-  Event,
   OptimisticEventWithParams,
   ModelState,
   ModelStateChange,
@@ -54,7 +53,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
 
   private optimisticEvents: OptimisticEventWithParams[] = [];
   private pendingConfirmationRegistry: PendingConfirmationRegistry = new PendingConfirmationRegistry(
-    mutationIdComparator,
+    mutationIDComparator,
   );
 
   private readonly subscriptions = new Subject<{ confirmed: boolean; data: T }>();
@@ -63,6 +62,9 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
 
   private readonly logger: Logger;
   private readonly baseLogContext: Partial<{ scope: string; action: string }>;
+
+  private detachedAt: number | null = null;
+  private lastSeenSequenceID: string | null = null;
 
   /**
    * @param {string} name - A unique name used to identify this model in your application.
@@ -121,7 +123,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
   /**
    * The optimistic function that allows optimistic events to be included in the model state.
    * Optimistic events are expected to be confirmed by later confirmed events consumed on the channel.
-   * @param {string} mutationId - The identifier for this mutation. This ID will be used to match this
+   * @param {string} mutationID - The identifier for this mutation. This ID will be used to match this
    * optimistic event against a confirmed event received on the channel.
    * @param {Event} event - The event to apply optimistically.
    * @param {Partial<OptimisticEventOptions>} options - Options for handling this specific optimisitic event.
@@ -131,10 +133,11 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
    * function that can be used to trigger the rollback of the optimistic event.
    */
   public optimistic(
-    event: Event,
+    event: Omit<OptimisticEvent, 'confirmed'>,
     options?: Partial<OptimisticEventOptions>,
   ): Promise<[Promise<void>, () => Promise<void>]> {
-    return this.mutationsRegistry.handleOptimistic(event, options);
+    const clone: OptimisticEvent = Object.assign({}, event, { confirmed: false } as { confirmed: false });
+    return this.mutationsRegistry.handleOptimistic(clone, options);
   }
 
   /**
@@ -148,10 +151,15 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
 
   /**
    * Pauses the current model by detaching from the underlying channels and pausing processing of updates.
+   * If the model is already paused this is a no-op.
    * @returns A promise that resolves when the model has been paused.
    */
   public async pause() {
+    if (this.currentState === 'paused') {
+      return;
+    }
     this.logger.trace({ ...this.baseLogContext, action: 'pause()' });
+    this.detachedAt = Date.now();
     await this.stream.reset();
     this.setState('paused');
   }
@@ -161,8 +169,29 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
    * @returns A promise that resolves when the model has been resumed.
    */
   public async resume() {
+    if (this.currentState !== 'paused') {
+      throw new Error(`can only resume when in paused state: ${this.currentState}`);
+    }
     this.logger.trace({ ...this.baseLogContext, action: 'resume()' });
-    await this.stream.replay('123'); // todo get seqeuence id
+    let interval: number;
+    switch (this.options.syncOptions.messageRetentionPeriod) {
+      case '2m':
+        interval = 2 * 60 * 1000;
+        break;
+      case '24h':
+        interval = 24 * 60 * 60 * 1000;
+        break;
+      case '72h':
+        interval = 72 * 60 * 60 * 1000;
+        break;
+    }
+    if (!this.lastSeenSequenceID || !this.detachedAt || Date.now() - this.detachedAt >= interval) {
+      await this.resync();
+      this.detachedAt = null;
+      return;
+    }
+    await this.stream.replay(this.lastSeenSequenceID);
+    this.detachedAt = null;
     this.setState('ready');
   }
 
@@ -175,6 +204,8 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
   public async dispose(reason?: Error) {
     this.logger.trace({ ...this.baseLogContext, action: 'dispose()', reason });
     this.setState('disposed', reason);
+    this.lastSeenSequenceID = null;
+    this.detachedAt = null;
     this.subscriptions.unsubscribe();
 
     const callback = this.streamSubscriptionsMap.get(this.stream);
@@ -314,8 +345,8 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
         rejected = true;
       }
 
-      const mutationId = event?.extras?.headers[MODELS_EVENT_UUID_HEADER];
-      if (!mutationId) {
+      const mutationID = event?.extras?.headers[MODELS_EVENT_UUID_HEADER];
+      if (!mutationID) {
         this.logger.warn(
           { ...this.baseLogContext, action: 'streamEventCallback' },
           `message does not have "${MODELS_EVENT_UUID_HEADER}" header, skipping message id`,
@@ -328,7 +359,8 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
         ...event!,
         confirmed: true,
         rejected,
-        mutationId: mutationId,
+        mutationID: mutationID,
+        sequenceID: event.id,
       };
 
       await this.onStreamEvent(modelsEvent);
@@ -401,6 +433,8 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
       return;
     }
 
+    this.lastSeenSequenceID = event.sequenceID;
+
     await this.confirmPendingEvents(event);
 
     // If the incoming confirmed event confirms the next expected optimistic event for the stream,
@@ -409,7 +443,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
     // additional data on the confirmed event in the updated data.
     for (let i = 0; i < this.optimisticEvents.length; i++) {
       let e = this.optimisticEvents[i];
-      if (mutationIdComparator(e, event)) {
+      if (mutationIDComparator(e, event)) {
         this.optimisticEvents.splice(i, 1);
         await this.applyWithRebase(event, this.optimisticEvents);
         return;
@@ -446,7 +480,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
     // remove any matching events from the optimisticEvents and re-apply the remaining events
     // on top of the latest confirmed state
     for (let event of events) {
-      this.optimisticEvents = this.optimisticEvents.filter((e) => !mutationIdComparator(e, event));
+      this.optimisticEvents = this.optimisticEvents.filter((e) => !mutationIDComparator(e, event));
     }
     let nextData = this.confirmedData;
     for (const e of this.optimisticEvents) {

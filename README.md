@@ -176,10 +176,10 @@ async function merge(state: Post, event: OptimisticEvent | ConfirmedEvent) {
 }
 
 // a function that you might use to mutate the model data in your backend
-async function updatePost(mutationId: string, content: string) {
+async function updatePost(mutationID: string, content: string) {
   const result = await fetch(`/api/post`, {
     method: 'PUT',
-    body: JSON.stringify({ mutationId, content }),
+    body: JSON.stringify({ mutationID, content }),
   });
   return result.json();
 }
@@ -208,7 +208,7 @@ model.subscribe((err, post) => {
 // confirmation is a promise that resolves when the optimistic update is confirmed by the backend.
 // cancel is a function that can be used to cancel and rollback the optimistic update.
 const [confirmation, cancel] = await model1.optimistic({
-    mutationId: 'my-mutation-id',
+    mutationID: 'my-mutation-id',
     name: 'updatePost',
     data: 'new post text',
 })
