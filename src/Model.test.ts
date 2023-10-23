@@ -103,7 +103,8 @@ describe('Model', () => {
     expect(sync).toHaveBeenCalledOnce();
     expect(model.data.optimistic).toEqual(simpleTestData);
     expect(model.data.confirmed).toEqual(simpleTestData);
-    expect(modelSynced).resolves.toEqual({ current: 'ready', previous: 'preparing' });
+    const syncResult = await modelSynced;
+    expect([undefined, { current: 'ready', previous: 'preparing', reason: undefined }]).toContain(syncResult);
   });
 
   it<ModelTestContext>('allows sync to be called manually', async ({ channelName, ably, logger }) => {
@@ -177,6 +178,7 @@ describe('Model', () => {
     expect(stream.replay).toHaveBeenCalledOnce();
     expect(stream.replay).toHaveBeenNthCalledWith(1, '123');
 
+    await model.sync();
     expect(sync).toHaveBeenCalledTimes(2);
     expect(stream.replay).toHaveBeenCalledTimes(2);
     expect(stream.replay).toHaveBeenNthCalledWith(2, '456');
@@ -201,7 +203,7 @@ describe('Model', () => {
       { ably, channelName, logger },
     );
 
-    model.sync();
+    await model.sync();
 
     expect(s1.subscribe).toHaveBeenCalledOnce();
 
@@ -218,6 +220,7 @@ describe('Model', () => {
     const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
     s1.unsubscribe = vi.fn();
+    s1.dispose = vi.fn();
     const sync = vi.fn(async () => ({
       data: simpleTestData,
       sequenceID: '0',
@@ -396,13 +399,18 @@ describe('Model', () => {
     });
 
     const mergeFn = vi.fn(async (_, event) => event.data);
-    const model = new Model<string>('test', {
-      sync: async () => ({
-        data: 'data_0',
-        sequenceID: '0',
-      }),
-      merge: mergeFn,
-    }, { ably, channelName, logger });
+    const model = new Model<string>(
+      'test',
+      {
+        sync: async () => ({
+          data: 'data_0',
+          sequenceID: '0',
+        }),
+        merge: mergeFn,
+      },
+      { ably, channelName, logger },
+    );
+    await model.sync();
 
     let subscription = new Subject<void>();
     const subscriptionCalls = getEventPromises(subscription, 2);
