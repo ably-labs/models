@@ -130,16 +130,16 @@ describe('Model', () => {
     };
     let synchronised = new Promise((resolve) => (completeSync = resolve));
     let counter = 0;
-
     const sync = vi.fn(async () => {
       await synchronised;
-
-      return { data: { ...simpleTestData, bar: { baz: ++counter } }, sequenceID: '0' };
+      return { data: `confirmed_${counter++}`, sequenceID: '0' };
     });
 
-    const model = new Model<TestData>(
+    const merge = vi.fn(async (_, event) => event.data);
+
+    const model = new Model<string>(
       'test',
-      { sync: sync },
+      { sync, merge },
       {
         ably,
         channelName,
@@ -156,10 +156,13 @@ describe('Model', () => {
 
     const registerResult = await ready;
     expect([undefined, { current: 'ready', previous: 'syncing', reason: undefined }]).toContain(registerResult);
+    expect(model.state).toEqual('ready');
 
     expect(sync).toHaveBeenCalledOnce();
-    expect(model.data.optimistic).toEqual(simpleTestData);
-    expect(model.data.confirmed).toEqual(simpleTestData);
+    expect(model.data.optimistic).toEqual('confirmed_0');
+    expect(model.data.confirmed).toEqual('confirmed_0');
+
+    await model.optimistic({ mutationID: 'mutation-id-1', name: 'testEvent', data: 'optimistic' }); // should be rebased after sync
 
     completeSync = () => {
       throw new Error('completeSync should have been replaced again');
@@ -172,15 +175,19 @@ describe('Model', () => {
     await statePromise(model, 'syncing');
     completeSync();
     await resynced;
-    await statePromise(model, 'ready');
+    expect(model.state).toEqual('ready');
     expect(sync).toHaveBeenCalledTimes(2);
 
-    const want = { ...simpleTestData, bar: { baz: 2 } };
-    expect(model.data.optimistic).toEqual(want);
-    expect(model.data.confirmed).toEqual(want);
+    expect(model.data.confirmed).toEqual('confirmed_1');
+    expect(model.data.optimistic).toEqual('optimistic');
   });
 
-  it<ModelTestContext>('rewinds to the correct point in the stream', async ({ channelName, ably, logger, streams }) => {
+  it<ModelTestContext>('replays from the correct point in the stream', async ({
+    channelName,
+    ably,
+    logger,
+    streams,
+  }) => {
     const stream = streams.newStream({ channelName });
     stream.replay = vi.fn();
 
@@ -223,22 +230,34 @@ describe('Model', () => {
     expect(stream.replay).toHaveBeenNthCalledWith(2, '456');
   });
 
-  it<ModelTestContext>('pauses and resumes the model', async ({ channelName, ably, logger, streams }) => {
+  it<ModelTestContext>('pauses and resumes the model with replay', async ({ channelName, ably, logger, streams }) => {
     const s1 = streams.newStream({ channelName });
-    s1.subscribe = vi.fn();
+    const events = {
+      channelEvents: new Subject<Types.Message>(),
+    };
+
+    s1.subscribe = vi.fn(async (callback) => {
+      events.channelEvents.subscribe((message) => callback(null, message));
+    });
     s1.reset = vi.fn();
     s1.replay = vi.fn();
     const sync = vi.fn(async () => ({
-      data: simpleTestData,
+      data: 'data_0',
       sequenceID: '0',
     }));
+    const merge = vi.fn(async (_, event) => event.data);
 
-    const model = new Model<TestData>(
+    // same timestamp simulates no time elapsed between pause and resume
+    let now = Date.now();
+    class TestModel<T> extends Model<T> {
+      now() {
+        return now;
+      }
+    }
+
+    const model = new TestModel<string>(
       'test',
-      {
-        sync: sync,
-        merge: async (state) => state,
-      },
+      { sync, merge },
       {
         ably,
         channelName,
@@ -250,9 +269,15 @@ describe('Model', () => {
     );
 
     await model.sync();
+    expect(sync).toHaveBeenCalledOnce();
 
-    expect(s1.subscribe).toHaveBeenCalledOnce();
-    expect(s1.replay).toHaveBeenCalledOnce();
+    let subscription = new Subject<void>();
+    const subscriptionSpy = vi.fn<any, any>(() => subscription.next());
+    model.subscribe(subscriptionSpy);
+
+    events.channelEvents.next(createMessage(1));
+    events.channelEvents.next(createMessage(2));
+    events.channelEvents.next(createMessage(3));
 
     await model.pause();
     expect(model.state).toBe('paused');
@@ -260,7 +285,69 @@ describe('Model', () => {
 
     await model.resume();
     expect(model.state).toBe('ready');
+    expect(sync).toHaveBeenCalledOnce(); // no re-sync
     expect(s1.replay).toHaveBeenCalledTimes(2);
+    expect(s1.replay).toHaveBeenNthCalledWith(2, '3'); // latest sequence id
+    await timeout(1000);
+  });
+
+  it<ModelTestContext>('pauses and resumes the model with resync', async ({ channelName, ably, logger, streams }) => {
+    const s1 = streams.newStream({ channelName });
+    const events = {
+      channelEvents: new Subject<Types.Message>(),
+    };
+
+    s1.subscribe = vi.fn();
+    s1.reset = vi.fn();
+    s1.replay = vi.fn();
+    const sync = vi.fn(async () => ({
+      data: 'data_0',
+      sequenceID: '0',
+    }));
+    const merge = vi.fn(async (_, event) => event.data);
+
+    // same timestamp simulates no time elapsed between pause and resume
+    let now = new Date();
+    let then = new Date(now);
+    then.setMinutes(now.getMinutes() + 3);
+
+    class TestModel<T> extends Model<T> {
+      private i = 0;
+      now() {
+        if (this.i === 0) return now.getTime();
+        return then.getTime();
+      }
+    }
+
+    const model = new TestModel<string>(
+      'test',
+      { sync, merge },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: defaultSyncOptions,
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
+    );
+
+    await model.sync();
+    expect(sync).toHaveBeenCalledOnce();
+
+    events.channelEvents.next(createMessage(1));
+    events.channelEvents.next(createMessage(2));
+    events.channelEvents.next(createMessage(3));
+
+    await model.pause();
+    expect(model.state).toBe('paused');
+    expect(s1.reset).toHaveBeenCalledOnce();
+
+    await model.resume();
+    expect(model.state).toBe('ready');
+    expect(sync).toHaveBeenCalledTimes(2); // re-sync
+    expect(s1.replay).toHaveBeenCalledTimes(2);
+    expect(s1.replay).toHaveBeenNthCalledWith(2, '0'); // sequence id from sync
   });
 
   it<ModelTestContext>('disposes of the model', async ({ channelName, ably, logger, streams }) => {
