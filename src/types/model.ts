@@ -1,6 +1,8 @@
 import type { Types as AblyTypes } from 'ably/promises';
 import type { Logger } from 'pino';
+import type { LevelWithSilent } from 'pino';
 
+import type { OptionalFields, OptionalValues } from './helpers.js';
 import type { MergeFunc } from './merge';
 import type { SyncOptions, OptimisticEventOptions } from './optimistic';
 import type { EventBufferOptions } from './stream';
@@ -16,6 +18,22 @@ export type ModelOptions = {
   optimisticEventOptions: OptimisticEventOptions;
   eventBufferOptions: EventBufferOptions;
 };
+
+/**
+ * Base options used to configure model instances.
+ */
+export type ModelsOptions = OptionalValues<
+  OptionalFields<
+    Omit<ModelOptions, 'logger' | 'channelName'> & { logLevel?: LevelWithSilent },
+    'optimisticEventOptions' | 'eventBufferOptions' | 'syncOptions'
+  >,
+  'optimisticEventOptions' | 'eventBufferOptions' | 'syncOptions'
+>;
+
+/**
+ * Identifies a model created or accessed from the ModelsClient.
+ */
+export type ModelSpec<T> = { name: string; channelName: string } & Registration<T>;
 
 /**
  * ModelState represents the possible lifecycle states of a model.
