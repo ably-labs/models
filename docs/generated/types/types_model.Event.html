@@ -16,23 +16,21 @@
 <li><a href="../modules/types_model.html">types/model</a></li>
 <li><a href="types_model.Event.html">Event</a></li></ul>
 <h1>Type alias Event</h1></div>
-<div class="tsd-signature"><span class="tsd-kind-type-alias">Event</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">{ </span><br/><span>    </span><span class="tsd-kind-property">channel</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span><br/><span>    </span><span class="tsd-kind-property">data</span><span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">any</span><span class="tsd-signature-symbol">; </span><br/><span>    </span><span class="tsd-kind-property">name</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span><br/><span>    </span><span class="tsd-kind-property">uuid</span><span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span><br/><span class="tsd-signature-symbol">}</span></div>
+<div class="tsd-signature"><span class="tsd-kind-type-alias">Event</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">{ </span><br/><span>    </span><span class="tsd-kind-property">data</span><span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">any</span><span class="tsd-signature-symbol">; </span><br/><span>    </span><span class="tsd-kind-property">mutationID</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span><br/><span>    </span><span class="tsd-kind-property">name</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span><br/><span class="tsd-signature-symbol">}</span></div>
 <div class="tsd-comment tsd-typography"><p>Represents a change event that can be applied to a model via an update function.</p>
 </div>
 <div class="tsd-type-declaration">
 <h4>Type declaration</h4>
 <ul class="tsd-parameters">
 <li class="tsd-parameter">
-<h5><span class="tsd-kind-property">channel</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span></h5></li>
-<li class="tsd-parameter">
 <h5><code class="tsd-tag ts-flagOptional">Optional</code> <span class="tsd-kind-property">data</span><span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">any</span></h5></li>
 <li class="tsd-parameter">
-<h5><span class="tsd-kind-property">name</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span></h5></li>
+<h5><span class="tsd-kind-property">mutationID</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span></h5></li>
 <li class="tsd-parameter">
-<h5><code class="tsd-tag ts-flagOptional">Optional</code> <span class="tsd-kind-property">uuid</span><span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">string</span></h5></li></ul></div>
+<h5><span class="tsd-kind-property">name</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span></h5></li></ul></div>
 <div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ably-labs/models/blob/271e532/src/types/model.ts#L55">types/model.ts:55</a></li></ul></aside></div>
+<li>Defined in <a href="https://github.com/ably-labs/models/blob/b22d97e/src/types/model.ts#L67">types/model.ts:67</a></li></ul></aside></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
@@ -50,6 +48,8 @@
 <ul class="tsd-small-nested-navigation">
 <li><a href="../modules/index.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4"></use></svg><span>index</span></a></li>
 <li><a href="../modules/types_callbacks.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4"></use></svg><span>types/callbacks</span></a></li>
+<li><a href="../modules/types_helpers.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4"></use></svg><span>types/helpers</span></a></li>
+<li><a href="../modules/types_merge.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4"></use></svg><span>types/merge</span></a></li>
 <li>
 <details class="tsd-index-accordion" open data-key="types/model"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><use href="#icon-chevronDown"></use></svg><a href="../modules/types_model.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4"></use></svg><span>types/model</span></a></summary>
 <div class="tsd-accordion-details">
@@ -58,6 +58,7 @@
 <li><a href="types_model.Event.html" class="current"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Event</span></a></li>
 <li><a href="types_model.EventParams.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Event<wbr/>Params</span></a></li>
 <li><a href="types_model.ModelOptions.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Model<wbr/>Options</span></a></li>
+<li><a href="types_model.ModelSpec.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Model<wbr/>Spec</span></a></li>
 <li><a href="types_model.ModelState.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Model<wbr/>State</span></a></li>
 <li><a href="types_model.ModelStateChange.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Model<wbr/>State<wbr/>Change</span></a></li>
 <li><a href="types_model.ModelsOptions.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Models<wbr/>Options</span></a></li>
@@ -66,8 +67,8 @@
 <li><a href="types_model.Registration.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Registration</span></a></li>
 <li><a href="types_model.SubscriptionOptions.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Subscription<wbr/>Options</span></a></li>
 <li><a href="types_model.SyncFunc.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Sync<wbr/>Func</span></a></li></ul></div></details></li>
-<li><a href="../modules/types_mutations.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4"></use></svg><span>types/mutations</span></a></li>
-<li><a href="../modules/types_updates.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4"></use></svg><span>types/updates</span></a></li></ul></nav></div></div></div>
+<li><a href="../modules/types_optimistic.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4"></use></svg><span>types/optimistic</span></a></li>
+<li><a href="../modules/types_stream.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4"></use></svg><span>types/stream</span></a></li></ul></nav></div></div></div>
 <div class="tsd-generator">
 <p>Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></div>
 <div class="overlay"></div></body></html>
