@@ -270,6 +270,7 @@ describe('Model', () => {
 
     await model.sync();
     expect(sync).toHaveBeenCalledOnce();
+    expect(s1.replay).toHaveBeenCalledOnce();
 
     let subscription = new Subject<void>();
     const subscriptionSpy = vi.fn<any, any>(() => subscription.next());
@@ -288,7 +289,77 @@ describe('Model', () => {
     expect(sync).toHaveBeenCalledOnce(); // no re-sync
     expect(s1.replay).toHaveBeenCalledTimes(2);
     expect(s1.replay).toHaveBeenNthCalledWith(2, '3'); // latest sequence id
-    await timeout(1000);
+  });
+
+  it<ModelTestContext>('pauses and resumes the model with resync after replay failure', async ({
+    channelName,
+    ably,
+    logger,
+    streams,
+  }) => {
+    const s1 = streams.newStream({ channelName });
+    const events = {
+      channelEvents: new Subject<Types.Message>(),
+    };
+
+    s1.subscribe = vi.fn(async (callback) => {
+      events.channelEvents.subscribe((message) => callback(null, message));
+    });
+    s1.reset = vi.fn();
+    let i = 0;
+    s1.replay = vi.fn(async () => {
+      i++;
+      if (i === 2) throw new Error('unable to replay');
+    });
+    const sync = vi.fn(async () => ({
+      data: 'data_0',
+      sequenceID: '0',
+    }));
+    const merge = vi.fn(async (_, event) => event.data);
+
+    // same timestamp simulates no time elapsed between pause and resume
+    let now = Date.now();
+    class TestModel<T> extends Model<T> {
+      now() {
+        return now;
+      }
+    }
+
+    const model = new TestModel<string>(
+      'test',
+      { sync, merge },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: defaultSyncOptions,
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
+    );
+
+    await model.sync();
+    expect(sync).toHaveBeenCalledOnce();
+    expect(s1.replay).toHaveBeenCalledOnce();
+
+    let subscription = new Subject<void>();
+    const subscriptionSpy = vi.fn<any, any>(() => subscription.next());
+    model.subscribe(subscriptionSpy);
+
+    events.channelEvents.next(createMessage(1));
+    events.channelEvents.next(createMessage(2));
+    events.channelEvents.next(createMessage(3));
+
+    await model.pause();
+    expect(model.state).toBe('paused');
+    expect(s1.reset).toHaveBeenCalledOnce();
+
+    await model.resume();
+    expect(model.state).toBe('ready');
+    expect(sync).toHaveBeenCalledTimes(2); // re-sync was required after replay failure
+    expect(s1.replay).toHaveBeenCalledTimes(3);
+    expect(s1.replay).toHaveBeenNthCalledWith(2, '3'); // latest sequence id
+    expect(s1.replay).toHaveBeenNthCalledWith(3, '0'); // sequence id from sync
   });
 
   it<ModelTestContext>('pauses and resumes the model with resync', async ({ channelName, ably, logger, streams }) => {
