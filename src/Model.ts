@@ -190,7 +190,16 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
       this.detachedAt = null;
       return;
     }
-    await this.stream.replay(this.lastSeenSequenceID);
+    try {
+      await this.stream.replay(this.lastSeenSequenceID);
+    } catch (err) {
+      this.logger.warn('unable to replay from last seen sequenceID, will resync', {
+        ...this.baseLogContext,
+        action: 'resume()',
+        sequenceID: this.lastSeenSequenceID,
+      });
+      await this.resync();
+    }
     this.detachedAt = null;
     this.setState('ready');
   }
