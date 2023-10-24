@@ -159,7 +159,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
       return;
     }
     this.logger.trace({ ...this.baseLogContext, action: 'pause()' });
-    this.detachedAt = Date.now();
+    this.detachedAt = this.now();
     await this.stream.reset();
     this.setState('paused');
   }
@@ -185,7 +185,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
         interval = 72 * 60 * 60 * 1000;
         break;
     }
-    if (!this.lastSeenSequenceID || !this.detachedAt || Date.now() - this.detachedAt >= interval) {
+    if (!this.lastSeenSequenceID || !this.detachedAt || this.now() - this.detachedAt >= interval) {
       await this.resync();
       this.detachedAt = null;
       return;
@@ -279,6 +279,11 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
     }
   }
 
+  // support overriding this method to faciltate testing
+  protected now(): number {
+    return Date.now();
+  }
+
   private async applyOptimisticEvents(events: OptimisticEventWithParams[]) {
     if (events.length === 0) {
       return [];
@@ -313,9 +318,9 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
     this.setState('syncing', reason);
     this.removeStream();
     const { data, sequenceID } = await this.syncFunc();
-    await this.addStream(sequenceID);
-    this.setOptimisticData(data); // todo rebase optimistic events
     this.setConfirmedData(data);
+    await this.rebase(this.optimisticEvents);
+    await this.addStream(sequenceID);
     this.setState('ready');
   }
 
@@ -329,10 +334,10 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
   }
 
   private async addStream(sequenceID: string) {
-    await this.stream.replay(sequenceID);
     const callback = this.onStreamMessage.bind(this);
     this.stream.subscribe(callback);
     this.streamSubscriptionsMap.set(this.stream, callback);
+    await this.stream.replay(sequenceID);
   }
 
   private async onStreamMessage(err: Error | null, event?: AblyTypes.Message) {
@@ -445,26 +450,30 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
       let e = this.optimisticEvents[i];
       if (mutationIDComparator(e, event)) {
         this.optimisticEvents.splice(i, 1);
-        await this.applyWithRebase(event, this.optimisticEvents);
+        await this.applyConfirmedUpdateWithRebase(event, this.optimisticEvents);
         return;
       }
     }
 
     // If the incoming confirmed event doesn't match any optimistic event, we roll back to the
     // last-confirmed state, apply the incoming event, and rebase the optimistic updates on top.
-    await this.applyWithRebase(event, this.optimisticEvents);
+    await this.applyConfirmedUpdateWithRebase(event, this.optimisticEvents);
   }
 
-  private async applyWithRebase(confirmedEvent: ConfirmedEvent, optimisticEvents: OptimisticEvent[]) {
-    if (confirmedEvent.rejected) {
-      return;
-    }
-    await this.applyConfirmedUpdate(this.confirmedData, confirmedEvent);
+  private async rebase(optimisticEvents: OptimisticEvent[]) {
     let base = this.confirmedData;
     for (const event of optimisticEvents) {
       base = await this.applyUpdate(base, event);
     }
     this.setOptimisticData(base);
+  }
+
+  private async applyConfirmedUpdateWithRebase(confirmedEvent: ConfirmedEvent, optimisticEvents: OptimisticEvent[]) {
+    if (confirmedEvent.rejected) {
+      return;
+    }
+    await this.applyConfirmedUpdate(this.confirmedData, confirmedEvent);
+    await this.rebase(optimisticEvents);
   }
 
   private async confirmPendingEvents(event: ConfirmedEvent) {
@@ -482,11 +491,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
     for (let event of events) {
       this.optimisticEvents = this.optimisticEvents.filter((e) => !mutationIDComparator(e, event));
     }
-    let nextData = this.confirmedData;
-    for (const e of this.optimisticEvents) {
-      nextData = await this.applyUpdate(nextData, e);
-    }
-    this.setOptimisticData(nextData);
+    await this.rebase(this.optimisticEvents);
     await this.pendingConfirmationRegistry.rejectEvents(err, events);
   }
 }
