@@ -1,7 +1,7 @@
 import toString from 'lodash/toString';
 
 export function toError(err: any) {
-  return err instanceof Error || err instanceof AggregateError ? err : new Error(toString(err));
+  return err instanceof Error ? err : new Error(toString(err));
 }
 
 /**
