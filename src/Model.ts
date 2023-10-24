@@ -185,7 +185,8 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
         interval = 72 * 60 * 60 * 1000;
         break;
     }
-    if (!this.lastSeenSequenceID || !this.detachedAt || this.now() - this.detachedAt >= interval) {
+    const margin = 5000; // 5 second margin to reduce chance of messages expiring while paginating through history
+    if (!this.lastSeenSequenceID || !this.detachedAt || this.now() - this.detachedAt >= interval - margin) {
       await this.resync();
       this.detachedAt = null;
       return;
