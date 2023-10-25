@@ -48,7 +48,7 @@ export default function Comment({ comment, onEdit, onDelete }: CommentProps) {
             />
           </div>
           <p className="text-sm font-semibold">{comment.author.username}</p>
-          <p className="ml-auto text-sm text-gray-500">TODO date</p>
+          <p className="ml-auto text-sm text-gray-500">{new Date(comment.createdAt).toLocaleString()}</p>
           {comment.author.id === user?.id && (
             <>
               <PencilIcon
