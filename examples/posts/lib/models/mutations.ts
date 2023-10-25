@@ -2,6 +2,7 @@ import { ConfirmedEvent, OptimisticEvent } from '@ably-labs/models';
 import type { Post as PostType } from '@/lib/prisma/api';
 import type { Author as AuthorType } from '@/lib/prisma/api';
 import { Comment } from '@/lib/prisma/api';
+import { cloneDeep } from 'lodash';
 
 export async function addComment(mutationID: string, author: AuthorType, postId: number, content: string) {
   const response = await fetch('/api/comments', {
@@ -35,32 +36,35 @@ export async function deleteComment(mutationID: string, id: number) {
   return response.json();
 }
 
-export async function merge(state: PostType, event: OptimisticEvent | ConfirmedEvent): Promise<PostType> {
-  if (event.confirmed) {
-    // Our implementation returns the entire post state
-    // inside the confirmed event, this stops state drift
-    // between the frontend and backend.
-    console.log(event.data);
-    return event.data as PostType;
-  }
+export async function merge(existingState: PostType, event: OptimisticEvent | ConfirmedEvent): Promise<PostType> {
+  // Optimistic and confirmed events use the same merge function logic.
 
-  // Optimistically include the new state
+  // The models function keeps track of the state before events are applied
+  // to make sure the rollback of unconfirmed events works, we need to clone
+  // the state here. Our state contains an array of objects so we don't use
+  // the regular object spread operator.
+  const state = cloneDeep(existingState);
+
   switch (event.name) {
-    case 'add':
+    case 'addComment':
       const newComment = event.data! as Comment;
       state.comments.push(newComment);
       break;
-    case 'edit':
+    case 'editComment':
       const editComment = event.data! as Comment;
       const editIdx = state.comments.findIndex((c) => c.id === editComment.id);
       state.comments[editIdx] = editComment;
       break;
-    case 'delete':
+    case 'deleteComment':
       const { id } = event.data! as { id: number };
       const deleteIdx = state.comments.findIndex((c) => c.id === id);
       state.comments.splice(deleteIdx, 1);
       break;
+    default:
+      console.error('unknown event', event);
   }
+
+  state.comments.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
   return state;
 }

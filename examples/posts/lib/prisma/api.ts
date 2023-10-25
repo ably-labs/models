@@ -14,6 +14,7 @@ export type Comment = {
   author: Author;
   content: string;
   optimistic?: boolean;
+  createdAt: Date;
 };
 
 export type Post = {
@@ -78,12 +79,12 @@ export async function addComment(
   authorId: number,
   content: string,
 ): Promise<Prisma.outboxCreateInput> {
-  await tx.comment.create({
+  const comment = await tx.comment.create({
     data: { postId, authorId, content },
     include: { author: true },
   });
 
-  return outboxPost(tx, mutationID, postId);
+  return { mutation_id: mutationID, channel: `post:${comment.postId}`, name: 'addComment', data: comment, headers: {} };
 }
 
 export async function editComment(
@@ -99,7 +100,13 @@ export async function editComment(
     include: { author: true },
   });
 
-  return outboxPost(tx, mutationID, comment.postId);
+  return {
+    mutation_id: mutationID,
+    channel: `post:${comment.postId}`,
+    name: 'editComment',
+    data: comment,
+    headers: {},
+  };
 }
 
 export async function deleteComment(tx: TxClient, mutationID: string, id: number): Promise<Prisma.outboxCreateInput> {
@@ -107,13 +114,13 @@ export async function deleteComment(tx: TxClient, mutationID: string, id: number
     where: { id },
   });
 
-  return outboxPost(tx, mutationID, comment.postId);
-}
-
-async function outboxPost(tx: TxClient, mutationID: string, id: number): Promise<Prisma.outboxCreateInput> {
-  const post = await getPostTx(tx, id);
-
-  return { mutation_id: mutationID, channel: `post:${post.id}`, name: 'post', data: post, headers: {} };
+  return {
+    mutation_id: mutationID,
+    channel: `post:${comment.postId}`,
+    name: 'deleteComment',
+    data: comment,
+    headers: {},
+  };
 }
 
 export async function withOutboxWrite(

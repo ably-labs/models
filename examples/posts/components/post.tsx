@@ -23,7 +23,13 @@ function Post({ model }: { model: ModelType }) {
       }
       setPost(post!);
     };
-    model.subscribe(onUpdate);
+
+    if (model.state !== 'disposed') {
+      // The model can get disposed based on the order that the hooks are processed on hot-reload
+      // which would cause an error that we're subscribing to a disposed model.
+      model.subscribe(onUpdate);
+    }
+
     return () => {
       model.unsubscribe(onUpdate);
     };
@@ -33,8 +39,8 @@ function Post({ model }: { model: ModelType }) {
     const mutationID = uuidv4();
     const [confirmed, cancel] = await model.optimistic({
       mutationID: mutationID,
-      name: 'add',
-      data: { id: uuidv4(), postId, author, content, optimistic: true },
+      name: 'addComment',
+      data: { id: uuidv4(), postId, author, content, optimistic: true, createdAt: Date.now() },
     });
     setAlert('Optimistically added comment', 'info');
 
@@ -53,7 +59,7 @@ function Post({ model }: { model: ModelType }) {
     const editedComment = { ...post.comments.findLast((c) => c.id === commentId)!, content: content, optimistic: true };
     const [confirmed, cancel] = await model.optimistic({
       mutationID: mutationID,
-      name: 'edit',
+      name: 'editComment',
       data: editedComment,
     });
     setAlert('Optimistically edited comment', 'info');
@@ -72,7 +78,7 @@ function Post({ model }: { model: ModelType }) {
     const mutationID = uuidv4();
     const [confirmed, cancel] = await model.optimistic({
       mutationID: mutationID,
-      name: 'delete',
+      name: 'deleteComment',
       data: { id: commentId },
     });
     setAlert('Optimistically deleted comment', 'info');
