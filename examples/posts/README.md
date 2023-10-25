@@ -1,57 +1,54 @@
----
-name: Vercel Postgres + Prisma Next.js Starter
-slug: postgres-prisma
-description: Simple Next.js template that uses Vercel Postgres as the database and Prisma as the ORM.
-framework: Next.js
-useCase: Starter
-css: Tailwind
-database: Vercel Postgres
-deployUrl: https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fexamples%2Ftree%2Fmain%2Fstorage%2Fpostgres-prisma&project-name=postgres-prisma&repository-name=postgres-prisma&demo-title=Vercel%20Postgres%20%2B%20Prisma%20Next.js%20Starter&demo-description=Simple%20Next.js%20template%20that%20uses%20Vercel%20Postgres%20as%20the%20database%20and%20Prisma%20as%20the%20ORM.&demo-url=https%3A%2F%2Fpostgres-prisma.vercel.app%2F&demo-image=https%3A%2F%2Fpostgres-prisma.vercel.app%2Fopengraph-image.png&stores=%5B%7B"type"%3A"postgres"%7D%5D
-demoUrl: https://postgres-prisma.vercel.app/
-relatedTemplates:
-  - postgres-starter
-  - postgres-kysely
-  - postgres-sveltekit
----
+# Posts Example app
 
-# Vercel Postgres + Prisma Next.js Starter
+An example application with posts and comments that uses the Models SDK and [adbc database connector](https://github.com/ably-labs/adbc).
 
-Simple Next.js template that uses [Vercel Postgres](https://vercel.com/postgres) as the database and [Prisma](https://prisma.io/) as the ORM.
+The app uses Next.js, and [Prisma](https://prisma.io).
 
-## Demo
+## Getting started
 
-https://postgres-prisma.vercel.app/
-
-## How to Use
-
-You can choose from one of the following two methods to use this repository:
-
-### One-Click Deploy
-
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=vercel-examples):
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fexamples%2Ftree%2Fmain%2Fstorage%2Fpostgres-prisma&project-name=postgres-prisma&repository-name=postgres-prisma&demo-title=Vercel%20Postgres%20%2B%20Prisma%20Next.js%20Starter&demo-description=Simple%20Next.js%20template%20that%20uses%20Vercel%20Postgres%20as%20the%20database%20and%20Prisma%20as%20the%20ORM.&demo-url=https%3A%2F%2Fpostgres-prisma.vercel.app%2F&demo-image=https%3A%2F%2Fpostgres-prisma.vercel.app%2Fopengraph-image.png&stores=%5B%7B"type"%3A"postgres"%7D%5D)
-
-### Clone and Deploy
-
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [pnpm](https://pnpm.io/installation) to bootstrap the example:
+We recommend you run the database and connector from the adbc repo.
+This will create a postgres database, the connector, and the tables that the connector requires.
 
 ```bash
-pnpm create next-app --example https://github.com/vercel/examples/tree/main/storage/postgres-prisma
+cd adbc/
+export ADBC_ABLY_KEY=<my-api-key>
+docker-compose up
 ```
 
-Once that's done, copy the .env.example file in this directory to .env.local (which will be ignored by Git):
-
+Next, apply the prisma migrations:
 ```bash
-cp .env.example .env.local
+## These env vars are used by the following prisma commands
+## so we set them here. They use the default login created by adbc's docker-compose
+export POSTGRES_URL_NON_POOLING=postgresql://postgres:postgres@localhost:5432/postgres
+export POSTGRES_PRISMA_URL=postgresql://postgres:postgres@localhost:5432/postgres
+
+## The adbc startup already auto-created these tables for us. So we tell prisma that
+## the 0_init migration is already applied. If you didn't set auto_create=true in adbc
+## then skip this step.
+npx prisma migrate resolve --applied 0_init
+
+## Apply the remaining migrations
+npx prisma migrate deploy
+
+## Generate some sample data we can use in the app
+## Running this command more than once will create multiple posts, but they will all have the same content.
+npx prisma db seed
 ```
 
-Then open `.env.local` and set the environment variables to match the ones in your Vercel Storage Dashboard.
-
-Next, run Next.js in development mode:
-
+Setup the environment variables that the server and client need, add the following to `.env.local`
 ```bash
-pnpm dev
+# .env.local file content
+POSTGRES_URL_NON_POOLING=postgresql://postgres:postgres@localhost:5432/postgres
+POSTGRES_PRISMA_URL=postgresql://postgres:postgres@localhost:5432/postgres
+SESSION_SECRET=
+NEXT_PUBLIC_ABLY_API_KEY=<my-api-key>
 ```
 
-Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=vercel-examples) ([Documentation](https://nextjs.org/docs/deployment)).
+You can now start the example app:
+```bash
+export ABLY_KEY=<my-api-key>
+npm run dev
+```
+
+Open the app on [localhost:3000](http://localhost:3000)
+

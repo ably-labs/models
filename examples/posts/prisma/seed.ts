@@ -25,9 +25,9 @@ async function main() {
   await Promise.all(
     users.map((user) =>
       prisma.user.upsert({
-        where: { username: user.username },
+        where: {username: user.username},
         update: {},
-        create: { ...user },
+        create: {...user},
       }),
     ),
   );
@@ -45,19 +45,22 @@ async function main() {
   ];
   console.log('creating posts:', posts);
   await Promise.all(
-    posts.map((post) =>
-      prisma.post.create({
+    posts.map(async (post) => {
+      const authorId = Math.floor(Math.random() * users.length);
+      const result = await prisma.post.create({
         data: {
           title: post.title,
           content: post.content,
           comments: {
             create: post.comments.map((comment) => ({
               content: comment,
-              authorId: Math.floor(Math.random() * users.length),
+              authorId: authorId,
             })),
           },
         },
-      }),
+      })
+      console.log('created post', result.id)
+    },
     ),
   );
 }
