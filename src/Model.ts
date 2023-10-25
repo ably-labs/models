@@ -242,6 +242,10 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
   ) {
     this.logger.trace({ ...this.baseLogContext, action: 'subscribe()', options });
 
+    if (this.state === 'disposed') {
+      throw new Error('Cannot subscribe to a disposed model');
+    }
+
     let timeout: NodeJS.Timeout;
     const subscription = this.subscriptions.subscribe({
       next: (value) => {
