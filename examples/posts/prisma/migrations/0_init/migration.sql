@@ -8,14 +8,16 @@ CREATE TABLE "nodes" (
 
 -- CreateTable
 CREATE TABLE "outbox" (
-    "id" SERIAL NOT NULL,
+    "sequence_id" SERIAL NOT NULL,
+    "mutation_id" TEXT NOT NULL,
     "channel" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "rejected" BOOLEAN NOT NULL DEFAULT false,
     "data" JSONB,
     "headers" JSONB,
     "locked_by" TEXT,
     "lock_expiry" TIMESTAMP(6),
 
-    CONSTRAINT "outbox_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "outbox_pkey" PRIMARY KEY ("sequence_id")
 );
 
