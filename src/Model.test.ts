@@ -9,6 +9,7 @@ import { IStream } from './stream/Stream.js';
 import { IStreamFactory } from './stream/StreamFactory.js';
 import type { ModelStateChange, ModelOptions } from './types/model.d.ts';
 import type { StreamOptions, StreamState } from './types/stream.js';
+import { EventListener } from './utilities/EventEmitter.js';
 import { statePromise, timeout } from './utilities/promises.js';
 import { createMessage, customMessage } from './utilities/test/messages.js';
 import { getNthEventPromise, getEventPromises } from './utilities/test/promises.js';
@@ -574,6 +575,59 @@ describe('Model', () => {
     expect(subscriptionSpy).toHaveBeenNthCalledWith(1, null, 'data_0');
     expect(model.data.optimistic).toEqual('data_0');
     expect(model.data.confirmed).toEqual('data_0');
+  });
+
+  it<ModelTestContext>('ignores errors in subscribe callbacks', async ({ channelName, ably, logger, streams }) => {
+    const events = {
+      channelEvents: new Subject<Types.Message>(),
+    };
+
+    streams.newStream({ channelName }).subscribe = vi.fn(async (callback) => {
+      events.channelEvents.subscribe((message) => callback(null, message));
+    });
+
+    const sync = vi.fn(async () => ({
+      data: 'data_0',
+      sequenceID: '0',
+    }));
+
+    const mergeFn = vi.fn(async (_, event) => event.data);
+    const model = new Model<string>(
+      'test',
+      { sync: sync, merge: mergeFn },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: defaultSyncOptions,
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
+    );
+
+    await model.sync();
+
+    expect(sync).toHaveBeenCalledOnce();
+
+    let subscription = new Subject<void>();
+    const subscriptionCalls = getEventPromises(subscription, 5);
+
+    const subscriptionSpy = vi.fn<[Error | null, string?]>(() => {
+      subscription.next();
+      throw new Error('error in subscribe');
+    });
+    model.subscribe(subscriptionSpy);
+
+    // initial data
+    await subscriptionCalls[0];
+    expect(subscriptionSpy).toHaveBeenCalledTimes(1);
+    expect(subscriptionSpy).toHaveBeenNthCalledWith(1, null, 'data_0');
+    expect(model.data.optimistic).toEqual('data_0');
+    expect(model.data.confirmed).toEqual('data_0');
+
+    events.channelEvents.next(createMessage(1));
+    await subscriptionCalls[1];
+    expect(subscriptionSpy).toHaveBeenCalledTimes(2);
   });
 
   it<ModelTestContext>('updates model state with optimistic event', async ({ channelName, ably, logger, streams }) => {
@@ -1286,5 +1340,157 @@ describe('Model', () => {
     await expect(confirmation).rejects.toThrow('timed out waiting for event confirmation');
     // Check the optimistic event is reverted.
     expect(model.data.optimistic).toEqual('0');
+  });
+
+  it<ModelTestContext>('error from sync function is thrown and sets model to errored', async ({
+    channelName,
+    ably,
+    logger,
+  }) => {
+    const mergeFn = vi.fn(async (state, event) => state + event.data);
+
+    const model = new Model<string>(
+      'test',
+      {
+        sync: async () => {
+          throw new Error('failed to load from backend');
+        },
+        merge: mergeFn,
+      },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: defaultSyncOptions,
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
+    );
+
+    const lis: EventListener<ModelStateChange> = vi.fn<any, any>();
+    model.on('errored', lis);
+
+    expect(model.sync()).rejects.toThrow();
+    await statePromise(model, 'errored');
+    expect(lis).toHaveBeenCalledOnce();
+    expect(lis).toHaveBeenCalledWith({
+      current: 'errored',
+      previous: 'syncing',
+      reason: new Error('failed to load from backend'),
+    });
+  });
+
+  it<ModelTestContext>('error in merge function from optimistic event rejects promise with error', async ({
+    channelName,
+    ably,
+    logger,
+    streams,
+  }) => {
+    const s1 = streams.newStream({ channelName: 's1' });
+    s1.subscribe = vi.fn();
+
+    const events = new Subject<Types.Message>();
+    s1.subscribe = vi.fn(async (callback) => {
+      events.subscribe((message) => callback(null, message));
+    });
+
+    const syncFn = vi.fn(async () => {
+      return { data: '0', sequenceID: '0' };
+    });
+
+    const model = new Model<string>(
+      'test',
+      {
+        sync: syncFn,
+        merge: async () => {
+          throw new Error('merge failed');
+        },
+      },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: defaultSyncOptions,
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
+    );
+    model.sync();
+
+    const lis: EventListener<ModelStateChange> = vi.fn<any, any>();
+    model.on('errored', lis);
+
+    expect(syncFn).toHaveBeenCalledOnce();
+    await statePromise(model, 'ready');
+    const result = model.optimistic({ mutationID: 'id_1', name: 'testEvent', data: '1' });
+    expect(result).rejects.toThrow();
+    expect(syncFn).toHaveBeenCalledTimes(1);
+    expect(lis).toHaveBeenCalledTimes(0);
+  });
+
+  it<ModelTestContext>('if merge function fails on confirmed event, and subsequent replay fails, set model to errored', async ({
+    channelName,
+    ably,
+    logger,
+    streams,
+  }) => {
+    const s1 = streams.newStream({ channelName: channelName });
+    s1.subscribe = vi.fn();
+
+    const events = new Subject<Types.Message>();
+    s1.subscribe = vi.fn(async (callback) => {
+      events.subscribe((message) => callback(null, message));
+    });
+
+    let called = false;
+    s1.replay = vi.fn(async () => {
+      if (!called) {
+        called = true;
+        return;
+      }
+
+      throw new Error('failed on replay');
+    });
+
+    const syncFn = vi.fn(async () => {
+      return { data: '0', sequenceID: '0' };
+    });
+
+    const model = new Model<string>(
+      'test',
+      {
+        sync: syncFn,
+        merge: async () => {
+          throw new Error('merge failed');
+        },
+      },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: defaultSyncOptions,
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
+    );
+    model.sync();
+    expect(syncFn).toHaveReturnedTimes(1);
+
+    const lis: EventListener<ModelStateChange> = vi.fn<any, any>();
+    model.on('errored', lis);
+
+    await statePromise(model, 'ready');
+    events.next(customMessage(`0`, 'testEvent', '0'));
+
+    await statePromise(model, 'errored');
+
+    expect(lis).toHaveBeenCalledOnce();
+    expect(lis).toHaveBeenCalledWith({
+      current: 'errored',
+      previous: 'syncing',
+      reason: new Error('failed on replay'),
+    });
+
+    expect(syncFn).toHaveBeenCalledTimes(2);
   });
 });

@@ -56,6 +56,10 @@ export type ModelState =
    */
   | 'paused'
   /**
+   * The model has errored processing data from the sync, or from the stream.
+   */
+  | 'errored'
+  /**
    * The model has been disposed, either by the user disposing it or an unrecoverable error,
    * and its resources are available for garbage collection.
    */

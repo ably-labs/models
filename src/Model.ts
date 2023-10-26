@@ -251,6 +251,17 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
       throw new Error('Cannot subscribe to a disposed model');
     }
 
+    const errorHandledCallback = (err: Error | null, result?: T) => {
+      try {
+        callback(err, result);
+      } catch (error) {
+        this.logger.warn(
+          { ...this.baseLogContext, action: 'subscribe', error },
+          'error thrown from model.subscribe(...) callback',
+        );
+      }
+    };
+
     let timeout: NodeJS.Timeout;
     const subscription = this.subscriptions.subscribe({
       next: (value) => {
@@ -259,11 +270,11 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
           clearTimeout(timeout);
         }
         if (options.optimistic && !value.confirmed) {
-          callback(null, value.data);
+          errorHandledCallback(null, value.data);
           return;
         }
         if (!options.optimistic && value.confirmed) {
-          callback(null, value.data);
+          errorHandledCallback(null, value.data);
           return;
         }
       },
@@ -272,17 +283,17 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
         if (timeout) {
           clearTimeout(timeout);
         }
-        callback(err);
+        errorHandledCallback(err);
       },
       complete: () => {
         this.logger.trace({ ...this.baseLogContext, action: 'complete()' });
-        this.unsubscribe(callback);
+        this.unsubscribe(errorHandledCallback);
       },
     });
-    this.subscriptionMap.set(callback, subscription);
+    this.subscriptionMap.set(errorHandledCallback, subscription);
 
     // subscribe callback invoked immediately with initial state
-    timeout = setTimeout(() => callback(null, this.confirmedData), 0);
+    timeout = setTimeout(() => errorHandledCallback(null, this.confirmedData), 0);
   }
 
   /**
@@ -336,11 +347,16 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
     this.logger.trace({ ...this.baseLogContext, action: 'resync()', reason });
     this.setState('syncing', reason);
     this.removeStream();
-    const { data, sequenceID } = await this.syncFunc();
-    this.setConfirmedData(data);
-    await this.rebase(this.optimisticEvents);
-    await this.addStream(sequenceID);
-    this.setState('ready');
+    try {
+      const { data, sequenceID } = await this.syncFunc();
+      this.setConfirmedData(data);
+      await this.computeState(this.confirmedData, this.optimisticData, this.optimisticEvents);
+      await this.addStream(sequenceID);
+      this.setState('ready');
+    } catch (err) {
+      this.setState('errored', toError(err));
+      throw err;
+    }
   }
 
   private removeStream() {
@@ -389,7 +405,19 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
 
       await this.onStreamEvent(modelsEvent);
     } catch (err) {
+      await this.handleOnStreamMessageError(toError(err));
+    }
+  }
+
+  private async handleOnStreamMessageError(err: Error) {
+    try {
       await this.resync(toError(err));
+    } catch (error) {
+      await this.pause();
+      this.logger.warn(
+        { ...this.baseLogContext, action: 'streamEventCallback' },
+        `unrecoverable error when trying to resync model after failed channel event`,
+      );
     }
   }
 
@@ -421,14 +449,36 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
     return data;
   }
 
-  private async applyOptimisticUpdate(initialData: T, event: OptimisticEvent) {
-    const data = await this.applyUpdate(initialData, event);
-    this.setOptimisticData(data);
-  }
+  private async computeState(
+    confirmedData: T,
+    optimisticData: T,
+    optimisticEvents: OptimisticEvent[],
+    event?: OptimisticEvent | ConfirmedEvent,
+  ) {
+    this.logger.trace({ ...this.baseLogContext, action: 'computeState()' });
+    const optimisticEvent = event && !event.confirmed;
+    const confirmedEvent = event && event.confirmed;
+    const noEvent = !event;
 
-  private async applyConfirmedUpdate(initialData: T, event: ConfirmedEvent) {
-    const data = await this.applyUpdate(initialData, event);
-    this.setConfirmedData(data);
+    if (optimisticEvent) {
+      const data = await this.applyUpdate(optimisticData, event);
+      this.setOptimisticData(data);
+      return;
+    }
+
+    if (confirmedEvent) {
+      if (event.rejected) {
+        return;
+      }
+      const data = await this.applyUpdate(confirmedData, event);
+      this.setConfirmedData(data);
+      await this.rebase(optimisticEvents);
+      return;
+    }
+
+    if (noEvent) {
+      await this.rebase(optimisticEvents);
+    }
   }
 
   private async onStreamEvents(events: OptimisticEventWithParams[]) {
@@ -446,7 +496,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
     // eagerly apply optimistic updates
     if (!event.confirmed) {
       this.optimisticEvents.push(event as OptimisticEventWithParams);
-      await this.applyOptimisticUpdate(this.optimisticData, event as OptimisticEventWithParams);
+      await this.computeState(this.confirmedData, this.optimisticData, [], event as OptimisticEventWithParams);
       return;
     }
 
@@ -462,14 +512,14 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
       let e = this.optimisticEvents[i];
       if (mutationIDComparator(e, event)) {
         this.optimisticEvents.splice(i, 1);
-        await this.applyConfirmedUpdateWithRebase(event, this.optimisticEvents);
+        await this.computeState(this.confirmedData, this.optimisticData, this.optimisticEvents, event);
         return;
       }
     }
 
     // If the incoming confirmed event doesn't match any optimistic event, we roll back to the
     // last-confirmed state, apply the incoming event, and rebase the optimistic updates on top.
-    await this.applyConfirmedUpdateWithRebase(event, this.optimisticEvents);
+    await this.computeState(this.confirmedData, this.optimisticData, this.optimisticEvents, event);
   }
 
   private async rebase(optimisticEvents: OptimisticEvent[]) {
@@ -478,14 +528,6 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
       base = await this.applyUpdate(base, event);
     }
     this.setOptimisticData(base);
-  }
-
-  private async applyConfirmedUpdateWithRebase(confirmedEvent: ConfirmedEvent, optimisticEvents: OptimisticEvent[]) {
-    if (confirmedEvent.rejected) {
-      return;
-    }
-    await this.applyConfirmedUpdate(this.confirmedData, confirmedEvent);
-    await this.rebase(optimisticEvents);
   }
 
   private async confirmPendingEvents(event: ConfirmedEvent) {
@@ -503,7 +545,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
     for (let event of events) {
       this.optimisticEvents = this.optimisticEvents.filter((e) => !mutationIDComparator(e, event));
     }
-    await this.rebase(this.optimisticEvents);
+    await this.computeState(this.confirmedData, this.optimisticData, this.optimisticEvents);
     await this.pendingConfirmationRegistry.rejectEvents(err, events);
   }
 }
