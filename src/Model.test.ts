@@ -101,7 +101,7 @@ describe('Model', () => {
     });
     const model = new Model<TestData>(
       'test',
-      { sync: sync },
+      { sync: sync, merge: async () => simpleTestData },
       {
         ably,
         channelName,
@@ -543,7 +543,7 @@ describe('Model', () => {
     })); // defines initial version of model
     const model = new Model<string>(
       'test',
-      { sync },
+      { sync, merge: async () => 'merged' },
       {
         ably,
         channelName,

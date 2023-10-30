@@ -45,7 +45,9 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
   private syncFunc: SyncFunc<T> = async () => {
     throw new Error('sync func not registered');
   };
-  private merge?: MergeFunc<T>;
+  private merge: MergeFunc<T> = async () => {
+    throw new Error('merge func not registered');
+  };
 
   private readonly stream: IStream;
   private readonly streamFactory: IStreamFactory;
@@ -92,9 +94,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
     );
 
     this.syncFunc = registration.sync;
-    if (registration.merge) {
-      this.merge = registration.merge;
-    }
+    this.merge = registration.merge;
   }
 
   /**
@@ -412,9 +412,6 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
 
   private async applyUpdate(initialData: T, event: OptimisticEvent | ConfirmedEvent): Promise<T> {
     this.logger.trace({ ...this.baseLogContext, action: 'applyUpdate()', initialData, event });
-    if (!this.merge) {
-      throw new Error('merge func not registered');
-    }
     const data = await this.merge(initialData, event);
     return data;
   }
@@ -438,10 +435,6 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
   private async onStreamEvent(event?: OptimisticEventWithParams | ConfirmedEvent) {
     this.logger.trace({ ...this.baseLogContext, action: 'onStreamEvent()', event });
     if (!event) {
-      return;
-    }
-
-    if (!this.merge) {
       return;
     }
 
