@@ -147,5 +147,5 @@ export type Registration<T> = {
   /**
    * The merge function that is invoked when a message is received.
    */
-  merge?: MergeFunc<T>;
+  merge: MergeFunc<T>;
 };
