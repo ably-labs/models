@@ -55,9 +55,8 @@ export default class ModelsClient {
        * Gets an existing or creates a new model instance with the given name.
        * @param {ModelSpec} spec - The name, channelName, sync and merge functions for this model.
        * The names and funcitons will be automatically setup on the model returned.
-       * The model will not start until you call model.sync()
        */
-      get: <T>(spec: ModelSpec<T>) => {
+      get: async <T>(spec: ModelSpec<T>) => {
         const name = spec.name;
         const channelName = spec.channelName;
 
@@ -71,6 +70,9 @@ export default class ModelsClient {
 
         const model = new Model<T>(name, spec, { ...this.opts, channelName });
         this.modelInstances[name] = model;
+
+        await model.sync();
+
         return model as Model<T>;
       },
     };

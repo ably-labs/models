@@ -167,15 +167,12 @@ async function updatePost(mutationID: string, content: string) {
 }
 
 // create a new model instance called 'post' by passing the sync and merge functions
-const model = modelsClient.models.get<Post>({
+const model = await modelsClient.models.get<Post>({
   name: 'post',
   channelName: 'models:posts',
   sync: sync,
   merge: merge,
 })
-
-// run the initial sync
-await model.$sync()
 
 // subscribe to live changes to the model data!
 model.subscribe((err, post) => {
@@ -189,7 +186,7 @@ model.subscribe((err, post) => {
 // apply an optimistic update to the model
 // confirmation is a promise that resolves when the optimistic update is confirmed by the backend.
 // cancel is a function that can be used to cancel and rollback the optimistic update.
-const [confirmation, cancel] = await model1.optimistic({
+const [confirmation, cancel] = await model.optimistic({
     mutationID: 'my-mutation-id',
     name: 'updatePost',
     data: 'new post text',

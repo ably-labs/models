@@ -29,13 +29,12 @@ export const useModel = (id: number) => {
     const ably = assertConfiguration();
     const modelsClient = new ModelsClient({ ably, optimisticEventOptions: { timeout: 5000 } });
     const init = async () => {
-      const model = modelsClient.models.get<PostType>({
+      const model = await modelsClient.models.get<PostType>({
         name: `post:${id}`,
         channelName: `post:${id}`,
         sync: async () => getPost(id),
         merge: merge,
       });
-      await model.sync();
 
       setModel(model);
     };

@@ -1,5 +1,6 @@
 import { Realtime, Types } from 'ably/promises';
 import { vi, it, describe, expect, expectTypeOf, beforeEach } from 'vitest';
+import { Types as AblyTypes } from 'ably/promises';
 
 import ModelsClient from './ModelsClient.js';
 
@@ -19,7 +20,16 @@ describe('ModelsClient', () => {
     // functions are mounted on the ably realtime mock
     const ablyChannel = context.ably.channels.get(context.channelName);
     ablyChannel.on = vi.fn<any, any>();
-    ablyChannel.subscribe = vi.fn<any, any>();
+    ablyChannel.history = vi.fn<any, any>(async () => {
+      return { items: [] };
+    });
+    ablyChannel.subscribe = vi.fn<any, any>(async () => {
+      return {
+        previous: 'initialized',
+        current: 'attached',
+        resumed: false,
+      };
+    });
     context.ably.connection.whenState = vi.fn<any, any>();
   });
 
@@ -33,7 +43,7 @@ describe('ModelsClient', () => {
     channelName,
   }) => {
     const modelsClient = new ModelsClient({ ably });
-    const model1 = modelsClient.models.get<string>({
+    const model1 = await modelsClient.models.get<string>({
       name: 'test',
       channelName: channelName,
       sync: async () => ({ data: 'initial data', sequenceID: '0' }),
@@ -41,7 +51,7 @@ describe('ModelsClient', () => {
     });
     expect(model1.name).toEqual('test');
 
-    const model2 = modelsClient.models.get<string>({
+    const model2 = await modelsClient.models.get<string>({
       name: 'test',
       channelName: channelName,
       sync: async () => ({ data: 'initial data', sequenceID: '0' }),

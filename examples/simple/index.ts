@@ -68,9 +68,8 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     }
   }
 
-  const model = modelsClient.models.get<Post>({name: 'post', channelName: channelName, sync: sync, merge: merge});
-  logger.info('sync: starting the model');
-  await model.sync();
+  const model = await modelsClient.models.get<Post>({name: 'post', channelName: channelName, sync: sync, merge: merge});
+  logger.info('started the model');
 
   model.on((event) => logger.info({event}, 'model state update'));
 

@@ -29,15 +29,12 @@ Note that we pass in the shape of our data model (`Post`) as a type parameter.
 In order to instantiate the model, we need to pass some *registrations* which link up the model to your application code.
 
 ```ts
-const model = modelsClient.models.get<Post>({
+const model = await modelsClient.models.get<Post>({
   name: /* ... */,
   channelName: /* ... */,
   sync: /* ... */,
   merge: /* ... */,
 })
-
-// run the initial sync
-await model.$sync()
 ```
 
 ## Sync Function
@@ -58,12 +55,10 @@ async function sync() {
   return result.json();
 }
 
-const model = modelsClient.models.get<Post>({
+const model = await modelsClient.models.get<Post>({
   sync: /* ... */,
   /* other registrations */
 })
-
-await model.$sync()
 ```
 
 The model will invoke this function at the start of its lifecycle to initialise your model state. Additionally, this function will be invoked if the model needs to re-synchronise at any point, for example after an extended period of network disconnectivity.
