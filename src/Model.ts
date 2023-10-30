@@ -231,16 +231,21 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
   }
 
   /**
-   * Subscribes to changes to the data.
+   * Subscribes to changes to the data. If the model has not been started yet by calling
+   * model.sync(), subscribe will start the model by calling sync().
    * @param {(err: Error | null, result?: T) => void} callback - The callback to invoke with the latest data, or an error.
    * @param {SubscriptionOptions} options - Optional subscription options that can be used to specify whether to subscribe to
    * optimistic or only confirmed updates. Defaults to optimistic.
    */
-  public subscribe(
+  public async subscribe(
     callback: (err: Error | null, result?: T) => void,
     options: SubscriptionOptions = { optimistic: true },
   ) {
     this.logger.trace({ ...this.baseLogContext, action: 'subscribe()', options });
+
+    if (this.state === 'initialized') {
+      await this.sync();
+    }
 
     if (this.state === 'disposed') {
       throw new Error('Cannot subscribe to a disposed model');

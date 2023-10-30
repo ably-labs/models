@@ -35,9 +35,6 @@ const model = modelsClient.models.get<Post>({
   sync: /* ... */,
   merge: /* ... */,
 })
-
-// run the initial sync
-await model.$sync()
 ```
 
 ## Sync Function
@@ -62,8 +59,6 @@ const model = modelsClient.models.get<Post>({
   sync: /* ... */,
   /* other registrations */
 })
-
-await model.$sync()
 ```
 
 The model will invoke this function at the start of its lifecycle to initialise your model state. Additionally, this function will be invoked if the model needs to re-synchronise at any point, for example after an extended period of network disconnectivity.
