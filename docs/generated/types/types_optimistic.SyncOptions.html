@@ -16,7 +16,7 @@
 <li><a href="../modules/types_optimistic.html">types/optimistic</a></li>
 <li><a href="types_optimistic.SyncOptions.html">SyncOptions</a></li></ul>
 <h1>Type alias SyncOptions</h1></div>
-<div class="tsd-signature"><span class="tsd-kind-type-alias">Sync<wbr/>Options</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">{ </span><br/><span>    </span><span class="tsd-kind-property">historyPageSize</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">; </span><br/><span>    </span><span class="tsd-kind-property">messageRetentionPeriod</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">&quot;2m&quot;</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">&quot;24h&quot;</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">&quot;72h&quot;</span><span class="tsd-signature-symbol">; </span><br/><span class="tsd-signature-symbol">}</span></div>
+<div class="tsd-signature"><span class="tsd-kind-type-alias">Sync<wbr/>Options</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">{ </span><br/><span>    </span><span class="tsd-kind-property">historyPageSize</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">; </span><br/><span>    </span><span class="tsd-kind-property">messageRetentionPeriod</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">&quot;2m&quot;</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">&quot;24h&quot;</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">&quot;72h&quot;</span><span class="tsd-signature-symbol">; </span><br/><span>    </span><span class="tsd-kind-property">retryStrategy</span><span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">; </span><br/><span class="tsd-signature-symbol">}</span></div>
 <div class="tsd-comment tsd-typography"><p>SyncOptions can be used to configure options on how model state is synchronised.</p>
 </div>
 <div class="tsd-type-declaration">
@@ -38,10 +38,19 @@ date from message history rather than via a re-sync.</p>
 </div>
 <div class="tsd-comment tsd-typography">
 <h4>See</h4><p><a href="https://ably.com/docs/storage-history/storage">https://ably.com/docs/storage-history/storage</a></p>
-</div></li></ul></div>
+</div></li>
+<li class="tsd-parameter">
+<h5><code class="tsd-tag ts-flagOptional">Optional</code> <span class="tsd-kind-property">retry<wbr/>Strategy</span><span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">[]</span></h5>
+<div class="tsd-comment tsd-typography"><p>The retry strategy to use. An array of durations in milliseconds to wait between each retry.
+Passing an array of [2000, 4000, 8000] would configure the sync funciton to retry 3 times,
+waiting 2seconds, then 4seconds, then 8seconds. The sync function will be retried if it
+throws an error, and if the retries are exhausted the most recent error will be thrown.
+Defaults to [2000, 4000, 8000]</p>
+</div>
+<div class="tsd-comment tsd-typography"></div></li></ul></div>
 <div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ably-labs/models/blob/9a50748/src/types/optimistic.ts#L31">types/optimistic.ts:31</a></li></ul></aside></div>
+<li>Defined in <a href="https://github.com/ably-labs/models/blob/8e5b81b/src/types/optimistic.ts#L31">types/optimistic.ts:31</a></li></ul></aside></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
