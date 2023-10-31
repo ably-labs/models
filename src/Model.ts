@@ -42,6 +42,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
   private optimisticData!: T;
   private confirmedData!: T;
 
+  private syncRetries: number[];
   private syncFunc: SyncFunc<T> = async () => {
     throw new Error('sync func not registered');
   };
@@ -93,6 +94,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
       this.options.optimisticEventOptions,
     );
 
+    this.syncRetries = options.syncOptions.retryStrategy || [2000, 4000, 8000];
     this.syncFunc = registration.sync;
     this.merge = registration.merge;
   }
@@ -343,16 +345,46 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
     } as ModelStateChange);
   }
 
+  private async retryable(retries: number[], fn: () => Promise<void>) {
+    if (retries.length === 0) {
+      await fn();
+      return;
+    }
+
+    let i = 0;
+    while (i < retries.length) {
+      const delay = retries[i];
+      try {
+        await fn();
+        return;
+      } catch (err) {
+        i++;
+        if (i >= retries.length) {
+          throw err;
+        }
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+
+    // This should be unreachable
+    throw new Error('too many retries');
+  }
+
   private async resync(reason?: Error) {
     this.logger.trace({ ...this.baseLogContext, action: 'resync()', reason });
     this.setState('syncing', reason);
-    this.removeStream();
-    try {
+
+    const fn = async () => {
+      this.removeStream();
       const { data, sequenceID } = await this.syncFunc();
       this.setConfirmedData(data);
       await this.computeState(this.confirmedData, this.optimisticData, this.optimisticEvents);
       await this.addStream(sequenceID);
       this.setState('ready');
+    };
+
+    try {
+      await this.retryable(this.syncRetries, fn);
     } catch (err) {
       this.setState('errored', toError(err));
       throw err;

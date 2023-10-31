@@ -42,6 +42,15 @@ export type SyncOptions = {
    * @see https://ably.com/docs/storage-history/storage
    */
   messageRetentionPeriod: '2m' | '24h' | '72h';
+
+  /**
+   * The retry strategy to use. An array of durations in milliseconds to wait between each retry.
+   * Passing an array of [2000, 4000, 8000] would configure the sync funciton to retry 3 times,
+   * waiting 2seconds, then 4seconds, then 8seconds. The sync function will be retried if it
+   * throws an error, and if the retries are exhausted the most recent error will be thrown.
+   * Defaults to [2000, 4000, 8000]
+   */
+  retryStrategy?: number[];
 };
 
 /**

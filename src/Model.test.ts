@@ -1342,26 +1342,27 @@ describe('Model', () => {
     expect(model.data.optimistic).toEqual('0');
   });
 
-  it<ModelTestContext>('error from sync function is thrown and sets model to errored', async ({
+  it<ModelTestContext>('error from sync function is thrown and sets model to errored after retrying', async ({
     channelName,
     ably,
     logger,
   }) => {
     const mergeFn = vi.fn(async (state, event) => state + event.data);
+    const syncSpy = vi.fn(async () => {
+      throw new Error('failed to load from backend');
+    });
 
     const model = new Model<string>(
       'test',
       {
-        sync: async () => {
-          throw new Error('failed to load from backend');
-        },
+        sync: syncSpy,
         merge: mergeFn,
       },
       {
         ably,
         channelName,
         logger,
-        syncOptions: defaultSyncOptions,
+        syncOptions: { ...defaultSyncOptions, retryStrategy: [1, 1, 1] },
         optimisticEventOptions: defaultOptimisticEventOptions,
         eventBufferOptions: defaultEventBufferOptions,
       },
@@ -1378,6 +1379,46 @@ describe('Model', () => {
       previous: 'syncing',
       reason: new Error('failed to load from backend'),
     });
+
+    expect(syncSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it<ModelTestContext>('sync function succeeds after retrying', async ({ channelName, ably, logger }) => {
+    const mergeFn = vi.fn(async (state, event) => state + event.data);
+
+    let called = false;
+    const syncSpy = vi.fn(async () => {
+      if (!called) {
+        called = true;
+        throw new Error('failed to load from backend');
+      }
+
+      return { sequenceID: '0', data: '0' };
+    });
+
+    const model = new Model<string>(
+      'test',
+      {
+        sync: syncSpy,
+        merge: mergeFn,
+      },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: { ...defaultSyncOptions, retryStrategy: [1, 1, 1] },
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
+    );
+
+    const lis: EventListener<ModelStateChange> = vi.fn<any, any>();
+    model.on('errored', lis);
+
+    await model.sync();
+    await statePromise(model, 'ready');
+    expect(lis).toHaveBeenCalledTimes(0);
+    expect(syncSpy).toHaveBeenCalledTimes(2);
   });
 
   it<ModelTestContext>('error in merge function from optimistic event rejects promise with error', async ({
@@ -1468,7 +1509,7 @@ describe('Model', () => {
         ably,
         channelName,
         logger,
-        syncOptions: defaultSyncOptions,
+        syncOptions: { ...defaultSyncOptions, retryStrategy: [1, 1, 1] },
         optimisticEventOptions: defaultOptimisticEventOptions,
         eventBufferOptions: defaultEventBufferOptions,
       },
@@ -1491,6 +1532,7 @@ describe('Model', () => {
       reason: new Error('failed on replay'),
     });
 
-    expect(syncFn).toHaveBeenCalledTimes(2);
+    // called many times because of retry strategy
+    expect(syncFn).toHaveBeenCalledTimes(4);
   });
 });
