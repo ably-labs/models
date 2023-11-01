@@ -32,6 +32,7 @@ describe('Stream', () => {
       attach: vi.fn<any, any>(),
       detach: vi.fn<any, any>(),
       subscribe: vi.fn<any, any>(),
+      setOptions: vi.fn<any, any>(),
     };
     ably.channels.get = vi.fn<any, any>(() => mockChannel);
 
@@ -46,14 +47,17 @@ describe('Stream', () => {
 
   it<StreamTestContext>('successfully syncs with no history', async ({ ably, logger, channelName }) => {
     const channel = ably.channels.get(channelName);
-    channel.subscribe = vi.fn<any, any>(
-      async (): Promise<Types.ChannelStateChange | null> => ({
+    const persistLast = createMessage(0);
+    channel.subscribe = vi.fn<any, any>(async (callback): Promise<Types.ChannelStateChange | null> => {
+      callback(persistLast);
+
+      return {
         current: 'attached',
         previous: 'attaching',
         resumed: false,
         hasBacklog: false,
-      }),
-    );
+      };
+    });
     channel.history = vi.fn<any, any>(
       async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => ({
         items: [],
@@ -275,7 +279,9 @@ describe('Stream', () => {
       }),
     );
     let messages = new Subject<Types.Message>();
+    const persistLast = createMessage(0);
     channel.subscribe = vi.fn<any, any>((callback) => {
+      callback(persistLast);
       messages.subscribe((message) => callback(message));
       return {
         current: 'attached',
@@ -416,7 +422,9 @@ describe('Stream', () => {
   it<StreamTestContext>('subscribes with multiple listeners', async ({ ably, logger, channelName }) => {
     let messages = new Subject<Types.Message>();
     const channel = ably.channels.get(channelName);
+    const persistLast = createMessage(0);
     channel.subscribe = vi.fn<any, any>((callback) => {
+      callback(persistLast);
       messages.subscribe((message) => callback(message));
       return {
         current: 'attached',
@@ -465,7 +473,10 @@ describe('Stream', () => {
   it<StreamTestContext>('unsubscribes to messages', async ({ ably, logger, channelName }) => {
     let messages = new Subject<Types.Message>();
     const channel = ably.channels.get(channelName);
+    const persistLast = createMessage(0);
+
     channel.subscribe = vi.fn<any, any>((callback) => {
+      callback(persistLast);
       messages.subscribe((message) => callback(message));
       return {
         current: 'attached',
@@ -512,7 +523,9 @@ describe('Stream', () => {
   it<StreamTestContext>('unsubscribes one of two listeners', async ({ ably, logger, channelName }) => {
     let messages = new Subject<Types.Message>();
     const channel = ably.channels.get(channelName);
+    const persistLast = createMessage(0);
     channel.subscribe = vi.fn<any, any>((callback) => {
+      callback(persistLast);
       messages.subscribe((message) => callback(message));
       return {
         current: 'attached',
@@ -566,12 +579,16 @@ describe('Stream', () => {
   it<StreamTestContext>('resets and replays the stream', async ({ ably, logger, channelName }) => {
     const channel = ably.channels.get(channelName);
     ably.channels.release = vi.fn();
-    channel.subscribe = vi.fn<any, any>(async () => ({
-      current: 'attached',
-      previous: 'attaching',
-      resumed: false,
-      hasBacklog: false,
-    }));
+    const persistLast = createMessage(0);
+    channel.subscribe = vi.fn<any, any>(async (callback) => {
+      callback(persistLast);
+      return {
+        current: 'attached',
+        previous: 'attaching',
+        resumed: false,
+        hasBacklog: false,
+      };
+    });
     channel.history = vi.fn<any, any>(
       async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => ({
         items: [],
@@ -603,12 +620,16 @@ describe('Stream', () => {
 
   it<StreamTestContext>('disposes of the stream', async ({ ably, logger, channelName }) => {
     const channel = ably.channels.get(channelName);
-    channel.subscribe = vi.fn<any, any>(async () => ({
-      current: 'attached',
-      previous: 'attaching',
-      resumed: false,
-      hasBacklog: false,
-    }));
+    const persistLast = createMessage(0);
+    channel.subscribe = vi.fn<any, any>(async (callback) => {
+      callback(persistLast);
+      return {
+        current: 'attached',
+        previous: 'attaching',
+        resumed: false,
+        hasBacklog: false,
+      };
+    });
     channel.history = vi.fn<any, any>(
       async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => ({
         items: [],
@@ -636,12 +657,17 @@ describe('Stream', () => {
 
   it<StreamTestContext>('disposes of the stream on channel failed', async ({ ably, logger, channelName }) => {
     const channel = ably.channels.get(channelName);
-    channel.subscribe = vi.fn<any, any>(async () => ({
-      current: 'attached',
-      previous: 'attaching',
-      resumed: false,
-      hasBacklog: false,
-    }));
+    const persistLast = createMessage(0);
+    channel.subscribe = vi.fn<any, any>(async (callback) => {
+      callback(persistLast);
+
+      return {
+        current: 'attached',
+        previous: 'attaching',
+        resumed: false,
+        hasBacklog: false,
+      };
+    });
     channel.history = vi.fn<any, any>(
       async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => ({
         items: [],

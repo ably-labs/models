@@ -420,7 +420,7 @@ describe('Model', () => {
     expect(model.state).toBe('ready');
     expect(sync).toHaveBeenCalledTimes(2); // re-sync
     expect(s1.replay).toHaveBeenCalledTimes(2);
-    expect(s1.replay).toHaveBeenNthCalledWith(2, '0'); // sequence id from sync
+    expect(s1.replay).toHaveBeenNthCalledWith(2, '0'); // sequence id and timestamp from sync
   });
 
   it<ModelTestContext>('disposes of the model', async ({ channelName, ably, logger, streams }) => {

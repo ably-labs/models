@@ -148,6 +148,8 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     this.middleware.subscribe(this.onMiddlewareMessage.bind(this));
 
     this.ablyChannel = this.ably.channels.get(this.options.channelName);
+    await this.ablyChannel.setOptions({ params: { rewind: '1' } });
+
     this.ablyChannel.on('failed', (change) => this.dispose(change.reason));
     this.ablyChannel.on(['suspended', 'update'], () => {
       this.subscriptions.error(new Error('discontinuity in channel connection'));
@@ -171,7 +173,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     let page: AblyTypes.PaginatedResult<AblyTypes.Message>;
     do {
       page = await this.ablyChannel.history({ untilAttach: true, limit: this.options.syncOptions.historyPageSize });
-      done = this.middleware.addHistoricalMessages(page.items);
+      done = await this.middleware.addHistoricalMessages(page.items);
     } while (page && page.items && page.items.length > 0 && page.hasNext() && !done);
 
     // If the middleware is not in the success state it means there were some history messages and we never reached the target sequenceID.

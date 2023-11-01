@@ -137,7 +137,7 @@ export class OrderedHistoryResumer extends MiddlewareBase {
     return this.currentState;
   }
 
-  public addHistoricalMessages(messages: AblyTypes.Message[]): boolean {
+  public async addHistoricalMessages(messages: AblyTypes.Message[]): Promise<boolean> {
     if (this.currentState !== 'seeking') {
       throw new Error('can only add historical messages while in seeking state');
     }
@@ -147,10 +147,22 @@ export class OrderedHistoryResumer extends MiddlewareBase {
       // If there were some messages in history then there have definitely been changes to the state
       // and we can't reach back far enough to resume from the correct point.
       const noHistory = this.historicalMessages.length === 0;
-      this.flush();
       if (noHistory) {
+        const persistLast = await this.waitForPersistLast();
+        this.realtimeMessages.shift();
+
+        // If the last message's id is larger than the sequenceID we want to find,
+        // then we can reasonably assume we are missing messages from history.
+        const missingHistoryMessages = persistLast.id > this.sequenceID;
+        if (missingHistoryMessages) {
+          this.flush();
+          return true;
+        }
+
         this.currentState = 'success';
       }
+
+      this.flush();
       return true;
     }
     this.historicalMessages = this.historicalMessages.concat(messages);
@@ -205,5 +217,25 @@ export class OrderedHistoryResumer extends MiddlewareBase {
   public unsubscribeAll(): void {
     this.slidingWindow.unsubscribe(this.onMessage.bind(this));
     super.unsubscribeAll();
+  }
+
+  private waitForPersistLast(): Promise<AblyTypes.Message> {
+    return new Promise((resolve, reject) => {
+      const start = Date.now();
+
+      const checkMessage = () => {
+        if (this.realtimeMessages.length >= 1) {
+          resolve(this.realtimeMessages[0]);
+        } else if (Date.now() - start > 3000) {
+          reject(
+            new Error('could not find persist last realtime message, ensure persist last is enabled for the channel'),
+          );
+        } else {
+          setTimeout(checkMessage, 100);
+        }
+      };
+
+      checkMessage();
+    });
   }
 }

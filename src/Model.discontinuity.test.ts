@@ -7,6 +7,7 @@ import Model from './Model.js';
 import { defaultEventBufferOptions, defaultOptimisticEventOptions, defaultSyncOptions } from './Options.js';
 import { ModelOptions } from './types/model.js';
 import { statePromise } from './utilities/promises.js';
+import { createMessage } from './utilities/test/messages.js';
 import { getEventPromises } from './utilities/test/promises.js';
 
 vi.mock('ably/promises');
@@ -28,12 +29,13 @@ describe('Model', () => {
     context.channelName = 'models:myModel:events';
   });
 
-  it<ModelTestContext>('handles discontinuity with resync', async ({ channelName, ably, logger }) => {
+  it.only<ModelTestContext>('handles discontinuity with resync', async ({ channelName, ably, logger }) => {
     const channel = ably.channels.get('foo');
     let suspendChannel: (...args: any[]) => void = () => {
       throw new Error('suspended not defined');
     };
 
+    channel.setOptions = vi.fn<any, any>();
     channel.on = vi.fn<any, any>(async (name: string[], callback) => {
       if (name.includes('suspended')) {
         suspendChannel = () => {
@@ -41,14 +43,16 @@ describe('Model', () => {
         };
       }
     });
-    channel.subscribe = vi.fn<any, any>(
-      async (): Promise<Types.ChannelStateChange | null> => ({
+    const persistLast = createMessage(1);
+    channel.subscribe = vi.fn<any, any>(async (callback): Promise<Types.ChannelStateChange | null> => {
+      callback(persistLast);
+      return {
         current: 'attached',
         previous: 'attaching',
         resumed: false,
         hasBacklog: false,
-      }),
-    );
+      };
+    });
     channel.history = vi.fn<any, any>(
       async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => ({
         items: [],
@@ -58,11 +62,12 @@ describe('Model', () => {
     channel.detach = vi.fn<any, any>();
     ably.channels.release = vi.fn<any, any>();
 
-    let counter = 0;
+    let counter = 4;
 
     const sync = vi.fn(async () => ({
-      data: `${counter++}`,
-      sequenceID: '0',
+      data: `sync_${counter}`,
+      sequenceID: `${counter++}`,
+      stateTimestamp: Date.now(),
     }));
     const mergeFn = vi.fn(async (_, event) => {
       return event.data;
@@ -80,19 +85,17 @@ describe('Model', () => {
         eventBufferOptions: defaultEventBufferOptions,
       },
     );
-    await model.sync();
-
-    expect(sync).toHaveBeenCalledOnce();
 
     let subscription = new Subject<void>();
-    const subscriptionCalls = getEventPromises(subscription, 2);
+    const subscriptionCalls = getEventPromises(subscription, 3);
     const subscriptionSpy = vi.fn<[Error | null, string?]>(() => {
       subscription.next();
     });
     model.subscribe(subscriptionSpy);
+    expect(sync).toHaveBeenCalledOnce();
 
     await subscriptionCalls[0];
-    expect(subscriptionSpy).toHaveBeenNthCalledWith(1, null, '0');
+    expect(subscriptionSpy).toHaveBeenNthCalledWith(1, null, 'sync_4');
 
     await statePromise(model, 'ready');
 
@@ -100,7 +103,7 @@ describe('Model', () => {
     await statePromise(model, 'ready');
 
     await subscriptionCalls[1];
-    expect(subscriptionSpy).toHaveBeenNthCalledWith(2, null, '1');
+    expect(subscriptionSpy).toHaveBeenNthCalledWith(2, null, 'sync_5');
     expect(sync).toHaveBeenCalledTimes(2);
   });
 });

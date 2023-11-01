@@ -170,8 +170,8 @@ describe('OrderedHistoryResumer', () => {
       createMessage(1),
     ];
     // shuffle as the middleware should be resilient to some out-of-orderiness by sequenceID due to CGO
-    expect(middleware.addHistoricalMessages(shuffle(history))).toBe(true);
-    expect(() => middleware.addHistoricalMessages(history)).toThrowError(
+    expect(middleware.addHistoricalMessages(shuffle(history))).resolves.toBe(true);
+    expect(() => middleware.addHistoricalMessages(history)).rejects.toThrowError(
       'can only add historical messages while in seeking state',
     );
 
@@ -189,8 +189,8 @@ describe('OrderedHistoryResumer', () => {
     // construct history page newest to oldest
     let history: Types.Message[] = [createMessage(10), createMessage(2), createMessage(1), createMessage(0)];
     // shuffle as the middleware should be resilient to some out-of-orderiness by sequenceID due to CGO
-    expect(middleware.addHistoricalMessages(shuffle(history))).toBe(true);
-    expect(() => middleware.addHistoricalMessages(history)).toThrowError(
+    expect(middleware.addHistoricalMessages(shuffle(history))).resolves.toBe(true);
+    expect(() => middleware.addHistoricalMessages(history)).rejects.toThrowError(
       'can only add historical messages while in seeking state',
     );
 
@@ -209,8 +209,8 @@ describe('OrderedHistoryResumer', () => {
     // construct history page newest to oldest
     let history: Types.Message[] = [createMessage(10), createMessage(2), createMessage(1), createMessage(0)];
     // shuffle as the middleware should be resilient to some out-of-orderiness by sequenceID due to CGO
-    expect(middleware.addHistoricalMessages(shuffle(history))).toBe(true);
-    expect(() => middleware.addHistoricalMessages(history)).toThrowError(
+    expect(middleware.addHistoricalMessages(shuffle(history))).resolves.toBe(true);
+    expect(() => middleware.addHistoricalMessages(history)).rejects.toThrowError(
       'can only add historical messages while in seeking state',
     );
 
@@ -234,7 +234,7 @@ describe('OrderedHistoryResumer', () => {
       createMessage(2),
       createMessage(1),
     ];
-    expect(middleware.addHistoricalMessages(shuffle(history))).toBe(true);
+    expect(middleware.addHistoricalMessages(shuffle(history))).resolves.toBe(true);
 
     expect(subscription).toHaveBeenCalledTimes(3);
     expect(subscription).toHaveBeenNthCalledWith(1, null, history[2]);
@@ -258,8 +258,8 @@ describe('OrderedHistoryResumer', () => {
     const page1 = history.slice(0, history.length / 2);
     const page2 = history.slice(history.length / 2 + 1);
 
-    expect(middleware.addHistoricalMessages(shuffle(page1))).toBe(false);
-    expect(middleware.addHistoricalMessages(shuffle(page2))).toBe(true);
+    expect(middleware.addHistoricalMessages(shuffle(page1))).resolves.toBe(false);
+    expect(middleware.addHistoricalMessages(shuffle(page2))).resolves.toBe(true);
 
     expect(subscription).toHaveBeenCalledTimes(2);
     expect(subscription).toHaveBeenNthCalledWith(1, null, history[1]);
@@ -282,8 +282,8 @@ describe('OrderedHistoryResumer', () => {
     const page1 = history;
     const page2 = [];
 
-    expect(middleware.addHistoricalMessages(shuffle(page1))).toBe(false);
-    expect(middleware.addHistoricalMessages(shuffle(page2))).toBe(true);
+    expect(middleware.addHistoricalMessages(shuffle(page1))).resolves.toBe(false);
+    expect(middleware.addHistoricalMessages(shuffle(page2))).resolves.toBe(true);
 
     expect(subscription).toHaveBeenCalledTimes(5);
     expect(subscription).toHaveBeenNthCalledWith(1, null, history[4]);
@@ -310,7 +310,7 @@ describe('OrderedHistoryResumer', () => {
       createMessage(2),
       createMessage(1),
     ];
-    expect(middleware.addHistoricalMessages(shuffle(history))).toBe(true);
+    expect(middleware.addHistoricalMessages(shuffle(history))).resolves.toBe(true);
 
     expect(subscription).toHaveBeenCalledTimes(4);
     expect(subscription).toHaveBeenNthCalledWith(1, null, history[1]);
@@ -339,12 +339,12 @@ describe('OrderedHistoryResumer', () => {
     const page1 = history.slice(0, history.length / 2);
     const page2 = history.slice(history.length / 2 + 1);
 
-    expect(middleware.addHistoricalMessages(shuffle(page1))).toBe(false);
+    expect(middleware.addHistoricalMessages(shuffle(page1))).resolves.toBe(false);
 
     middleware.addLiveMessages(live[2]);
     middleware.addLiveMessages(live[3]);
 
-    expect(middleware.addHistoricalMessages(shuffle(page2))).toBe(true);
+    expect(middleware.addHistoricalMessages(shuffle(page2))).resolves.toBe(true);
 
     expect(subscription).toHaveBeenCalledTimes(6);
     expect(subscription).toHaveBeenNthCalledWith(1, null, history[1]);
