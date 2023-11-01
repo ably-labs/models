@@ -11,6 +11,7 @@ import type { ModelStateChange, ModelOptions } from './types/model.d.ts';
 import type { StreamOptions, StreamState } from './types/stream.js';
 import { EventListener } from './utilities/EventEmitter.js';
 import { statePromise, timeout } from './utilities/promises.js';
+import { fixedRetryStrategy } from './utilities/retries.js';
 import { createMessage, customMessage } from './utilities/test/messages.js';
 import { getNthEventPromise, getEventPromises } from './utilities/test/promises.js';
 
@@ -1362,7 +1363,7 @@ describe('Model', () => {
         ably,
         channelName,
         logger,
-        syncOptions: { ...defaultSyncOptions, retryStrategy: [1, 1, 1] },
+        syncOptions: { ...defaultSyncOptions, retryStrategy: fixedRetryStrategy(3, 1) },
         optimisticEventOptions: defaultOptimisticEventOptions,
         eventBufferOptions: defaultEventBufferOptions,
       },
@@ -1406,7 +1407,7 @@ describe('Model', () => {
         ably,
         channelName,
         logger,
-        syncOptions: { ...defaultSyncOptions, retryStrategy: [1, 1, 1] },
+        syncOptions: { ...defaultSyncOptions, retryStrategy: fixedRetryStrategy(3, 1) },
         optimisticEventOptions: defaultOptimisticEventOptions,
         eventBufferOptions: defaultEventBufferOptions,
       },
@@ -1509,7 +1510,7 @@ describe('Model', () => {
         ably,
         channelName,
         logger,
-        syncOptions: { ...defaultSyncOptions, retryStrategy: [1, 1, 1] },
+        syncOptions: { ...defaultSyncOptions, retryStrategy: fixedRetryStrategy(3, 1) },
         optimisticEventOptions: defaultOptimisticEventOptions,
         eventBufferOptions: defaultEventBufferOptions,
       },

@@ -20,9 +20,15 @@ import type {
   OptimisticEvent,
   ConfirmedEvent,
 } from './types/model.js';
-import { MODELS_EVENT_REJECT_HEADER, MODELS_EVENT_UUID_HEADER, OptimisticEventOptions } from './types/optimistic.js';
+import {
+  MODELS_EVENT_REJECT_HEADER,
+  MODELS_EVENT_UUID_HEADER,
+  OptimisticEventOptions,
+  RetryStrategyFunc,
+} from './types/optimistic.js';
 import EventEmitter from './utilities/EventEmitter.js';
 import { statePromise } from './utilities/promises.js';
+import { backoffRetryStrategy } from './utilities/retries.js';
 
 /**
  * A Model encapsulates an observable, collaborative data model backed by a transactional database in your backend.
@@ -42,7 +48,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
   private optimisticData!: T;
   private confirmedData!: T;
 
-  private syncRetries: number[];
+  private syncRetries: RetryStrategyFunc;
   private syncFunc: SyncFunc<T> = async () => {
     throw new Error('sync func not registered');
   };
@@ -94,7 +100,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
       this.options.optimisticEventOptions,
     );
 
-    this.syncRetries = options.syncOptions.retryStrategy || [2000, 4000, 8000];
+    this.syncRetries = options.syncOptions.retryStrategy || backoffRetryStrategy(4, 2, 1000);
     this.syncFunc = registration.sync;
     this.merge = registration.merge;
   }
@@ -345,21 +351,22 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
     } as ModelStateChange);
   }
 
-  private async retryable(retries: number[], fn: () => Promise<void>) {
-    if (retries.length === 0) {
+  private async retryable(retries: RetryStrategyFunc, fn: () => Promise<void>) {
+    let i = 1;
+    let delay = retries(1);
+
+    if (delay < 0) {
       await fn();
       return;
     }
 
-    let i = 0;
-    while (i < retries.length) {
-      const delay = retries[i];
+    while (delay > 0) {
       try {
         await fn();
         return;
       } catch (err) {
-        i++;
-        if (i >= retries.length) {
+        delay = retries(++i);
+        if (delay < 0) {
           throw err;
         }
         await new Promise((resolve) => setTimeout(resolve, delay));
