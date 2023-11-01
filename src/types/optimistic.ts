@@ -44,14 +44,14 @@ export type SyncOptions = {
   messageRetentionPeriod: '2m' | '24h' | '72h';
 
   /**
-   * The retry strategy to use. An array of durations in milliseconds to wait between each retry.
-   * Passing an array of [2000, 4000, 8000] would configure the sync funciton to retry 3 times,
-   * waiting 2seconds, then 4seconds, then 8seconds. The sync function will be retried if it
-   * throws an error, and if the retries are exhausted the most recent error will be thrown.
-   * Defaults to [2000, 4000, 8000]
+   * The retry strategy to use. A function that calculates the next retry duration, returning
+   * it in milliseconds. Returning a duration less than 0 will stop the retries.
+   * If not set, uses a default backoff retry strategy.
    */
-  retryStrategy?: number[];
+  retryStrategy?: RetryStrategyFunc;
 };
+
+export type RetryStrategyFunc = (attempt: number) => number;
 
 /**
  * OptimisticInvocationParams are parameters passed when submitting a set of optimistic events.
