@@ -22,19 +22,19 @@ export function fixedRetryStrategy(totalAttempts: number, durationMs: number): R
  * the attempt number. For example; backoffFactor=2, initialDuration=1000 would return
  * in order for each increasing attempt number: 1000, 2000, 4000, 8000, 16000, etc.
  * But using the same arguments with maxDuration=4000 would return: 1000, 2000, 4000, 4000, 4000, etc.
- * @param {number} totalAttempts - the total number of retry attempts allowed.
  * @param {number} backoffFactor - the factor by which to increase the backoff.
  * @param {number} initialDuration - the first retry wait time duration in milliseconds.
+ * @param {number} maxAttempts - the total number of retry attempts allowed. Defaults to -1, indicating infinite retries.
  * @param {number} maxDuration - the upper limit on the wait time duration in milliseconds, defaults to 1 minute.
  */
 export function backoffRetryStrategy(
-  totalAttempts: number,
   backoffFactor: number,
   initialDuration: number,
+  maxAttempts: number = -1,
   maxDuration: number = 60000,
 ): RetryStrategyFunc {
   return (attempts) => {
-    if (attempts > totalAttempts) {
+    if (maxAttempts >= 0 && attempts > maxAttempts) {
       return -1;
     }
 

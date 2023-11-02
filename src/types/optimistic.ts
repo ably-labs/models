@@ -51,6 +51,14 @@ export type SyncOptions = {
   retryStrategy?: RetryStrategyFunc;
 };
 
+/**
+ * The retry strategy definition. A function that calculates the next retry duration,
+ * returning it in milliseconds. Returning a duration less than 0 will stop the retries.
+ * @param {number} attempt - the attempt number, provided automatically by the SDK when
+ * using this strategy function.
+ * @returns {number} - the number of milliseconds to wait before retrying, return a number
+ * les than zero to stop retrying.
+ */
 export type RetryStrategyFunc = (attempt: number) => number;
 
 /**
