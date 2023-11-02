@@ -144,6 +144,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
       sequenceID,
       this.options.eventBufferOptions.bufferMs,
       this.options.eventBufferOptions.eventOrderer,
+      this.options.eventBufferOptions.persistLastWaitTime,
     );
     this.middleware.subscribe(this.onMiddlewareMessage.bind(this));
 

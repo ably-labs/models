@@ -47,10 +47,52 @@ describe('Stream', () => {
 
   it<StreamTestContext>('successfully syncs with no history', async ({ ably, logger, channelName }) => {
     const channel = ably.channels.get(channelName);
-    const persistLast = createMessage(0);
+    channel.subscribe = vi.fn<any, any>(async (): Promise<Types.ChannelStateChange | null> => {
+      return {
+        current: 'attached',
+        previous: 'attaching',
+        resumed: false,
+        hasBacklog: false,
+      };
+    });
+    channel.history = vi.fn<any, any>(
+      async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => ({
+        items: [],
+        hasNext: () => false,
+      }),
+    );
+
+    const stream = new Stream({
+      ably,
+      logger,
+      channelName: 'foobar',
+      syncOptions: defaultSyncOptions,
+      // set the persistLastWaitTime to a low number (1ms) because there are no
+      // messages on the channel so we don't want to wait seconds in this test case.
+      eventBufferOptions: { ...defaultEventBufferOptions, persistLastWaitTime: 1 },
+    });
+    const replayPromise = stream.replay('0');
+
+    await statePromise(stream, 'seeking');
+    await expect(replayPromise).resolves.toBeUndefined();
+    expect(stream.state).toBe('ready');
+
+    expect(channel.subscribe).toHaveBeenCalledOnce();
+    expect(channel.history).toHaveBeenCalledOnce();
+    expect(channel.history).toHaveBeenNthCalledWith(1, {
+      untilAttach: true,
+      limit: defaultSyncOptions.historyPageSize,
+    });
+  });
+
+  it<StreamTestContext>('fails to sync with too recent persist last', async ({ ably, logger, channelName }) => {
+    const channel = ably.channels.get(channelName);
+    // persistLast is set to sequenceID 5,
+    // but sync function returns sequenceID 0,
+    // so replay is called with sequenceID 0.
+    const persistLast = createMessage(5);
     channel.subscribe = vi.fn<any, any>(async (callback): Promise<Types.ChannelStateChange | null> => {
       callback(persistLast);
-
       return {
         current: 'attached',
         previous: 'attaching',
@@ -75,8 +117,10 @@ describe('Stream', () => {
     const replayPromise = stream.replay('0');
 
     await statePromise(stream, 'seeking');
-    await expect(replayPromise).resolves.toBeUndefined();
-    expect(stream.state).toBe('ready');
+    await expect(replayPromise).rejects.toThrowError(
+      new Error('insufficient history to seek to sequenceID 0 in stream'),
+    );
+    expect(stream.state).toBe('errored');
 
     expect(channel.subscribe).toHaveBeenCalledOnce();
     expect(channel.history).toHaveBeenCalledOnce();

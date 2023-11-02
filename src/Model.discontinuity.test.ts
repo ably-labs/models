@@ -29,7 +29,7 @@ describe('Model', () => {
     context.channelName = 'models:myModel:events';
   });
 
-  it.only<ModelTestContext>('handles discontinuity with resync', async ({ channelName, ably, logger }) => {
+  it<ModelTestContext>('handles discontinuity with resync', async ({ channelName, ably, logger }) => {
     const channel = ably.channels.get('foo');
     let suspendChannel: (...args: any[]) => void = () => {
       throw new Error('suspended not defined');

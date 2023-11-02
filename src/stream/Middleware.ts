@@ -111,6 +111,7 @@ export class OrderedHistoryResumer extends MiddlewareBase {
     private sequenceID: string,
     private readonly windowSizeMs: number,
     private readonly eventOrderer: EventOrderer = numericOtherwiseLexicographicOrderer,
+    private readonly persistLastWaitTime: number = 3000,
   ) {
     super();
     this.slidingWindow = new SlidingWindow(this.windowSizeMs, this.eventOrderer);
@@ -148,12 +149,12 @@ export class OrderedHistoryResumer extends MiddlewareBase {
       // and we can't reach back far enough to resume from the correct point.
       const noHistory = this.historicalMessages.length === 0;
       if (noHistory) {
-        const persistLast = await this.waitForPersistLast();
+        const persistLastID = await this.waitForPersistLast();
         this.realtimeMessages.shift();
 
         // If the last message's id is larger than the sequenceID we want to find,
         // then we can reasonably assume we are missing messages from history.
-        const missingHistoryMessages = persistLast.id > this.sequenceID;
+        const missingHistoryMessages = persistLastID > this.sequenceID;
         if (missingHistoryMessages) {
           this.flush();
           return true;
@@ -219,17 +220,22 @@ export class OrderedHistoryResumer extends MiddlewareBase {
     super.unsubscribeAll();
   }
 
-  private waitForPersistLast(): Promise<AblyTypes.Message> {
-    return new Promise((resolve, reject) => {
+  private waitForPersistLast(): Promise<string> {
+    return new Promise((resolve) => {
       const start = Date.now();
 
       const checkMessage = () => {
         if (this.realtimeMessages.length >= 1) {
-          resolve(this.realtimeMessages[0]);
-        } else if (Date.now() - start > 3000) {
-          reject(
-            new Error('could not find persist last realtime message, ensure persist last is enabled for the channel'),
-          );
+          resolve(this.realtimeMessages[0].id);
+        } else if (Date.now() - start > this.persistLastWaitTime) {
+          // We could be missing the persist last message because:
+          // - there have been messages on the channel but persist last
+          //   is not enabled and the messages expired.
+          // - there have not been messages on the channel
+          // We assume the second case, because it represents starting a
+          // brand new model on a new channel, which would fail if we
+          // assumed the first case.
+          resolve(this.sequenceID);
         } else {
           setTimeout(checkMessage, 100);
         }
