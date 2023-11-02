@@ -452,13 +452,27 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
     try {
       await this.resync(toError(err));
     } catch (error) {
-      await this.pause();
       this.logger.warn(
         { ...this.baseLogContext, action: 'streamEventCallback' },
-        `error when trying to resync model after error in stream subscibe callback, retrying in 30seconds`,
+        `error when trying to resync model after error in stream subscibe callback, pausing model and attempting to resume`,
       );
+      await this.pause();
+      await this.handleErrorResume();
+    }
+  }
 
-      setTimeout(() => this.handleOnStreamMessageError(toError(error)), 30_000);
+  private async handleErrorResume() {
+    for (;;) {
+      try {
+        await this.resume();
+        return;
+      } catch (error) {
+        this.logger.warn(
+          { ...this.baseLogContext, action: 'handleErrorResume' },
+          `error when trying to resume model after error in stream subscibe callback, retrying in 30seconds`,
+        );
+        await new Promise<void>((resolve) => setTimeout(() => resolve(), 30_000));
+      }
     }
   }
 
