@@ -48,7 +48,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
   private optimisticData!: T;
   private confirmedData!: T;
 
-  private syncRetries: RetryStrategyFunc;
+  private syncRetryStrategy: RetryStrategyFunc;
   private syncFunc: SyncFunc<T> = async () => {
     throw new Error('sync func not registered');
   };
@@ -100,7 +100,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
       this.options.optimisticEventOptions,
     );
 
-    this.syncRetries = options.syncOptions.retryStrategy || backoffRetryStrategy(4, 2, 1000);
+    this.syncRetryStrategy = options.syncOptions.retryStrategy || backoffRetryStrategy(2, 1000);
     this.syncFunc = registration.sync;
     this.merge = registration.merge;
   }
@@ -391,7 +391,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
     };
 
     try {
-      await this.retryable(this.syncRetries, fn);
+      await this.retryable(this.syncRetryStrategy, fn);
     } catch (err) {
       this.setState('errored', toError(err));
       throw err;
@@ -455,8 +455,10 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
       await this.pause();
       this.logger.warn(
         { ...this.baseLogContext, action: 'streamEventCallback' },
-        `unrecoverable error when trying to resync model after failed channel event`,
+        `error when trying to resync model after error in stream subscibe callback, retrying in 30seconds`,
       );
+
+      setTimeout(() => this.handleOnStreamMessageError(toError(error)), 30_000);
     }
   }
 
