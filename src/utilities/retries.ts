@@ -1,18 +1,18 @@
 import { RetryStrategyFunc } from '../types/optimistic.js';
 
 /**
- * fixedRetryStrategy returns the same retry duration for all attempts up to the totalAttempts.
- * @param {number} totalAttempts - the total number of retry attempts allowed.
+ * fixedRetryStrategy returns the same retry duration for all attempts up to the maxAttempts.
  * @param {number} durationMs - the fixed duration in milliseconds of each retry wait time.
+ * @param {number} maxAttempts - the total number of retry attempts allowed. Defaults to -1, indicating infinite retries.
  * @returns {RetryStrategyFunc} - the strategy function
  */
-export function fixedRetryStrategy(totalAttempts: number, durationMs: number): RetryStrategyFunc {
+export function fixedRetryStrategy(durationMs: number, maxAttempts: number = -1): RetryStrategyFunc {
   return (attempts) => {
-    if (attempts > totalAttempts) {
+    if (maxAttempts >= 0 && attempts > maxAttempts) {
       return -1;
     }
 
-    return attempts * durationMs;
+    return durationMs;
   };
 }
 
