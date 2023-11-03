@@ -476,7 +476,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
         throw error;
       }
     };
-    this.retryable(fixedRetryStrategy(15_000), fn);
+    await this.retryable(fixedRetryStrategy(15_000), fn);
   }
 
   private setOptimisticData(data: T) {
