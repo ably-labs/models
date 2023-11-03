@@ -134,6 +134,10 @@ export class OrderedHistoryResumer extends MiddlewareBase {
     return this.eventOrderer(a, b) <= 0;
   }
 
+  private messageBefore(a: string, b: string) {
+    return this.eventOrderer(a, b) < 0;
+  }
+
   public get state() {
     return this.currentState;
   }
@@ -152,9 +156,10 @@ export class OrderedHistoryResumer extends MiddlewareBase {
         const persistLastID = await this.waitForPersistLast();
         this.realtimeMessages.shift();
 
-        // If the last message's id is larger than the sequenceID we want to find,
-        // then we can reasonably assume we are missing messages from history.
-        const missingHistoryMessages = persistLastID > this.sequenceID;
+        // If the sequenceID we are seeking happened before the last message
+        // received from persistLast then we can reasonably assume we are missing
+        // messages from history (the messages probably expired).
+        const missingHistoryMessages = this.messageBefore(this.sequenceID, persistLastID);
         if (missingHistoryMessages) {
           this.flush();
           return true;

@@ -62,7 +62,7 @@ describe('Model', () => {
     channel.detach = vi.fn<any, any>();
     ably.channels.release = vi.fn<any, any>();
 
-    let counter = 4;
+    let counter = 100;
 
     const sync = vi.fn(async () => ({
       data: `sync_${counter}`,
@@ -87,7 +87,7 @@ describe('Model', () => {
     );
 
     let subscription = new Subject<void>();
-    const subscriptionCalls = getEventPromises(subscription, 3);
+    const subscriptionCalls = getEventPromises(subscription, 2);
     const subscriptionSpy = vi.fn<[Error | null, string?]>(() => {
       subscription.next();
     });
@@ -95,7 +95,7 @@ describe('Model', () => {
     expect(sync).toHaveBeenCalledOnce();
 
     await subscriptionCalls[0];
-    expect(subscriptionSpy).toHaveBeenNthCalledWith(1, null, 'sync_4');
+    expect(subscriptionSpy).toHaveBeenNthCalledWith(1, null, 'sync_100');
 
     await statePromise(model, 'ready');
 
@@ -103,7 +103,7 @@ describe('Model', () => {
     await statePromise(model, 'ready');
 
     await subscriptionCalls[1];
-    expect(subscriptionSpy).toHaveBeenNthCalledWith(2, null, 'sync_5');
+    expect(subscriptionSpy).toHaveBeenNthCalledWith(2, null, 'sync_101');
     expect(sync).toHaveBeenCalledTimes(2);
   });
 });

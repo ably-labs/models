@@ -348,14 +348,14 @@ describe('Stream', () => {
     const subscriptionSpy = vi.fn<any, any>();
     stream.subscribe(subscriptionSpy);
 
-    for (let i = 0; i < 10; i++) {
+    for (let i = 1; i <= 10; i++) {
       messages.next(createMessage(i));
     }
 
     // the 0th message is the sync boundary and should not be emitted
     expect(subscriptionSpy).toHaveBeenCalledTimes(10);
-    for (let i = 0; i < 10; i++) {
-      expect(subscriptionSpy).toHaveBeenNthCalledWith(i + 1, null, createMessage(i));
+    for (let i = 1; i <= 10; i++) {
+      expect(subscriptionSpy).toHaveBeenNthCalledWith(i, null, createMessage(i));
     }
 
     expect(channel.subscribe).toHaveBeenCalledOnce();

@@ -155,7 +155,7 @@ describe('SlidingWindow', () => {
 });
 
 describe('OrderedHistoryResumer', () => {
-  it('emits messages after the boundary from shuffled page', () => {
+  it('emits messages after the boundary from shuffled page', async () => {
     const sequenceID = 3;
     const middleware = new OrderedHistoryResumer(`${sequenceID}`, 0);
     const subscription = vi.fn();
@@ -170,8 +170,8 @@ describe('OrderedHistoryResumer', () => {
       createMessage(1),
     ];
     // shuffle as the middleware should be resilient to some out-of-orderiness by sequenceID due to CGO
-    expect(middleware.addHistoricalMessages(shuffle(history))).resolves.toBe(true);
-    expect(() => middleware.addHistoricalMessages(history)).rejects.toThrowError(
+    await expect(middleware.addHistoricalMessages(shuffle(history))).resolves.toBe(true);
+    await expect(() => middleware.addHistoricalMessages(history)).rejects.toThrowError(
       'can only add historical messages while in seeking state',
     );
 
@@ -180,7 +180,7 @@ describe('OrderedHistoryResumer', () => {
     expect(subscription).toHaveBeenNthCalledWith(2, null, history[0]);
   });
 
-  it('orders numerically', () => {
+  it('orders numerically', async () => {
     const sequenceID = 0;
     const middleware = new OrderedHistoryResumer(`${sequenceID}`, 0);
     const subscription = vi.fn();
@@ -189,8 +189,8 @@ describe('OrderedHistoryResumer', () => {
     // construct history page newest to oldest
     let history: Types.Message[] = [createMessage(10), createMessage(2), createMessage(1), createMessage(0)];
     // shuffle as the middleware should be resilient to some out-of-orderiness by sequenceID due to CGO
-    expect(middleware.addHistoricalMessages(shuffle(history))).resolves.toBe(true);
-    expect(() => middleware.addHistoricalMessages(history)).rejects.toThrowError(
+    await expect(middleware.addHistoricalMessages(shuffle(history))).resolves.toBe(true);
+    await expect(() => middleware.addHistoricalMessages(history)).rejects.toThrowError(
       'can only add historical messages while in seeking state',
     );
 
@@ -200,7 +200,7 @@ describe('OrderedHistoryResumer', () => {
     expect(subscription).toHaveBeenNthCalledWith(3, null, history[0]);
   });
 
-  it('orders lexicographically', () => {
+  it('orders lexicographically', async () => {
     const sequenceID = 0;
     const middleware = new OrderedHistoryResumer(`${sequenceID}`, 0, lexicographicOrderer);
     const subscription = vi.fn();
@@ -209,8 +209,8 @@ describe('OrderedHistoryResumer', () => {
     // construct history page newest to oldest
     let history: Types.Message[] = [createMessage(10), createMessage(2), createMessage(1), createMessage(0)];
     // shuffle as the middleware should be resilient to some out-of-orderiness by sequenceID due to CGO
-    expect(middleware.addHistoricalMessages(shuffle(history))).resolves.toBe(true);
-    expect(() => middleware.addHistoricalMessages(history)).rejects.toThrowError(
+    await expect(middleware.addHistoricalMessages(shuffle(history))).resolves.toBe(true);
+    await expect(() => middleware.addHistoricalMessages(history)).rejects.toThrowError(
       'can only add historical messages while in seeking state',
     );
 
@@ -220,7 +220,7 @@ describe('OrderedHistoryResumer', () => {
     expect(subscription).toHaveBeenNthCalledWith(3, null, history[1]);
   });
 
-  it('emits messages after the boundary with sparse sequence', () => {
+  it('emits messages after the boundary with sparse sequence', async () => {
     const sequenceID = 3;
     const middleware = new OrderedHistoryResumer(`${sequenceID}`, 0);
     const subscription = vi.fn();
@@ -234,7 +234,7 @@ describe('OrderedHistoryResumer', () => {
       createMessage(2),
       createMessage(1),
     ];
-    expect(middleware.addHistoricalMessages(shuffle(history))).resolves.toBe(true);
+    await expect(middleware.addHistoricalMessages(shuffle(history))).resolves.toBe(true);
 
     expect(subscription).toHaveBeenCalledTimes(3);
     expect(subscription).toHaveBeenNthCalledWith(1, null, history[2]);
@@ -242,7 +242,7 @@ describe('OrderedHistoryResumer', () => {
     expect(subscription).toHaveBeenNthCalledWith(3, null, history[0]);
   });
 
-  it('emits messages after the boundary from multiple pages', () => {
+  it('emits messages after the boundary from multiple pages', async () => {
     const sequenceID = 3;
     const middleware = new OrderedHistoryResumer(`${sequenceID}`, 0);
     const subscription = vi.fn();
@@ -258,15 +258,15 @@ describe('OrderedHistoryResumer', () => {
     const page1 = history.slice(0, history.length / 2);
     const page2 = history.slice(history.length / 2 + 1);
 
-    expect(middleware.addHistoricalMessages(shuffle(page1))).resolves.toBe(false);
-    expect(middleware.addHistoricalMessages(shuffle(page2))).resolves.toBe(true);
+    await expect(middleware.addHistoricalMessages(shuffle(page1))).resolves.toBe(false);
+    await expect(middleware.addHistoricalMessages(shuffle(page2))).resolves.toBe(true);
 
     expect(subscription).toHaveBeenCalledTimes(2);
     expect(subscription).toHaveBeenNthCalledWith(1, null, history[1]);
     expect(subscription).toHaveBeenNthCalledWith(2, null, history[0]);
   });
 
-  it('flushes when empty history page reached', () => {
+  it('flushes when empty history page reached', async () => {
     const sequenceID = 0; // out of reach
     const middleware = new OrderedHistoryResumer(`${sequenceID}`, 0);
     const subscription = vi.fn();
@@ -282,8 +282,8 @@ describe('OrderedHistoryResumer', () => {
     const page1 = history;
     const page2 = [];
 
-    expect(middleware.addHistoricalMessages(shuffle(page1))).resolves.toBe(false);
-    expect(middleware.addHistoricalMessages(shuffle(page2))).resolves.toBe(true);
+    await expect(middleware.addHistoricalMessages(shuffle(page1))).resolves.toBe(false);
+    await expect(middleware.addHistoricalMessages(shuffle(page2))).resolves.toBe(true);
 
     expect(subscription).toHaveBeenCalledTimes(5);
     expect(subscription).toHaveBeenNthCalledWith(1, null, history[4]);
@@ -293,7 +293,7 @@ describe('OrderedHistoryResumer', () => {
     expect(subscription).toHaveBeenNthCalledWith(5, null, history[0]);
   });
 
-  it('merges historical messages with live messages', () => {
+  it('merges historical messages with live messages', async () => {
     const sequenceID = 3;
     const middleware = new OrderedHistoryResumer(`${sequenceID}`, 0);
     const subscription = vi.fn();
@@ -310,7 +310,7 @@ describe('OrderedHistoryResumer', () => {
       createMessage(2),
       createMessage(1),
     ];
-    expect(middleware.addHistoricalMessages(shuffle(history))).resolves.toBe(true);
+    await expect(middleware.addHistoricalMessages(shuffle(history))).resolves.toBe(true);
 
     expect(subscription).toHaveBeenCalledTimes(4);
     expect(subscription).toHaveBeenNthCalledWith(1, null, history[1]);
@@ -319,7 +319,7 @@ describe('OrderedHistoryResumer', () => {
     expect(subscription).toHaveBeenNthCalledWith(4, null, live[1]);
   });
 
-  it('merges multiple pages of historical messages with live messages', () => {
+  it('merges multiple pages of historical messages with live messages', async () => {
     const sequenceID = 3;
     const middleware = new OrderedHistoryResumer(`${sequenceID}`, 0);
     const subscription = vi.fn();
@@ -339,12 +339,12 @@ describe('OrderedHistoryResumer', () => {
     const page1 = history.slice(0, history.length / 2);
     const page2 = history.slice(history.length / 2 + 1);
 
-    expect(middleware.addHistoricalMessages(shuffle(page1))).resolves.toBe(false);
+    await expect(middleware.addHistoricalMessages(shuffle(page1))).resolves.toBe(false);
 
     middleware.addLiveMessages(live[2]);
     middleware.addLiveMessages(live[3]);
 
-    expect(middleware.addHistoricalMessages(shuffle(page2))).resolves.toBe(true);
+    await expect(middleware.addHistoricalMessages(shuffle(page2))).resolves.toBe(true);
 
     expect(subscription).toHaveBeenCalledTimes(6);
     expect(subscription).toHaveBeenNthCalledWith(1, null, history[1]);
@@ -353,5 +353,30 @@ describe('OrderedHistoryResumer', () => {
     expect(subscription).toHaveBeenNthCalledWith(4, null, live[1]);
     expect(subscription).toHaveBeenNthCalledWith(5, null, live[2]);
     expect(subscription).toHaveBeenNthCalledWith(6, null, live[3]);
+  });
+
+  it('checks for missing history using persist-last realtime message', async () => {
+    const seekingSequenceID = 5;
+    const persistLastSequenceID = 10;
+    const persistLast = createMessage(persistLastSequenceID);
+
+    const middleware = new OrderedHistoryResumer(`${seekingSequenceID}`, 0);
+    const subscription = vi.fn();
+    middleware.subscribe(subscription);
+
+    // no history, single persist last message received from realtime
+    const historical = middleware.addHistoricalMessages([]);
+    middleware.addLiveMessages(persistLast);
+
+    // an extra live message that should be received
+    const liveMessage = createMessage(persistLastSequenceID + 1);
+    middleware.addLiveMessages(liveMessage);
+
+    await expect(historical).resolves.toEqual(true);
+    // middleware does not transition to success
+    expect(middleware.state).not.toEqual('success');
+
+    expect(subscription).toHaveBeenCalledTimes(1);
+    expect(subscription).toHaveBeenNthCalledWith(1, null, liveMessage);
   });
 });
