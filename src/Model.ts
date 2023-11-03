@@ -28,7 +28,7 @@ import {
 } from './types/optimistic.js';
 import EventEmitter from './utilities/EventEmitter.js';
 import { statePromise } from './utilities/promises.js';
-import { backoffRetryStrategy } from './utilities/retries.js';
+import { backoffRetryStrategy, fixedRetryStrategy } from './utilities/retries.js';
 
 /**
  * A Model encapsulates an observable, collaborative data model backed by a transactional database in your backend.
@@ -462,7 +462,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
   }
 
   private async handleErrorResume() {
-    for (;;) {
+    const fn = async () => {
       try {
         await this.resume();
         return;
@@ -471,9 +471,12 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
           { ...this.baseLogContext, action: 'handleErrorResume' },
           `error when trying to resume model after error in stream subscibe callback, retrying in 30seconds`,
         );
-        await new Promise<void>((resolve) => setTimeout(() => resolve(), 30_000));
+        // Make sure we are paused before the retry wait time kicks in
+        await this.pause();
+        throw error;
       }
-    }
+    };
+    this.retryable(fixedRetryStrategy(15_000), fn);
   }
 
   private setOptimisticData(data: T) {
