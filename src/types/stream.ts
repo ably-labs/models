@@ -30,14 +30,6 @@ export type EventBufferOptions = {
    * lexicographical order of the message ids within the buffer.
    */
   eventOrderer: EventOrderer;
-
-  /**
-   * The time to wait for the last message to be received on the channel.
-   * Used to calculate if the state that's returned from the sync function
-   * is recent enough to be matched against the avaialble channel messages.
-   * Defaults to 3 seconds.
-   */
-  persistLastWaitTime?: number;
 };
 
 /**

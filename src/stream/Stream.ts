@@ -32,6 +32,10 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
   private readonly baseLogContext: Partial<{ scope: string; action: string }>;
   private readonly logger: Logger;
 
+  protected get persistLastWaitTime() {
+    return 3000;
+  }
+
   constructor(readonly options: StreamOptions) {
     super();
     this.ably = options.ably;
@@ -144,7 +148,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
       sequenceID,
       this.options.eventBufferOptions.bufferMs,
       this.options.eventBufferOptions.eventOrderer,
-      this.options.eventBufferOptions.persistLastWaitTime,
+      this.persistLastWaitTime,
     );
     this.middleware.subscribe(this.onMiddlewareMessage.bind(this));
 

@@ -46,6 +46,14 @@ describe('Stream', () => {
   });
 
   it<StreamTestContext>('successfully syncs with no history', async ({ ably, logger, channelName }) => {
+    class StreamWithNoWait extends Stream {
+      // set the persistLastWaitTime to a low number (1ms) because there are no
+      // messages on the channel so we don't want to wait seconds in this test case.
+      protected get persistLastWaitTime() {
+        return 1;
+      }
+    }
+
     const channel = ably.channels.get(channelName);
     channel.subscribe = vi.fn<any, any>(async (): Promise<Types.ChannelStateChange | null> => {
       return {
@@ -62,14 +70,12 @@ describe('Stream', () => {
       }),
     );
 
-    const stream = new Stream({
+    const stream = new StreamWithNoWait({
       ably,
       logger,
       channelName: 'foobar',
       syncOptions: defaultSyncOptions,
-      // set the persistLastWaitTime to a low number (1ms) because there are no
-      // messages on the channel so we don't want to wait seconds in this test case.
-      eventBufferOptions: { ...defaultEventBufferOptions, persistLastWaitTime: 1 },
+      eventBufferOptions: defaultEventBufferOptions,
     });
     const replayPromise = stream.replay('0');
 
