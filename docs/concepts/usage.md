@@ -44,24 +44,28 @@ const model = modelsClient.models.get<Post>({
 To initialise the data in your model, we need to provide it with a *sync function*. The sync function has the following type:
 
 ```ts
-type SyncFunc<T> = () => Promise<T>;
+type SyncFunc<T, P> = (params?: P) => Promise<T>;
 ```
 
-i.e it can be any function that returns a promise with the latest state of your data model. Typically, you would implement this as a function which retrieves the model state from your backend over the network. For example, we might have a REST HTTP API endpoint which returns the data for our post:
+i.e it can be any function that returns a promise with the latest state of your data model, and optionally accepts some params. Typically, you would implement this as a function which retrieves the model state from your backend over the network. The params allow the model to be parameterised, or paginated. For example, we might have a REST HTTP API endpoint which returns the data for our post:
 
 ```ts
-async function sync() {
-  const result = await fetch('/api/post');
+type Params = {id: string, page: number}
+
+async function sync(params: Params) {
+  const result = await fetch(`/api/post/${id}?page=${page}`);
   return result.json();
 }
 
-const model = modelsClient.models.get<Post>({
+const model = modelsClient.models.get<Post, Params>({
   sync: /* ... */,
   /* other registrations */
 })
 ```
 
-The model will invoke this function at the start of its lifecycle to initialise your model state. Additionally, this function will be invoked if the model needs to re-synchronise at any point, for example after an extended period of network disconnectivity.
+The model will invoke this function at the start of its lifecycle to initialise your model state. Additionally, this function will be invoked if the model needs to re-synchronise at any point, for example after an extended period of network disconnectivity. When the SDK needs to automatically re-synchronise it will use the params from the last call to the sync function.
+
+The params are optional, and can be left out by omitting them from the sync function definition, and leaving out the second type parameter when getting a model.
 
 ## Merge Functions
 
