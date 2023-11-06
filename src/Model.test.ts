@@ -126,7 +126,7 @@ describe('Model', () => {
     expect([undefined, { current: 'ready', previous: 'syncing', reason: undefined }]).toContain(syncResult);
   });
 
-  it<ModelTestContext>('allows sync to be called manually', async ({ channelName, ably, logger }) => {
+  it<ModelTestContext>('allows sync to be called manually, with params', async ({ channelName, ably, logger }) => {
     let completeSync: (...args: any[]) => void = () => {
       throw new Error('completeSync not defined');
     };
@@ -139,7 +139,7 @@ describe('Model', () => {
 
     const merge = vi.fn(async (_, event) => event.data);
 
-    const model = new Model<string>(
+    const model = new Model<string, [number, string]>(
       'test',
       { sync, merge },
       {
@@ -151,7 +151,7 @@ describe('Model', () => {
         eventBufferOptions: defaultEventBufferOptions,
       },
     );
-    const ready = model.sync();
+    const ready = model.sync([1, 'hello']);
 
     await statePromise(model, 'syncing');
     completeSync();
@@ -173,7 +173,7 @@ describe('Model', () => {
       completeSync = resolve;
     });
 
-    const resynced = model.sync();
+    const resynced = model.sync([2, 'world']);
     await statePromise(model, 'syncing');
     completeSync();
     await resynced;
@@ -182,6 +182,9 @@ describe('Model', () => {
 
     expect(model.data.confirmed).toEqual('confirmed_1');
     expect(model.data.optimistic).toEqual('optimistic');
+
+    expect(sync).toHaveBeenNthCalledWith(1, [1, 'hello']);
+    expect(sync).toHaveBeenNthCalledWith(2, [2, 'world']);
   });
 
   it<ModelTestContext>('replays from the correct point in the stream', async ({

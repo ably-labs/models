@@ -43,15 +43,16 @@ import { backoffRetryStrategy, fixedRetryStrategy } from './utilities/retries.js
  *
  * @extends {EventEmitter<Record<ModelState, ModelStateChange>>} Allows you to listen for model state changes to hook into the model lifecycle.
  */
-export default class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
+export default class Model<T, P = []> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   private currentState: ModelState = 'initialized';
   private optimisticData!: T;
   private confirmedData!: T;
 
   private syncRetryStrategy: RetryStrategyFunc;
-  private syncFunc: SyncFunc<T> = async () => {
+  private syncFunc: SyncFunc<T, P> = async () => {
     throw new Error('sync func not registered');
   };
+  private lastSyncParams?: P;
   private merge: MergeFunc<T> = async () => {
     throw new Error('merge func not registered');
   };
@@ -79,7 +80,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
    * @param {string} name - A unique name used to identify this model in your application.
    * @param {ModelOptions} options - Options used to configure this model instance.
    */
-  constructor(readonly name: string, registration: Registration<T>, readonly options: ModelOptions) {
+  constructor(readonly name: string, registration: Registration<T, P>, readonly options: ModelOptions) {
     super();
     this.logger = this.options.logger;
     this.baseLogContext = { scope: `Model:${name}` };
@@ -152,7 +153,8 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
    * The sync function that allows the model to be manually resynced
    * @returns A promise that resolves when the model has successfully re-synchronised its state and is ready to start emitting updates.
    */
-  public async sync() {
+  public async sync(params?: P) {
+    this.lastSyncParams = params || this.lastSyncParams;
     await this.resync();
     return statePromise(this, 'ready');
   }
@@ -252,7 +254,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
     this.logger.trace({ ...this.baseLogContext, action: 'subscribe()', options });
 
     if (this.state === 'initialized') {
-      await this.sync();
+      await this.sync(this.lastSyncParams);
     }
 
     if (this.state === 'disposed') {
@@ -383,7 +385,7 @@ export default class Model<T> extends EventEmitter<Record<ModelState, ModelState
 
     const fn = async () => {
       this.removeStream();
-      const { data, sequenceID } = await this.syncFunc();
+      const { data, sequenceID } = await this.syncFunc(this.lastSyncParams);
       this.setConfirmedData(data);
       await this.computeState(this.confirmedData, this.optimisticData, this.optimisticEvents);
       await this.addStream(sequenceID);

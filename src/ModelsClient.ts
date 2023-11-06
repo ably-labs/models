@@ -12,7 +12,7 @@ import type { EventBufferOptions } from './types/stream.js';
  */
 export default class ModelsClient {
   private opts: Omit<ModelOptions, 'channelName'>;
-  private modelInstances: Record<string, Model<any>> = {};
+  private modelInstances: Record<string, Model<any, any>> = {};
 
   readonly version = '0.0.1';
 
@@ -57,7 +57,7 @@ export default class ModelsClient {
        * The names and funcitons will be automatically setup on the model returned.
        * The model will not start until you call model.sync() or model.subscribe()
        */
-      get: <T>(spec: ModelSpec<T>) => {
+      get: <T, P = []>(spec: ModelSpec<T, P>) => {
         const name = spec.name;
         const channelName = spec.channelName;
 
@@ -66,13 +66,13 @@ export default class ModelsClient {
         }
 
         if (this.modelInstances[name]) {
-          return this.modelInstances[name] as Model<T>;
+          return this.modelInstances[name] as Model<T, P>;
         }
 
-        const model = new Model<T>(name, spec, { ...this.opts, channelName });
+        const model = new Model<T, P>(name, spec, { ...this.opts, channelName });
         this.modelInstances[name] = model;
 
-        return model as Model<T>;
+        return model as Model<T, P>;
       },
     };
   }
