@@ -103,4 +103,81 @@ describe('Model', () => {
     expect(subscriptionSpy).toHaveBeenNthCalledWith(2, null, '1');
     expect(sync).toHaveBeenCalledTimes(2);
   });
+
+  it<ModelTestContext>('recovers on channel permanently failed', async ({ channelName, ably, logger }) => {
+    const channel = ably.channels.get('foo');
+    let triggerFailed: (...args: any[]) => void = () => {
+      throw new Error('failed callback not defined');
+    };
+
+    channel.on = vi.fn<any, any>(async (name: string[], callback) => {
+      if (name.includes('failed')) {
+        triggerFailed = () => {
+          callback({ reason: 'permanently failed' });
+        };
+      }
+    });
+    channel.subscribe = vi.fn<any, any>(
+      async (): Promise<Types.ChannelStateChange | null> => ({
+        current: 'attached',
+        previous: 'attaching',
+        resumed: false,
+        hasBacklog: false,
+      }),
+    );
+    channel.history = vi.fn<any, any>(
+      async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => ({
+        items: [],
+        hasNext: () => false,
+      }),
+    );
+    channel.detach = vi.fn<any, any>();
+    ably.channels.release = vi.fn<any, any>();
+
+    let counter = 0;
+
+    const sync = vi.fn(async () => ({
+      data: `${counter++}`,
+      sequenceID: '0',
+    }));
+    const mergeFn = vi.fn(async (_, event) => {
+      return event.data;
+    });
+
+    const model = new Model<string>(
+      'test',
+      { sync: sync, merge: mergeFn },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: defaultSyncOptions,
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
+    );
+    await model.sync();
+
+    expect(sync).toHaveBeenCalledOnce();
+
+    let subscription = new Subject<void>();
+    const subscriptionCalls = getEventPromises(subscription, 2);
+    const subscriptionSpy = vi.fn<[Error | null, string?]>(() => {
+      subscription.next();
+    });
+    model.subscribe(subscriptionSpy);
+
+    await subscriptionCalls[0];
+    expect(subscriptionSpy).toHaveBeenNthCalledWith(1, null, '0');
+
+    await statePromise(model, 'ready');
+
+    triggerFailed();
+    await statePromise(model, 'syncing');
+    await statePromise(model, 'ready');
+
+    await subscriptionCalls[1];
+    expect(subscriptionSpy).toHaveBeenNthCalledWith(2, null, '1');
+    expect(sync).toHaveBeenCalledTimes(2);
+  });
 });
