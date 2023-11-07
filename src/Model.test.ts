@@ -151,7 +151,7 @@ describe('Model', () => {
         eventBufferOptions: defaultEventBufferOptions,
       },
     );
-    const ready = model.sync([1, 'hello']);
+    const ready = model.sync(1, 'hello');
 
     await statePromise(model, 'syncing');
     completeSync();
@@ -173,7 +173,7 @@ describe('Model', () => {
       completeSync = resolve;
     });
 
-    const resynced = model.sync([2, 'world']);
+    const resynced = model.sync(2, 'world');
     await statePromise(model, 'syncing');
     completeSync();
     await resynced;
@@ -183,8 +183,8 @@ describe('Model', () => {
     expect(model.data.confirmed).toEqual('confirmed_1');
     expect(model.data.optimistic).toEqual('optimistic');
 
-    expect(sync).toHaveBeenNthCalledWith(1, [1, 'hello']);
-    expect(sync).toHaveBeenNthCalledWith(2, [2, 'world']);
+    expect(sync).toHaveBeenNthCalledWith(1, 1, 'hello');
+    expect(sync).toHaveBeenNthCalledWith(2, 2, 'world');
   });
 
   it<ModelTestContext>('replays from the correct point in the stream', async ({
