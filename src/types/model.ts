@@ -33,7 +33,7 @@ export type ModelsOptions = OptionalValues<
 /**
  * Identifies a model created or accessed from the ModelsClient.
  */
-export type ModelSpec<T, P> = { name: string; channelName: string } & Registration<T, P>;
+export type ModelSpec<T, P extends any[] | [] = []> = { name: string; channelName: string } & Registration<T, P>;
 
 /**
  * ModelState represents the possible lifecycle states of a model.
@@ -118,7 +118,7 @@ export type OptimisticEventWithParams = OptimisticEvent & {
  * Defines a function which the library will use to pull the latest state of the model from the backend.
  * Invoked on initialisation and whenever some discontinuity occurs that requires a re-sync.
  */
-export type SyncFunc<T, P> = (args?: P) => Promise<{ data: T; sequenceID: string }>;
+export type SyncFunc<T, P extends any[] | [] = []> = (...args: P) => Promise<{ data: T; sequenceID: string }>;
 
 /**
  * A state transition emitted as an event from the model describing a change to the model's lifecycle.
@@ -143,7 +143,7 @@ export type SubscriptionOptions = {
 /**
  * A type used to capture the bulk registration of the required methods on the model.
  */
-export type Registration<T, P> = {
+export type Registration<T, P extends any[] | [] = []> = {
   /**
    * The sync function used to pull the latest state of the model.
    */
