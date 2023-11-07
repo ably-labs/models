@@ -44,20 +44,18 @@ const model = modelsClient.models.get<Post>({
 To initialise the data in your model, we need to provide it with a *sync function*. The sync function has the following type:
 
 ```ts
-type SyncFunc<T, P> = (params?: P) => Promise<T>;
+type SyncFunc<T, P> = (...params: P) => Promise<T>;
 ```
 
 i.e it can be any function that returns a promise with the latest state of your data model, and optionally accepts some params. Typically, you would implement this as a function which retrieves the model state from your backend over the network. The params allow the model to be parameterised, or paginated. For example, we might have a REST HTTP API endpoint which returns the data for our post:
 
 ```ts
-type Params = {id: string, page: number}
-
-async function sync(params: Params) {
+async function sync(id: string, page: number) {
   const result = await fetch(`/api/post/${id}?page=${page}`);
   return result.json();
 }
 
-const model = modelsClient.models.get<Post, Params>({
+const model = modelsClient.models.get<Post, [string, number]>({
   sync: /* ... */,
   /* other registrations */
 })
