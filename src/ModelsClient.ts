@@ -57,7 +57,7 @@ export default class ModelsClient {
        * The names and funcitons will be automatically setup on the model returned.
        * The model will not start until you call model.sync() or model.subscribe()
        */
-      get: <T, P = []>(spec: ModelSpec<T, P>) => {
+      get: <T, P extends any[]>(spec: ModelSpec<T, P>) => {
         const name = spec.name;
         const channelName = spec.channelName;
 

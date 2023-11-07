@@ -43,7 +43,7 @@ import { backoffRetryStrategy, fixedRetryStrategy } from './utilities/retries.js
  *
  * @extends {EventEmitter<Record<ModelState, ModelStateChange>>} Allows you to listen for model state changes to hook into the model lifecycle.
  */
-export default class Model<T, P = []> extends EventEmitter<Record<ModelState, ModelStateChange>> {
+export default class Model<T, P extends any[] | [] = []> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   private currentState: ModelState = 'initialized';
   private optimisticData!: T;
   private confirmedData!: T;
@@ -153,8 +153,8 @@ export default class Model<T, P = []> extends EventEmitter<Record<ModelState, Mo
    * The sync function that allows the model to be manually resynced
    * @returns A promise that resolves when the model has successfully re-synchronised its state and is ready to start emitting updates.
    */
-  public async sync(params?: P) {
-    this.lastSyncParams = params || this.lastSyncParams;
+  public async sync(...params: P) {
+    this.lastSyncParams = params && params.length > 0 ? params : this.lastSyncParams;
     await this.resync();
     return statePromise(this, 'ready');
   }
@@ -254,7 +254,11 @@ export default class Model<T, P = []> extends EventEmitter<Record<ModelState, Mo
     this.logger.trace({ ...this.baseLogContext, action: 'subscribe()', options });
 
     if (this.state === 'initialized') {
-      await this.sync(this.lastSyncParams);
+      if (this.lastSyncParams) {
+        await this.sync(...this.lastSyncParams);
+      } else {
+        await this.sync();
+      }
     }
 
     if (this.state === 'disposed') {
@@ -385,7 +389,13 @@ export default class Model<T, P = []> extends EventEmitter<Record<ModelState, Mo
 
     const fn = async () => {
       this.removeStream();
-      const { data, sequenceID } = await this.syncFunc(this.lastSyncParams);
+      let data: T;
+      let sequenceID: string;
+      if (this.lastSyncParams) {
+        ({ data, sequenceID } = await this.syncFunc(...this.lastSyncParams));
+      } else {
+        ({ data, sequenceID } = await this.syncFunc());
+      }
       this.setConfirmedData(data);
       await this.computeState(this.confirmedData, this.optimisticData, this.optimisticEvents);
       await this.addStream(sequenceID);
