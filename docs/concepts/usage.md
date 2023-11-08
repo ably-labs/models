@@ -47,7 +47,9 @@ To initialise the data in your model, we need to provide it with a *sync functio
 type SyncFunc<T, P extends any[] | [] = []> = (...args: P) => Promise<{ data: T; sequenceID: string }>;
 ```
 
-i.e it can be any function that optionally accepts some params and returns a promise with the latest state of your data model along with a sequence ID.
+i.e it can be any function that optionally accepts some params and returns a promise with the latest state of your data model along with a sequence ID. The sequence ID is used to resume from the correct point in the change event stream to apply the correct set of change events to the returned snapshot version of the model state.
+
+> For more information, see [Replay](./replay.md).
 
 Typically, you would implement this as a function which retrieves the model state from your backend over the network. The params allow the model to be parameterised, or paginated. For example, we might have a REST HTTP API endpoint which returns the data for our post:
 
