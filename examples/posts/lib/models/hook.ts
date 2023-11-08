@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { assertConfiguration } from '@ably-labs/react-hooks';
 import type { Post as PostType } from '@/lib/prisma/api';
-import ModelsClient, { Model } from '@ably-labs/models';
+import ModelsClient, { Model, SyncReturnType } from '@ably-labs/models';
 import { configureAbly } from '@ably-labs/react-hooks';
 import { merge } from '@/lib/models/mutations';
 import { backoffRetryStrategy } from '@ably-labs/models';
 
 configureAbly({ key: process.env.NEXT_PUBLIC_ABLY_API_KEY });
 
-export type ModelType = Model<PostType>;
+export type ModelType = Model<() => SyncReturnType<PostType>>;
 
 export async function getPost(id: number) {
   const response = await fetch(`/api/posts/${id}`, {
@@ -34,7 +34,7 @@ export const useModel = (id: number) => {
       syncOptions: { retryStrategy: backoffRetryStrategy(3, 2, 250) },
     });
     const init = async () => {
-      const model = modelsClient.models.get<PostType>({
+      const model = modelsClient.models.get({
         name: `post:${id}`,
         channelName: `post:${id}`,
         sync: async () => getPost(id),
