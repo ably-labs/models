@@ -949,7 +949,7 @@ describe('Model', () => {
     // You would typically expect the confirmation events to be sent (and arrive) in the
     // same order as their corresponding mutations were applied.
     // However, if this is not the case, we still accept the confirmation, but the
-    // optimistic and confirmed states may differ (assuming non-commutative update functions)
+    // optimistic and confirmed states may differ (assuming non-commutative merge functions)
     // since the updates were applied in different order.
 
     // confirm the second expected event
