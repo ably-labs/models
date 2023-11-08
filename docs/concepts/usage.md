@@ -29,7 +29,7 @@ Note that we pass in the shape of our data model (`Post`) as a type parameter.
 In order to instantiate the model, we need to pass some *registrations* which link up the model to your application code.
 
 ```ts
-const model = modelsClient.models.get<Post>({
+const model = modelsClient.models.get<Post, { id: string, page: number }>({
   name: /* ... */,
   channelName: /* ... */,
   sync: /* ... */,
@@ -44,15 +44,17 @@ const model = modelsClient.models.get<Post>({
 To initialise the data in your model, we need to provide it with a *sync function*. The sync function has the following type:
 
 ```ts
-type SyncFunc<T, P> = (...params: P) => Promise<T>;
+type SyncFunc<T, P extends any[] | [] = []> = (...args: P) => Promise<{ data: T; sequenceID: string }>;
 ```
 
-i.e it can be any function that returns a promise with the latest state of your data model, and optionally accepts some params. Typically, you would implement this as a function which retrieves the model state from your backend over the network. The params allow the model to be parameterised, or paginated. For example, we might have a REST HTTP API endpoint which returns the data for our post:
+i.e it can be any function that optionally accepts some params and returns a promise with the latest state of your data model along with a sequence ID.
+
+Typically, you would implement this as a function which retrieves the model state from your backend over the network. The params allow the model to be parameterised, or paginated. For example, we might have a REST HTTP API endpoint which returns the data for our post:
 
 ```ts
-async function sync(id: string, page: number) {
+async function sync(id: number, page: number) {
   const result = await fetch(`/api/post/${id}?page=${page}`);
-  return result.json();
+  return result.json(); // e.g. { sequenceID: '1', data: { id: 1, text: "Hello World", comments: [] } }
 }
 
 const model = modelsClient.models.get<Post, [string, number]>({
@@ -61,7 +63,9 @@ const model = modelsClient.models.get<Post, [string, number]>({
 })
 ```
 
-The model will invoke this function at the start of its lifecycle to initialise your model state. Additionally, this function will be invoked if the model needs to re-synchronise at any point, for example after an extended period of network disconnectivity. When the SDK needs to automatically re-synchronise it will use the params from the last call to the sync function.
+The model will invoke this function at the start of its lifecycle to initialise your model state.
+
+Additionally, this function will be invoked if the model needs to re-synchronise at any point, for example after an extended period of network disconnectivity. When the SDK needs to automatically re-synchronise it will use the params from the last call to the sync function.
 
 The params are optional, and can be left out by omitting them from the sync function definition, and leaving out the second type parameter when getting a model.
 
@@ -69,10 +73,10 @@ The params are optional, and can be left out by omitting them from the sync func
 
 > *Merge functions* tell your model how to calculate the next version of the data when a mutation event is received.
 
-When changes occur to your data model in your backend, your backend is expected to emit *events* which describe the result of the mutation that occurred. The Models SDK will consume these events and apply them to its local copy of the model state to produce the next updated version. The way the next state is calculated is expressed as an *update function*, which has the following type:
+When changes occur to your data model in your backend, your backend is expected to emit *events* which describe the result of the mutation that occurred. The Models SDK will consume these events and apply them to its local copy of the model state to produce the next updated version. The way the next state is calculated is expressed as a *merge function*, which has the following type:
 
 ```ts
-type UpdateFunc<T> = (state: T, event: OptimisticEvent | ConfirmedEvent) => Promise<T>;
+export type MergeFunc<T> = (state: T, event: OptimisticEvent | ConfirmedEvent) => Promise<T>;
 ```
 
 i.e. it is a function that accepts the previous model state and the event and returns the next model state.
@@ -84,7 +88,7 @@ Confirmed events are emitted from your backend over Ably *[channels](https://abl
 > **Note**
 > Ably's [Database Connector](https://github.com/ably-labs/adbc) makes it easy to emit change events over Ably transactionally with mutations to your data in your database.
 
-A model is associated with a *channel name*; the model will invoke the update function for all events it receives on the associated channel.
+A model is associated with a *channel name*; the model will invoke the merge function for all events it receives on the associated channel.
 
 ## Optimistic events
 
@@ -92,11 +96,15 @@ The Models SDK supports *optimistic updates* which allows you to render the late
 
 > *Optimistic events* allow you to make local changes to your data optimistically that you expect you backend will later confirm or reject.
 
-To apply optimistic changes to your model, you can call with `.optimistic(...)` method on your model passing the optimistic event.
-You are also responsible for applying the change to your backend directly.
-You should pass the mutationID that you included on your model to help correlate optimistic events applied locally and confirmed events emitted by your backend.
+To apply optimistic changes to your model, you can call with `.optimistic(...)` method on your model passing the optimistic event. This optimistic event will be passed to your merge function to be optimistically included in the local model state.
 
-```typescript
+The optimistic event should include a `mutationID` that can be used to correlate the optimistic events with its confirmation emitted by your backend.
+
+You are also responsible for applying the change to your backend directly. You should pass the `mutationID` that you included on your event to yor backend so that you can emit a confirmation event with that mutation ID from your backend.
+
+> For more information, see [Event Correlation](./event-correlation.md).
+
+```ts
 // your method for applying the change to your backed
 async function updatePost(mutationID: string, content: string) {
   const result = await fetch(`/api/post`, {
@@ -107,28 +115,21 @@ async function updatePost(mutationID: string, content: string) {
 }
 
 // optimistically apply the changes to the model
+const mutationID = uuid();
 const [confirmation, cancel] = await model.optimistic({
-    mutationID: 'my-mutation-id',
+    mutationID,
     name: 'updatePost',
     data: 'new post text',
 })
 
 // apply the changes in your backend
-updatePost('my-mutation-id', 'new post text')
+updatePost(mutationID, 'new post text')
 ```
-
-> See [Event Correlation](./event-correlation.md).
-
-This optimistic event will be passed to your merge function to be optimistically included in the local model state.
-
-You are responsible for making changes to the persisted model state, typically you would implement this as a function which updates the model state in your backend over the network. For example, we might have a REST HTTP API endpoint which updates the data for our post, as in the `updatePost(...)` method above.
-
-The backend API endpoint would then update the post data in the database and emit a confirmation event, which would be received and processed by our merge function described [above](#merge-functions).
 
 The model returns a promise that resolves to two values from the `.optimsitic(...)` function.
 
-1. A `confirmation` promise that resolves when the optimistic update has been confirmed by that backend (or rejects if the update is rejected).
-2. A `cancel` function that allows you to rollback the optimistic update, for example if your backed HTTP API call failed.
+1. A `confirmation` promise that resolves when the optimistic update has been confirmed by that backend (or rejects if it is rejected or times out).
+2. A `cancel` function that allows you to rollback the optimistic update, for example if your backend HTTP API call failed.
 
 ## Subscriptions
 

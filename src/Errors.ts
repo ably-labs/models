@@ -5,8 +5,7 @@ export function toError(err: any) {
 }
 
 /**
- * Represents an error that occurs when registering or using
- * sync, update and mutation methods.
+ * Represents an error that occurs during registration.
  *
  * @internal
  * @extends {Error}

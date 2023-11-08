@@ -5,10 +5,10 @@
 The Models SDK aims to make it easier for developers to efficiently and correctly synchronise state from the database to the client in realtime.
 
 - The database is treated as the *source of truth* of the state
-- Alterations to the state take place through your backend APIs
+- Mutations to the state take place through your backend APIs
 - The client initialises its local copy of the state via your backend APIs
 - The client processes a stream of change events from the backend to compute the up-to-date state as it evolves
-- The client optimistically applies change events locally when the user mutates the model, and reconciles the optimistic updates with the confirmations from the backend
+- The client optimistically applies change events locally when the user mutates the model, and reconciles optimistic updates with confirmations from the backend
 
 This allows changes made concurrently by other users or other parts of the system to be continually rendered to the user as part of a reactive, realtime, multiplayer application, while providing a very responsive user experience through local optimistic updates.
 
@@ -56,7 +56,7 @@ A change event can be *confirmed* or *optimistic*:
 - *Confirmed* events represent mutations (from any user) that have been applied in the database. They are are emitted by your backend whenever the underlying model data is mutated.
 - *Optimistic* events are emitted locally by the library when the user takes some action to mutate the model.
 
-A *confirmed* event is emitted if and only if the mutation in the backend succeeds. Additionally, a sequence of change events are emitted strictly in the order in which their corresponding mutations were successfully committed:
+A *confirmed* event is emitted if and only if the mutation in the backend succeeds. The sequence of confirmation events are emitted strictly in the order in which their corresponding mutations were successfully committed:
 
 ```mermaid
 graph LR
@@ -73,7 +73,7 @@ A change event is delivered to the client over an Ably [*channel*](https://ably.
 - An event *name* which describes the semantic meaning of the change event
 - A *data* payload which contains the data needed to apply the change
 
-## Update Functions
+## Merge Functions
 
 Change events are applied to the local state to transform it from one version to the next.
 
@@ -106,7 +106,7 @@ The merge function might therefore be expressed as:
 
 ## Applying Updates to State
 
-Events are applied to model state via merge function in the following way:
+Events are applied to model state via merge functions in the following way:
 
 - The model state is initialised with two copies of the state: an optimistic and a confirmed copy.
 - If the incoming event is an *optimistic* event:
@@ -120,7 +120,7 @@ Events are applied to model state via merge function in the following way:
   - Re-apply any pending optimistic events on top of the new confirmed state
   - Set the optimistic state equal to the result
 
-In this way, optimistic updates are always re-based on top of the latest confirmed state. This means that after applying the confirmed change, the library tries to re-apply the oustanding optimistic events in the order they were made.
+In this way, optimistic updates are always *re-based* on top of the latest confirmed state. This means that after applying the confirmed change, the library tries to re-apply the oustanding optimistic events in the order they were made.
 
 
 ## Confirmation Timeouts
@@ -133,15 +133,12 @@ In this case, the optimistic update should be rolled back if a confirmation isn'
 // set a default timeout of 5s second via mutation options on the model
 const modelsClient = new ModelsClient({
     ably: ably,
-	defaultOptimisticOptions: { timeout: 5000 } ,
+	optimisticEventOptions: { timeout: 5000 } ,
 });
 
 // set a timeout of 5s on a specific optimistic update invocation
-await model.optimistic({
-	event: myExpectedEvents,
-	options: {
-		timeout: 5000,
-	},
+await model.optimistic(myExpectedEvent, {
+  timeout: 5000,
 })();
 ```
 
@@ -150,13 +147,13 @@ await model.optimistic({
 In some cases you may wish to explicitly reject an optimistic event from your backend.
 You can do this in the following ways:
 
-1. Using the optimistic event's cancel function.
+1. Using the optimistic event's `cancel` function.
 2. Throw an error from the `merge` function when processing an optimistic event.
-3. Using the `x-ably-models-reject` header on an event emitted from your backend.
+3. Using the `x-ably-models-reject` header on an event emitted from your backend. If you are using [`adbc`](https://github.com/ably-labs/adbc/), this is achieved by writing an outbox record with `rejected` set to `true`.
 
 Here's an example using the optimistic event's cancel function:
 ```typescript
-const [confirmation, cancel] = await model.optimistic({ ... });
+const [confirmation, cancel] = await model.optimistic(event);
 
 try {
   updateMyBackend();
@@ -164,8 +161,4 @@ try {
   cancel();
 }
 ```
-
-Other times, you may wish to reject a mutation asynchronously to the lifetime of the backend request made from your mutation function.
-In this case, it is useful to emit an explicit rejection event from your backend.
-You can do this by including an `x-ably-models-reject` header on the confirmation event.
-The Models SDK will automatically treat confirmations with this header set as a rejection and rollback any corresponding optimistic events.
+When an optimistic event is cancelled, or an explicit rejection event is received, the Models SDK will automatically rollback any corresponding optimistic events.

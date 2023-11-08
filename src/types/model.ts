@@ -66,7 +66,7 @@ export type ModelState =
   | 'disposed';
 
 /**
- * Represents a change event that can be applied to a model via an update function.
+ * Represents a change event that can be applied to a model via a merge function.
  */
 export type Event = {
   mutationID: string;
