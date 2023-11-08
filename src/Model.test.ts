@@ -1119,15 +1119,15 @@ describe('Model', () => {
     });
     expect(model.data.optimistic).toEqual('0123');
 
-    cancel();
+    await cancel();
     await expect(confirmation).rejects.toEqual(new Error('optimistic event cancelled'));
     expect(model.data.optimistic).toEqual('023');
 
-    cancel2();
+    await cancel2();
     await expect(confirmation2).rejects.toEqual(new Error('optimistic event cancelled'));
     expect(model.data.optimistic).toEqual('03');
 
-    cancel3();
+    await cancel3();
     await expect(confirmation3).rejects.toEqual(new Error('optimistic event cancelled'));
     expect(model.data.optimistic).toEqual('0');
   });
