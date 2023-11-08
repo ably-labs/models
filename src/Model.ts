@@ -14,11 +14,12 @@ import type {
   ModelState,
   ModelStateChange,
   ModelOptions,
-  SyncFunc,
   Registration,
   SubscriptionOptions,
   OptimisticEvent,
   ConfirmedEvent,
+  ExtractData,
+  SyncFuncConstraint,
 } from './types/model.js';
 import {
   MODELS_EVENT_REJECT_HEADER,
@@ -43,17 +44,15 @@ import { backoffRetryStrategy, fixedRetryStrategy } from './utilities/retries.js
  *
  * @extends {EventEmitter<Record<ModelState, ModelStateChange>>} Allows you to listen for model state changes to hook into the model lifecycle.
  */
-export default class Model<T, P extends any[] | [] = []> extends EventEmitter<Record<ModelState, ModelStateChange>> {
+export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   private currentState: ModelState = 'initialized';
-  private optimisticData!: T;
-  private confirmedData!: T;
+  private optimisticData!: ExtractData<S>;
+  private confirmedData!: ExtractData<S>;
 
   private syncRetryStrategy: RetryStrategyFunc;
-  private syncFunc: SyncFunc<T, P> = async () => {
-    throw new Error('sync func not registered');
-  };
-  private lastSyncParams: P = [] as P;
-  private merge: MergeFunc<T> = async () => {
+  private syncFunc: S;
+  private lastSyncParams?: Parameters<S>;
+  private merge: MergeFunc<ExtractData<S>> = async () => {
     throw new Error('merge func not registered');
   };
 
@@ -66,8 +65,8 @@ export default class Model<T, P extends any[] | [] = []> extends EventEmitter<Re
     mutationIDComparator,
   );
 
-  private readonly subscriptions = new Subject<{ confirmed: boolean; data: T }>();
-  private subscriptionMap: WeakMap<StandardCallback<T>, Subscription> = new WeakMap();
+  private readonly subscriptions = new Subject<{ confirmed: boolean; data: ExtractData<S> }>();
+  private subscriptionMap: WeakMap<StandardCallback<ExtractData<S>>, Subscription> = new WeakMap();
   private streamSubscriptionsMap: WeakMap<IStream, StandardCallback<AblyTypes.Message>> = new WeakMap();
 
   private readonly logger: Logger;
@@ -80,7 +79,7 @@ export default class Model<T, P extends any[] | [] = []> extends EventEmitter<Re
    * @param {string} name - A unique name used to identify this model in your application.
    * @param {ModelOptions} options - Options used to configure this model instance.
    */
-  constructor(readonly name: string, registration: Registration<T, P>, readonly options: ModelOptions) {
+  constructor(readonly name: string, registration: Registration<S>, readonly options: ModelOptions) {
     super();
     this.logger = this.options.logger;
     this.baseLogContext = { scope: `Model:${name}` };
@@ -102,6 +101,9 @@ export default class Model<T, P extends any[] | [] = []> extends EventEmitter<Re
     );
 
     this.syncRetryStrategy = options.syncOptions.retryStrategy || backoffRetryStrategy(2, 1000);
+    if (!registration.sync) {
+      throw new Error('sync func not registered');
+    }
     this.syncFunc = registration.sync;
     this.merge = registration.merge;
   }
@@ -153,7 +155,7 @@ export default class Model<T, P extends any[] | [] = []> extends EventEmitter<Re
    * The sync function that allows the model to be manually resynced
    * @returns A promise that resolves when the model has successfully re-synchronised its state and is ready to start emitting updates.
    */
-  public async sync(...params: P) {
+  public async sync(...params: Parameters<S>) {
     this.lastSyncParams = params;
     await this.resync();
     return statePromise(this, 'ready');
@@ -248,20 +250,20 @@ export default class Model<T, P extends any[] | [] = []> extends EventEmitter<Re
    * optimistic or only confirmed updates. Defaults to optimistic.
    */
   public async subscribe(
-    callback: (err: Error | null, result?: T) => void,
+    callback: (err: Error | null, result?: ExtractData<S>) => void,
     options: SubscriptionOptions = { optimistic: true },
   ) {
     this.logger.trace({ ...this.baseLogContext, action: 'subscribe()', options });
 
     if (this.state === 'initialized') {
-      await this.sync(...this.lastSyncParams);
+      await this.sync(...(this.lastSyncParams || ([] as unknown as Parameters<S>)));
     }
 
     if (this.state === 'disposed') {
       throw new Error('Cannot subscribe to a disposed model');
     }
 
-    const errorHandledCallback = (err: Error | null, result?: T) => {
+    const errorHandledCallback = (err: Error | null, result?: ExtractData<S>) => {
       try {
         callback(err, result);
       } catch (error) {
@@ -310,7 +312,7 @@ export default class Model<T, P extends any[] | [] = []> extends EventEmitter<Re
    * Unsubscribes the given callback to changes to the data.
    * @param {(err: Error | null, result?: T) => void} callback - The callback to unsubscribe.
    */
-  public unsubscribe(callback: (err: Error | null, result?: T) => void) {
+  public unsubscribe(callback: (err: Error | null, result?: ExtractData<S>) => void) {
     this.logger.trace({ ...this.baseLogContext, action: 'unsubscribe()' });
     const subscription = this.subscriptionMap.get(callback);
     if (subscription) {
@@ -385,7 +387,7 @@ export default class Model<T, P extends any[] | [] = []> extends EventEmitter<Re
 
     const fn = async () => {
       this.removeStream();
-      const { data, sequenceID } = await this.syncFunc(...this.lastSyncParams);
+      const { data, sequenceID } = await this.syncFunc(...(this.lastSyncParams || ([] as unknown as Parameters<S>)));
       this.setConfirmedData(data);
       await this.computeState(this.confirmedData, this.optimisticData, this.optimisticEvents);
       await this.addStream(sequenceID);
@@ -481,7 +483,7 @@ export default class Model<T, P extends any[] | [] = []> extends EventEmitter<Re
     await this.retryable(fixedRetryStrategy(15_000), fn);
   }
 
-  private setOptimisticData(data: T) {
+  private setOptimisticData(data: ExtractData<S>) {
     this.logger.trace({ ...this.baseLogContext, action: 'setOptimisticData()', data });
     this.optimisticData = data;
     setTimeout(() => {
@@ -492,7 +494,7 @@ export default class Model<T, P extends any[] | [] = []> extends EventEmitter<Re
     }, 0);
   }
 
-  private setConfirmedData(data: T) {
+  private setConfirmedData(data: ExtractData<S>) {
     this.logger.trace({ ...this.baseLogContext, action: 'setConfirmedData()', data });
     this.confirmedData = data;
     setTimeout(() => {
@@ -503,15 +505,18 @@ export default class Model<T, P extends any[] | [] = []> extends EventEmitter<Re
     }, 0);
   }
 
-  private async applyUpdate(initialData: T, event: OptimisticEvent | ConfirmedEvent): Promise<T> {
+  private async applyUpdate(
+    initialData: ExtractData<S>,
+    event: OptimisticEvent | ConfirmedEvent,
+  ): Promise<ExtractData<S>> {
     this.logger.trace({ ...this.baseLogContext, action: 'applyUpdate()', initialData, event });
     const data = await this.merge(initialData, event);
     return data;
   }
 
   private async computeState(
-    confirmedData: T,
-    optimisticData: T,
+    confirmedData: ExtractData<S>,
+    optimisticData: ExtractData<S>,
     optimisticEvents: OptimisticEvent[],
     event?: OptimisticEvent | ConfirmedEvent,
   ) {

@@ -33,7 +33,10 @@ export type ModelsOptions = OptionalValues<
 /**
  * Identifies a model created or accessed from the ModelsClient.
  */
-export type ModelSpec<T, P extends any[] | [] = []> = { name: string; channelName: string } & Registration<T, P>;
+export type ModelSpec<S extends (...args: any) => Promise<{ data: any; sequenceID: string }>> = {
+  name: string;
+  channelName: string;
+} & Registration<S>;
 
 /**
  * ModelState represents the possible lifecycle states of a model.
@@ -118,7 +121,24 @@ export type OptimisticEventWithParams = OptimisticEvent & {
  * Defines a function which the library will use to pull the latest state of the model from the backend.
  * Invoked on initialisation and whenever some discontinuity occurs that requires a re-sync.
  */
-export type SyncFunc<T, P extends any[] | [] = []> = (...args: P) => Promise<{ data: T; sequenceID: string }>;
+export type SyncFunc<F extends SyncFuncConstraint> = F;
+
+/**
+ * Captures the return type of the sync function.
+ */
+export type SyncReturnType<T> = Promise<{ data: T; sequenceID: string }>;
+
+/**
+ * Type constraint for a sync function.
+ */
+export type SyncFuncConstraint = (...args: any[]) => SyncReturnType<any>;
+
+/**
+ * Utility type to infer the type of the data payload returned by the sync function.
+ */
+export type ExtractData<F extends SyncFuncConstraint> = F extends (...args: any[]) => SyncReturnType<infer D>
+  ? D
+  : never;
 
 /**
  * A state transition emitted as an event from the model describing a change to the model's lifecycle.
@@ -143,13 +163,13 @@ export type SubscriptionOptions = {
 /**
  * A type used to capture the bulk registration of the required methods on the model.
  */
-export type Registration<T, P extends any[] | [] = []> = {
+export type Registration<S extends (...args: any) => Promise<{ data: any; sequenceID: string }>> = {
   /**
    * The sync function used to pull the latest state of the model.
    */
-  sync: SyncFunc<T, P>;
+  sync: SyncFunc<S>;
   /**
    * The merge function that is invoked when a message is received.
    */
-  merge: MergeFunc<T>;
+  merge: MergeFunc<ExtractData<S>>;
 };
