@@ -2,7 +2,7 @@ import pino from 'pino';
 
 import Model from './Model.js';
 import { defaultEventBufferOptions, defaultOptimisticEventOptions, defaultSyncOptions } from './Options.js';
-import type { ModelsOptions, ModelOptions, ModelSpec } from './types/model.js';
+import type { ModelsOptions, ModelOptions, ModelSpec, SyncFuncConstraint } from './types/model.js';
 import type { OptimisticEventOptions, SyncOptions } from './types/optimistic.js';
 import type { EventBufferOptions } from './types/stream.js';
 
@@ -12,7 +12,7 @@ import type { EventBufferOptions } from './types/stream.js';
  */
 export default class ModelsClient {
   private opts: Omit<ModelOptions, 'channelName'>;
-  private modelInstances: Record<string, Model<any, any>> = {};
+  private modelInstances: Record<string, Model<any>> = {};
 
   readonly version = '0.0.1';
 
@@ -57,7 +57,7 @@ export default class ModelsClient {
        * The names and funcitons will be automatically setup on the model returned.
        * The model will not start until you call model.sync() or model.subscribe()
        */
-      get: <T, P extends any[] | [] = []>(spec: ModelSpec<T, P>) => {
+      get: <S extends SyncFuncConstraint>(spec: ModelSpec<S>) => {
         const name = spec.name;
         const channelName = spec.channelName;
 
@@ -66,13 +66,13 @@ export default class ModelsClient {
         }
 
         if (this.modelInstances[name]) {
-          return this.modelInstances[name] as Model<T, P>;
+          return this.modelInstances[name] as Model<S>;
         }
 
-        const model = new Model<T, P>(name, spec, { ...this.opts, channelName });
+        const model = new Model<S>(name, spec, { ...this.opts, channelName });
         this.modelInstances[name] = model;
 
-        return model as Model<T, P>;
+        return model as Model<S>;
       },
     };
   }

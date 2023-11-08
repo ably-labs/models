@@ -68,7 +68,7 @@ describe('Model', () => {
       return event.data;
     });
 
-    const model = new Model<string>(
+    const model = new Model(
       'test',
       { sync: sync, merge: mergeFn },
       {
@@ -144,7 +144,7 @@ describe('Model', () => {
       return event.data;
     });
 
-    const model = new Model<string>(
+    const model = new Model(
       'test',
       { sync: sync, merge: mergeFn },
       {

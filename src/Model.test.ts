@@ -7,7 +7,7 @@ import Model from './Model.js';
 import { defaultSyncOptions, defaultEventBufferOptions, defaultOptimisticEventOptions } from './Options.js';
 import { IStream } from './stream/Stream.js';
 import { IStreamFactory } from './stream/StreamFactory.js';
-import type { ModelStateChange, ModelOptions } from './types/model.d.ts';
+import type { ModelStateChange, ModelOptions, SyncFuncConstraint } from './types/model.d.ts';
 import type { StreamOptions, StreamState } from './types/stream.js';
 import { EventListener } from './utilities/EventEmitter.js';
 import { statePromise, timeout } from './utilities/promises.js';
@@ -101,7 +101,7 @@ describe('Model', () => {
       await synchronised;
       return { data: simpleTestData, sequenceID: '0' };
     });
-    const model = new Model<TestData>(
+    const model = new Model(
       'test',
       { sync: sync, merge: async () => simpleTestData },
       {
@@ -132,14 +132,14 @@ describe('Model', () => {
     };
     let synchronised = new Promise((resolve) => (completeSync = resolve));
     let counter = 0;
-    const sync = vi.fn(async () => {
+    const sync = vi.fn(async (arg1: number, arg2: string) => {
       await synchronised;
-      return { data: `confirmed_${counter++}`, sequenceID: '0' };
+      return { data: `confirmed_${counter++}`, sequenceID: '0', arg1, arg2 };
     });
 
     const merge = vi.fn(async (_, event) => event.data);
 
-    const model = new Model<string, [number, string]>(
+    const model = new Model(
       'test',
       { sync, merge },
       {
@@ -211,7 +211,7 @@ describe('Model', () => {
     });
 
     const merge = vi.fn(async (_, event) => event.data);
-    const model = new Model<string>(
+    const model = new Model(
       'test',
       { sync, merge },
       {
@@ -254,13 +254,13 @@ describe('Model', () => {
 
     // same timestamp simulates no time elapsed between pause and resume
     let now = Date.now();
-    class TestModel<T> extends Model<T> {
+    class TestModel<S extends SyncFuncConstraint> extends Model<S> {
       now() {
         return now;
       }
     }
 
-    const model = new TestModel<string>(
+    const model = new TestModel(
       'test',
       { sync, merge },
       {
@@ -324,13 +324,13 @@ describe('Model', () => {
 
     // same timestamp simulates no time elapsed between pause and resume
     let now = Date.now();
-    class TestModel<T> extends Model<T> {
+    class TestModel<S extends SyncFuncConstraint> extends Model<S> {
       now() {
         return now;
       }
     }
 
-    const model = new TestModel<string>(
+    const model = new TestModel(
       'test',
       { sync, merge },
       {
@@ -387,7 +387,7 @@ describe('Model', () => {
     let then = new Date(now);
     then.setMinutes(now.getMinutes() + 3);
 
-    class TestModel<T> extends Model<T> {
+    class TestModel<S extends SyncFuncConstraint> extends Model<S> {
       private i = 0;
       now() {
         if (this.i === 0) return now.getTime();
@@ -395,7 +395,7 @@ describe('Model', () => {
       }
     }
 
-    const model = new TestModel<string>(
+    const model = new TestModel(
       'test',
       { sync, merge },
       {
@@ -436,7 +436,7 @@ describe('Model', () => {
       sequenceID: '0',
     }));
 
-    const model = new Model<TestData>(
+    const model = new Model(
       'test',
       {
         sync: sync,
@@ -478,7 +478,7 @@ describe('Model', () => {
     }));
 
     const mergeFn = vi.fn(async (_, event) => event.data);
-    const model = new Model<string>(
+    const model = new Model(
       'test',
       { sync: sync, merge: mergeFn },
       {
@@ -546,7 +546,7 @@ describe('Model', () => {
       data: 'data_0',
       sequenceID: '0',
     })); // defines initial version of model
-    const model = new Model<string>(
+    const model = new Model(
       'test',
       { sync, merge: async () => 'merged' },
       {
@@ -596,7 +596,7 @@ describe('Model', () => {
     }));
 
     const mergeFn = vi.fn(async (_, event) => event.data);
-    const model = new Model<string>(
+    const model = new Model(
       'test',
       { sync: sync, merge: mergeFn },
       {
@@ -638,7 +638,7 @@ describe('Model', () => {
     const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
     const mergeFn = vi.fn(async (_, event) => event.data);
-    const model = new Model<string>(
+    const model = new Model(
       'test',
       {
         sync: async () => ({
@@ -698,7 +698,7 @@ describe('Model', () => {
     });
 
     const mergeFn = vi.fn(async (_, event) => event.data);
-    const model = new Model<string>(
+    const model = new Model(
       'test',
       {
         sync: async () => ({
@@ -748,7 +748,7 @@ describe('Model', () => {
     });
     const mergeFn = vi.fn(async (_, event) => event.data);
 
-    const model = new Model<string>(
+    const model = new Model(
       'test',
       {
         sync: async () => ({
@@ -820,7 +820,7 @@ describe('Model', () => {
     });
     const mergeFn = vi.fn(async (_, event) => event.data);
 
-    const model = new Model<string>(
+    const model = new Model(
       'test',
       {
         sync: async () => ({
@@ -893,7 +893,7 @@ describe('Model', () => {
     });
     const mergeFn = vi.fn(async (state, event) => state + event.data);
 
-    const model = new Model<string>(
+    const model = new Model(
       'test',
       {
         sync: async () => ({
@@ -988,7 +988,7 @@ describe('Model', () => {
     });
     const mergeFn = vi.fn(async (state, event) => state + event.data);
 
-    const model = new Model<string>(
+    const model = new Model(
       'test',
       {
         sync: async () => ({
@@ -1081,7 +1081,7 @@ describe('Model', () => {
     s1.subscribe = vi.fn();
     const mergeFn = vi.fn(async (state, event) => state + event.data);
 
-    const model = new Model<string>(
+    const model = new Model(
       'test',
       {
         sync: async () => ({
@@ -1161,7 +1161,7 @@ describe('Model', () => {
       return event.data;
     });
 
-    const model = new Model<string>(
+    const model = new Model(
       'test',
       { sync: sync, merge: mergeFn },
       {
@@ -1226,7 +1226,7 @@ describe('Model', () => {
       return state + event.data;
     });
 
-    const model = new Model<string>(
+    const model = new Model(
       'test',
       {
         sync: async () => ({
@@ -1272,7 +1272,7 @@ describe('Model', () => {
     });
     const mergeFn = vi.fn(async (state, event) => state + event.data);
 
-    const model = new Model<string>(
+    const model = new Model(
       'test',
       {
         sync: async () => ({
@@ -1316,7 +1316,7 @@ describe('Model', () => {
     });
     const mergeFn = vi.fn(async (state, event) => state + event.data);
 
-    const model = new Model<string>(
+    const model = new Model(
       'test',
       {
         sync: async () => ({
@@ -1356,7 +1356,7 @@ describe('Model', () => {
       throw new Error('failed to load from backend');
     });
 
-    const model = new Model<string>(
+    const model = new Model(
       'test',
       {
         sync: syncSpy,
@@ -1400,7 +1400,7 @@ describe('Model', () => {
       return { sequenceID: '0', data: '0' };
     });
 
-    const model = new Model<string>(
+    const model = new Model(
       'test',
       {
         sync: syncSpy,
@@ -1443,7 +1443,7 @@ describe('Model', () => {
       return { data: '0', sequenceID: '0' };
     });
 
-    const model = new Model<string>(
+    const model = new Model(
       'test',
       {
         sync: syncFn,
@@ -1501,7 +1501,7 @@ describe('Model', () => {
       return { data: '0', sequenceID: '0' };
     });
 
-    const model = new Model<string>(
+    const model = new Model(
       'test',
       {
         sync: syncFn,
