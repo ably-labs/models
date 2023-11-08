@@ -18,21 +18,21 @@
 <h1>Function fixedRetryStrategy</h1></div>
 <section class="tsd-panel">
 <ul class="tsd-signatures">
-<li class="tsd-signature tsd-anchor-link" id="fixedRetryStrategy"><span class="tsd-kind-call-signature">fixed<wbr/>Retry<wbr/>Strategy</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">totalAttempts</span>, <span class="tsd-kind-parameter">durationMs</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="../types/types_optimistic.RetryStrategyFunc.html" class="tsd-signature-type tsd-kind-type-alias">RetryStrategyFunc</a><a href="#fixedRetryStrategy" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><g stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round" id="icon-anchor"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5"></path></g></svg></a></li>
+<li class="tsd-signature tsd-anchor-link" id="fixedRetryStrategy"><span class="tsd-kind-call-signature">fixed<wbr/>Retry<wbr/>Strategy</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">durationMs</span>, <span class="tsd-kind-parameter">maxAttempts</span><span class="tsd-signature-symbol">?</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="../types/types_optimistic.RetryStrategyFunc.html" class="tsd-signature-type tsd-kind-type-alias">RetryStrategyFunc</a><a href="#fixedRetryStrategy" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><g stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round" id="icon-anchor"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5"></path></g></svg></a></li>
 <li class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>fixedRetryStrategy returns the same retry duration for all attempts up to the totalAttempts.</p>
+<div class="tsd-comment tsd-typography"><p>fixedRetryStrategy returns the same retry duration for all attempts up to the maxAttempts.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
 <li>
-<h5><span class="tsd-kind-parameter">totalAttempts</span>: <span class="tsd-signature-type">number</span></h5>
-<div class="tsd-comment tsd-typography"><p>the total number of retry attempts allowed.</p>
+<h5><span class="tsd-kind-parameter">durationMs</span>: <span class="tsd-signature-type">number</span></h5>
+<div class="tsd-comment tsd-typography"><p>the fixed duration in milliseconds of each retry wait time.</p>
 </div>
 <div class="tsd-comment tsd-typography"></div></li>
 <li>
-<h5><span class="tsd-kind-parameter">durationMs</span>: <span class="tsd-signature-type">number</span></h5>
-<div class="tsd-comment tsd-typography"><p>the fixed duration in milliseconds of each retry wait time.</p>
+<h5><span class="tsd-kind-parameter">maxAttempts</span>: <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol"> = -1</span></h5>
+<div class="tsd-comment tsd-typography"><p>the total number of retry attempts allowed. Defaults to -1, indicating infinite retries.</p>
 </div>
 <div class="tsd-comment tsd-typography"></div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <a href="../types/types_optimistic.RetryStrategyFunc.html" class="tsd-signature-type tsd-kind-type-alias">RetryStrategyFunc</a></h4><ul>
@@ -41,7 +41,7 @@
 
 <div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ably-labs/models/blob/f124c6d/src/utilities/retries.ts#L9">utilities/retries.ts:9</a></li></ul></aside></li></ul></section></div>
+<li>Defined in <a href="https://github.com/ably-labs/models/blob/d85ddbc/src/utilities/retries.ts#L9">utilities/retries.ts:9</a></li></ul></aside></li></ul></section></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">

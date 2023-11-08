@@ -15,7 +15,7 @@
 <li><a href="../index.html">@ably-labs/models</a></li>
 <li><a href="../modules/index.html">index</a></li>
 <li><a href="index.Model.html">Model</a></li></ul>
-<h1>Class Model&lt;T&gt;</h1></div>
+<h1>Class Model&lt;S&gt;</h1></div>
 <section class="tsd-panel tsd-comment">
 <div class="tsd-comment tsd-typography"><p>A Model encapsulates an observable, collaborative data model backed by a transactional database in your backend.</p>
 <p>Your backend is expected to emit ordered events that represent the state of changes to the model.
@@ -23,15 +23,14 @@ The model will receive these events as confirmed events and will merge these eve
 <p>Additionally, the Model supports optimistic events which are applied locally to generate an optimistic
 view of your data, which must be confirmed by your backend within the configured timeout.</p>
 </div>
-<div class="tsd-comment tsd-typography"></div></section> 
+<div class="tsd-comment tsd-typography">
+<h4>Template</h4><p>The type of your data model.</p>
+</div></section> 
 <section class="tsd-panel">
 <h4>Type Parameters</h4>
 <ul class="tsd-type-parameter-list">
 <li>
-<h4><span class="tsd-kind-type-parameter">T</span></h4>
-<div class="tsd-comment tsd-typography"><p>The type of your data model.</p>
-</div>
-<div class="tsd-comment tsd-typography"></div></li></ul></section> 
+<h4><span class="tsd-kind-type-parameter">S</span><span class="tsd-signature-symbol"> extends </span><a href="../types/types_model.SyncFuncConstraint.html" class="tsd-signature-type tsd-kind-type-alias">SyncFuncConstraint</a></h4></li></ul></section> 
 <section class="tsd-panel tsd-hierarchy">
 <h4>Hierarchy</h4>
 <ul class="tsd-hierarchy">
@@ -39,7 +38,7 @@ view of your data, which must be confirmed by your backend within the configured
 <ul class="tsd-hierarchy">
 <li><span class="target">Model</span></li></ul></li></ul></section><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ably-labs/models/blob/f124c6d/src/Model.ts#L46">Model.ts:46</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/ably-labs/models/blob/d85ddbc/src/Model.ts#L47">Model.ts:47</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-index-accordion" open><summary class="tsd-accordion-summary tsd-index-summary">
@@ -79,13 +78,13 @@ view of your data, which must be confirmed by your backend within the configured
 <section class="tsd-panel tsd-member"><a id="constructor" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>constructor</span><a href="#constructor" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><g stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round" id="icon-anchor"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5"></path></g></svg></a></h3>
 <ul class="tsd-signatures">
-<li class="tsd-signature tsd-anchor-link" id="constructor.new_Model"><span class="tsd-kind-constructor-signature">new <wbr/>Model</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type tsd-kind-type-parameter">T</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">name</span>, <span class="tsd-kind-parameter">registration</span>, <span class="tsd-kind-parameter">options</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="index.Model.html" class="tsd-signature-type tsd-kind-class">Model</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type tsd-kind-type-parameter">T</span><span class="tsd-signature-symbol">&gt;</span><a href="#constructor.new_Model" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></li>
+<li class="tsd-signature tsd-anchor-link" id="constructor.new_Model"><span class="tsd-kind-constructor-signature">new <wbr/>Model</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type tsd-kind-type-parameter">S</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">name</span>, <span class="tsd-kind-parameter">registration</span>, <span class="tsd-kind-parameter">options</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="index.Model.html" class="tsd-signature-type tsd-kind-class">Model</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type tsd-kind-type-parameter">S</span><span class="tsd-signature-symbol">&gt;</span><a href="#constructor.new_Model" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></li>
 <li class="tsd-description">
 <section class="tsd-panel">
 <h4>Type Parameters</h4>
 <ul class="tsd-type-parameter-list">
 <li>
-<h4><span class="tsd-kind-type-parameter">T</span></h4></li></ul></section>
+<h4><span class="tsd-kind-type-parameter">S</span><span class="tsd-signature-symbol"> extends </span><a href="../types/types_model.SyncFuncConstraint.html" class="tsd-signature-type tsd-kind-type-alias">SyncFuncConstraint</a></h4></li></ul></section>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
@@ -95,17 +94,17 @@ view of your data, which must be confirmed by your backend within the configured
 </div>
 <div class="tsd-comment tsd-typography"></div></li>
 <li>
-<h5><span class="tsd-kind-parameter">registration</span>: <a href="../types/types_model.Registration.html" class="tsd-signature-type tsd-kind-type-alias">Registration</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type tsd-kind-type-parameter">T</span><span class="tsd-signature-symbol">&gt;</span></h5></li>
+<h5><span class="tsd-kind-parameter">registration</span>: <a href="../types/types_model.Registration.html" class="tsd-signature-type tsd-kind-type-alias">Registration</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type tsd-kind-type-parameter">S</span><span class="tsd-signature-symbol">&gt;</span></h5></li>
 <li>
 <h5><span class="tsd-kind-parameter">options</span>: <a href="../types/types_model.ModelOptions.html" class="tsd-signature-type tsd-kind-type-alias">ModelOptions</a></h5>
 <div class="tsd-comment tsd-typography"><p>Options used to configure this model instance.</p>
 </div>
 <div class="tsd-comment tsd-typography"></div></li></ul></div>
-<h4 class="tsd-returns-title">Returns <a href="index.Model.html" class="tsd-signature-type tsd-kind-class">Model</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type tsd-kind-type-parameter">T</span><span class="tsd-signature-symbol">&gt;</span></h4>
+<h4 class="tsd-returns-title">Returns <a href="index.Model.html" class="tsd-signature-type tsd-kind-class">Model</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type tsd-kind-type-parameter">S</span><span class="tsd-signature-symbol">&gt;</span></h4>
 <div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
 <p>Overrides EventEmitter&lt;Record&lt;ModelState, ModelStateChange&gt;&gt;.constructor</p>
 <ul>
-<li>Defined in <a href="https://github.com/ably-labs/models/blob/f124c6d/src/Model.ts#L82">Model.ts:82</a></li></ul></aside></li></ul></section></section>
+<li>Defined in <a href="https://github.com/ably-labs/models/blob/d85ddbc/src/Model.ts#L82">Model.ts:82</a></li></ul></aside></li></ul></section></section>
 <section class="tsd-panel-group tsd-member-group">
 <h2>Properties</h2>
 <section class="tsd-panel tsd-member tsd-is-inherited"><a id="any" class="tsd-anchor"></a>
@@ -113,7 +112,7 @@ view of your data, which must be confirmed by your backend within the configured
 <div class="tsd-signature"><span class="tsd-kind-property">any</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type ">Function</span><span class="tsd-signature-symbol">[]</span></div><aside class="tsd-sources">
 <p>Inherited from EventEmitter.any</p>
 <ul>
-<li>Defined in <a href="https://github.com/ably-labs/models/blob/f124c6d/src/utilities/EventEmitter.ts#L87">utilities/EventEmitter.ts:87</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ably-labs/models/blob/d85ddbc/src/utilities/EventEmitter.ts#L87">utilities/EventEmitter.ts:87</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member"><a id="name" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagReadonly">Readonly</code> <span>name</span><a href="#name" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">name</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
@@ -121,7 +120,7 @@ view of your data, which must be confirmed by your backend within the configured
 </div>
 <div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ably-labs/models/blob/f124c6d/src/Model.ts#L82">Model.ts:82</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ably-labs/models/blob/d85ddbc/src/Model.ts#L82">Model.ts:82</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member"><a id="options" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagReadonly">Readonly</code> <span>options</span><a href="#options" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">options</span><span class="tsd-signature-symbol">:</span> <a href="../types/types_model.ModelOptions.html" class="tsd-signature-type tsd-kind-type-alias">ModelOptions</a></div>
@@ -129,24 +128,24 @@ view of your data, which must be confirmed by your backend within the configured
 </div>
 <div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ably-labs/models/blob/f124c6d/src/Model.ts#L82">Model.ts:82</a></li></ul></aside></section></section>
+<li>Defined in <a href="https://github.com/ably-labs/models/blob/d85ddbc/src/Model.ts#L82">Model.ts:82</a></li></ul></aside></section></section>
 <section class="tsd-panel-group tsd-member-group">
 <h2>Accessors</h2>
 <section class="tsd-panel tsd-member"><a id="data" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>data</span><a href="#data" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
-<li class="tsd-signature" id="data.data-1"><span class="tsd-signature-symbol">get</span> data<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-symbol">{ </span><br/><span>    </span><span class="tsd-signature-symbol">get </span><span class="tsd-kind-get-signature">confirmed</span><span class="tsd-signature-symbol">(): </span><span class="tsd-signature-type tsd-kind-type-parameter">T</span><span class="tsd-signature-symbol">; </span><br/><span>    </span><span class="tsd-signature-symbol">get </span><span class="tsd-kind-get-signature">optimistic</span><span class="tsd-signature-symbol">(): </span><span class="tsd-signature-type tsd-kind-type-parameter">T</span><span class="tsd-signature-symbol">; </span><br/><span class="tsd-signature-symbol">}</span></li>
+<li class="tsd-signature" id="data.data-1"><span class="tsd-signature-symbol">get</span> data<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-symbol">{ </span><br/><span>    </span><span class="tsd-signature-symbol">get </span><span class="tsd-kind-get-signature">confirmed</span><span class="tsd-signature-symbol">(): </span><a href="../types/types_model.ExtractData.html" class="tsd-signature-type tsd-kind-type-alias">ExtractData</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type tsd-kind-type-parameter">S</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">; </span><br/><span>    </span><span class="tsd-signature-symbol">get </span><span class="tsd-kind-get-signature">optimistic</span><span class="tsd-signature-symbol">(): </span><a href="../types/types_model.ExtractData.html" class="tsd-signature-type tsd-kind-type-alias">ExtractData</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type tsd-kind-type-parameter">S</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">; </span><br/><span class="tsd-signature-symbol">}</span></li>
 <li class="tsd-description">
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-symbol">{ </span><br/><span>    </span><span class="tsd-signature-symbol">get </span><span class="tsd-kind-get-signature">confirmed</span><span class="tsd-signature-symbol">(): </span><span class="tsd-signature-type tsd-kind-type-parameter">T</span><span class="tsd-signature-symbol">; </span><br/><span>    </span><span class="tsd-signature-symbol">get </span><span class="tsd-kind-get-signature">optimistic</span><span class="tsd-signature-symbol">(): </span><span class="tsd-signature-type tsd-kind-type-parameter">T</span><span class="tsd-signature-symbol">; </span><br/><span class="tsd-signature-symbol">}</span></h4><p>The an object giving access to the optimistic and confirmed state of the model.</p>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-symbol">{ </span><br/><span>    </span><span class="tsd-signature-symbol">get </span><span class="tsd-kind-get-signature">confirmed</span><span class="tsd-signature-symbol">(): </span><a href="../types/types_model.ExtractData.html" class="tsd-signature-type tsd-kind-type-alias">ExtractData</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type tsd-kind-type-parameter">S</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">; </span><br/><span>    </span><span class="tsd-signature-symbol">get </span><span class="tsd-kind-get-signature">optimistic</span><span class="tsd-signature-symbol">(): </span><a href="../types/types_model.ExtractData.html" class="tsd-signature-type tsd-kind-type-alias">ExtractData</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type tsd-kind-type-parameter">S</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">; </span><br/><span class="tsd-signature-symbol">}</span></h4><p>The an object giving access to the optimistic and confirmed state of the model.</p>
 
 <ul class="tsd-parameters">
 <li class="tsd-parameter">
-<h5><span class="tsd-signature-symbol">get </span><span class="tsd-kind-accessor">confirmed</span><span class="tsd-signature-symbol">(): </span><span class="tsd-signature-type tsd-kind-type-parameter">T</span></h5></li>
+<h5><span class="tsd-signature-symbol">get </span><span class="tsd-kind-accessor">confirmed</span><span class="tsd-signature-symbol">(): </span><a href="../types/types_model.ExtractData.html" class="tsd-signature-type tsd-kind-type-alias">ExtractData</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type tsd-kind-type-parameter">S</span><span class="tsd-signature-symbol">&gt;</span></h5></li>
 <li class="tsd-parameter">
-<h5><span class="tsd-signature-symbol">get </span><span class="tsd-kind-accessor">optimistic</span><span class="tsd-signature-symbol">(): </span><span class="tsd-signature-type tsd-kind-type-parameter">T</span></h5></li></ul>
+<h5><span class="tsd-signature-symbol">get </span><span class="tsd-kind-accessor">optimistic</span><span class="tsd-signature-symbol">(): </span><a href="../types/types_model.ExtractData.html" class="tsd-signature-type tsd-kind-type-alias">ExtractData</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type tsd-kind-type-parameter">S</span><span class="tsd-signature-symbol">&gt;</span></h5></li></ul>
 <div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ably-labs/models/blob/f124c6d/src/Model.ts#L118">Model.ts:118</a></li></ul></aside></li></ul></section>
+<li>Defined in <a href="https://github.com/ably-labs/models/blob/d85ddbc/src/Model.ts#L121">Model.ts:121</a></li></ul></aside></li></ul></section>
 <section class="tsd-panel tsd-member"><a id="state" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>state</span><a href="#state" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -156,7 +155,7 @@ view of your data, which must be confirmed by your backend within the configured
 
 <div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ably-labs/models/blob/f124c6d/src/Model.ts#L111">Model.ts:111</a></li></ul></aside></li></ul></section></section>
+<li>Defined in <a href="https://github.com/ably-labs/models/blob/d85ddbc/src/Model.ts#L114">Model.ts:114</a></li></ul></aside></li></ul></section></section>
 <section class="tsd-panel-group tsd-member-group">
 <h2>Methods</h2>
 <section class="tsd-panel tsd-member"><a id="dispose" class="tsd-anchor"></a>
@@ -179,7 +178,7 @@ After disposal, this model instance can no longer be used.</p>
 
 <div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ably-labs/models/blob/f124c6d/src/Model.ts#L222">Model.ts:222</a></li></ul></aside></li></ul></section>
+<li>Defined in <a href="https://github.com/ably-labs/models/blob/d85ddbc/src/Model.ts#L226">Model.ts:226</a></li></ul></aside></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited"><a id="off" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>off</span><a href="#off" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -210,7 +209,7 @@ the listener is treated as an &#39;any&#39; listener.</p>
 <div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
 <p>Inherited from EventEmitter.off</p>
 <ul>
-<li>Defined in <a href="https://github.com/ably-labs/models/blob/f124c6d/src/utilities/EventEmitter.ts#L135">utilities/EventEmitter.ts:135</a></li></ul></aside></li></ul></section>
+<li>Defined in <a href="https://github.com/ably-labs/models/blob/d85ddbc/src/utilities/EventEmitter.ts#L135">utilities/EventEmitter.ts:135</a></li></ul></aside></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited"><a id="on" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>on</span><a href="#on" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -240,7 +239,7 @@ the listener is treated as an &#39;any&#39; listener.</p>
 <div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
 <p>Inherited from EventEmitter.on</p>
 <ul>
-<li>Defined in <a href="https://github.com/ably-labs/models/blob/f124c6d/src/utilities/EventEmitter.ts#L104">utilities/EventEmitter.ts:104</a></li></ul></aside></li></ul></section>
+<li>Defined in <a href="https://github.com/ably-labs/models/blob/d85ddbc/src/utilities/EventEmitter.ts#L104">utilities/EventEmitter.ts:104</a></li></ul></aside></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited"><a id="once" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>once</span><a href="#once" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -270,7 +269,7 @@ the listener is treated as an &#39;any&#39; listener.</p>
 <div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
 <p>Inherited from EventEmitter.once</p>
 <ul>
-<li>Defined in <a href="https://github.com/ably-labs/models/blob/f124c6d/src/utilities/EventEmitter.ts#L241">utilities/EventEmitter.ts:241</a></li></ul></aside></li></ul></section>
+<li>Defined in <a href="https://github.com/ably-labs/models/blob/d85ddbc/src/utilities/EventEmitter.ts#L241">utilities/EventEmitter.ts:241</a></li></ul></aside></li></ul></section>
 <section class="tsd-panel tsd-member"><a id="optimistic-2" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>optimistic</span><a href="#optimistic-2" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -299,7 +298,7 @@ function that can be used to trigger the rollback of the optimistic event.</p>
 
 <div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ably-labs/models/blob/f124c6d/src/Model.ts#L143">Model.ts:143</a></li></ul></aside></li></ul></section>
+<li>Defined in <a href="https://github.com/ably-labs/models/blob/d85ddbc/src/Model.ts#L146">Model.ts:146</a></li></ul></aside></li></ul></section>
 <section class="tsd-panel tsd-member"><a id="pause" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>pause</span><a href="#pause" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -312,7 +311,7 @@ If the model is already paused this is a no-op.</p>
 
 <div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ably-labs/models/blob/f124c6d/src/Model.ts#L165">Model.ts:165</a></li></ul></aside></li></ul></section>
+<li>Defined in <a href="https://github.com/ably-labs/models/blob/d85ddbc/src/Model.ts#L169">Model.ts:169</a></li></ul></aside></li></ul></section>
 <section class="tsd-panel tsd-member"><a id="resume" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>resume</span><a href="#resume" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -324,7 +323,7 @@ If the model is already paused this is a no-op.</p>
 
 <div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ably-labs/models/blob/f124c6d/src/Model.ts#L179">Model.ts:179</a></li></ul></aside></li></ul></section>
+<li>Defined in <a href="https://github.com/ably-labs/models/blob/d85ddbc/src/Model.ts#L183">Model.ts:183</a></li></ul></aside></li></ul></section>
 <section class="tsd-panel tsd-member"><a id="subscribe" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>subscribe</span><a href="#subscribe" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -352,7 +351,7 @@ model.sync(), subscribe will start the model by calling sync().</p>
 <li>
 <h5><span class="tsd-kind-parameter">err</span>: <span class="tsd-signature-type">null</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type ">Error</span></h5></li>
 <li>
-<h5><code class="tsd-tag ts-flagOptional">Optional</code> <span class="tsd-kind-parameter">result</span>: <span class="tsd-signature-type tsd-kind-type-parameter">T</span></h5></li></ul></div>
+<h5><code class="tsd-tag ts-flagOptional">Optional</code> <span class="tsd-kind-parameter">result</span>: <a href="../types/types_model.ExtractData.html" class="tsd-signature-type tsd-kind-type-alias">ExtractData</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type tsd-kind-type-parameter">S</span><span class="tsd-signature-symbol">&gt;</span></h5></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4></li></ul></li></ul></li>
 <li>
 <h5><span class="tsd-kind-parameter">options</span>: <a href="../types/types_model.SubscriptionOptions.html" class="tsd-signature-type tsd-kind-type-alias">SubscriptionOptions</a><span class="tsd-signature-symbol"> = ...</span></h5>
@@ -363,19 +362,24 @@ optimistic or only confirmed updates. Defaults to optimistic.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type ">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4>
 <div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ably-labs/models/blob/f124c6d/src/Model.ts#L248">Model.ts:248</a></li></ul></aside></li></ul></section>
+<li>Defined in <a href="https://github.com/ably-labs/models/blob/d85ddbc/src/Model.ts#L252">Model.ts:252</a></li></ul></aside></li></ul></section>
 <section class="tsd-panel tsd-member"><a id="sync" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>sync</span><a href="#sync" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
-<li class="tsd-signature tsd-anchor-link" id="sync.sync-1"><span class="tsd-kind-call-signature">sync</span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type ">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">&gt;</span><a href="#sync.sync-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></li>
+<li class="tsd-signature tsd-anchor-link" id="sync.sync-1"><span class="tsd-kind-call-signature">sync</span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">...</span><span class="tsd-kind-parameter">params</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type ">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">&gt;</span><a href="#sync.sync-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></li>
 <li class="tsd-description">
 <div class="tsd-comment tsd-typography"><p>The sync function that allows the model to be manually resynced</p>
 </div>
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li>
+<h5><code class="tsd-tag ts-flagRest">Rest</code> <span class="tsd-signature-symbol">...</span><span class="tsd-kind-parameter">params</span>: <span class="tsd-signature-type ">Parameters</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type tsd-kind-type-parameter">S</span><span class="tsd-signature-symbol">&gt;</span></h5></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type ">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">&gt;</span></h4><p>A promise that resolves when the model has successfully re-synchronised its state and is ready to start emitting updates.</p>
 
 <div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ably-labs/models/blob/f124c6d/src/Model.ts#L155">Model.ts:155</a></li></ul></aside></li></ul></section>
+<li>Defined in <a href="https://github.com/ably-labs/models/blob/d85ddbc/src/Model.ts#L158">Model.ts:158</a></li></ul></aside></li></ul></section>
 <section class="tsd-panel tsd-member"><a id="unsubscribe" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>unsubscribe</span><a href="#unsubscribe" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -402,12 +406,12 @@ optimistic or only confirmed updates. Defaults to optimistic.</p>
 <li>
 <h5><span class="tsd-kind-parameter">err</span>: <span class="tsd-signature-type">null</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type ">Error</span></h5></li>
 <li>
-<h5><code class="tsd-tag ts-flagOptional">Optional</code> <span class="tsd-kind-parameter">result</span>: <span class="tsd-signature-type tsd-kind-type-parameter">T</span></h5></li></ul></div>
+<h5><code class="tsd-tag ts-flagOptional">Optional</code> <span class="tsd-kind-parameter">result</span>: <a href="../types/types_model.ExtractData.html" class="tsd-signature-type tsd-kind-type-alias">ExtractData</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type tsd-kind-type-parameter">S</span><span class="tsd-signature-symbol">&gt;</span></h5></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4></li></ul></li></ul></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
 <div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ably-labs/models/blob/f124c6d/src/Model.ts#L311">Model.ts:311</a></li></ul></aside></li></ul></section>
+<li>Defined in <a href="https://github.com/ably-labs/models/blob/d85ddbc/src/Model.ts#L315">Model.ts:315</a></li></ul></aside></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited"><a id="whenState" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>when<wbr/>State</span><a href="#whenState" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -441,7 +445,7 @@ optimistic or only confirmed updates. Defaults to optimistic.</p>
 <div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
 <p>Inherited from EventEmitter.whenState</p>
 <ul>
-<li>Defined in <a href="https://github.com/ably-labs/models/blob/f124c6d/src/utilities/EventEmitter.ts#L287">utilities/EventEmitter.ts:287</a></li></ul></aside></li></ul></section></section></div>
+<li>Defined in <a href="https://github.com/ably-labs/models/blob/d85ddbc/src/utilities/EventEmitter.ts#L287">utilities/EventEmitter.ts:287</a></li></ul></aside></li></ul></section></section></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
