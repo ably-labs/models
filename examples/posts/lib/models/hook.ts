@@ -30,6 +30,7 @@ export const useModel = (id: number) => {
     const ably = assertConfiguration();
     const modelsClient = new ModelsClient({
       ably,
+      logLevel: 'trace',
       optimisticEventOptions: { timeout: 5000 },
       syncOptions: { retryStrategy: backoffRetryStrategy(3, 2, 250) },
     });
