@@ -105,7 +105,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
   }
 
   public async replay(sequenceID: string) {
-    this.logger.trace({ ...this.baseLogContext, action: 'replay()' });
+    this.logger.trace({ ...this.baseLogContext, action: 'replay()', sequenceID });
     try {
       if (this.currentState !== 'reset') {
         await this.reset();
@@ -113,7 +113,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
       await this.seek(sequenceID);
       this.setState('ready');
     } catch (err) {
-      this.logger.error('sync failed', { err });
+      this.logger.error('sync failed', { ...this.baseLogContext, action: 'replay()', err });
       this.setState('errored');
       throw err; // surface the error to the caller
     }
@@ -137,7 +137,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
    * @param sequenceID The identifier that specifies the position in the message stream (by message ID) from which to resume.
    */
   private async seek(sequenceID: string) {
-    this.logger.trace({ ...this.baseLogContext, action: 'seek()' });
+    this.logger.trace({ ...this.baseLogContext, action: 'seek()', sequenceID });
     this.setState('seeking');
 
     this.middleware = new OrderedHistoryResumer(
@@ -172,9 +172,21 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     // So the onus is on the user to return state that isn't too stale relative to subsequent changes to that state when bootstrapping.
     let done = false;
     let page: AblyTypes.PaginatedResult<AblyTypes.Message>;
+    let limit = this.options.syncOptions.historyPageSize;
+    let n = 0;
     do {
-      page = await this.ablyChannel.history({ untilAttach: true, limit: this.options.syncOptions.historyPageSize });
+      page = await this.ablyChannel.history({ untilAttach: true, limit });
       done = this.middleware.addHistoricalMessages(page.items);
+      this.logger.trace('fetched history page', {
+        ...this.baseLogContext,
+        action: 'seek()',
+        sequenceID,
+        limit,
+        n,
+        count: page?.items?.length,
+        hasNext: page?.hasNext(),
+      });
+      n++;
     } while (page && page.items && page.items.length > 0 && page.hasNext() && !done);
 
     // If the middleware is not in the success state it means there were some history messages and we never reached the target sequenceID.
