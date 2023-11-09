@@ -569,6 +569,14 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
     const noEvent = !event;
 
     if (optimisticEvent) {
+      this.logger.trace('handling optimistic event', {
+        ...this.baseLogContext,
+        action: 'computeState()',
+        confirmedData,
+        optimisticData,
+        optimisticEvents,
+        event,
+      });
       const data = await this.applyUpdate(optimisticData, event);
       this.setOptimisticData(data);
       return;
@@ -576,8 +584,24 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
 
     if (confirmedEvent) {
       if (event.rejected) {
+        this.logger.trace('handling rejection event', {
+          ...this.baseLogContext,
+          action: 'computeState()',
+          confirmedData,
+          optimisticData,
+          optimisticEvents,
+          event,
+        });
         return;
       }
+      this.logger.trace('handling confirmation event', {
+        ...this.baseLogContext,
+        action: 'computeState()',
+        confirmedData,
+        optimisticData,
+        optimisticEvents,
+        event,
+      });
       const data = await this.applyUpdate(confirmedData, event);
       this.setConfirmedData(data);
       await this.rebase(optimisticEvents);
@@ -603,6 +627,7 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
 
     // eagerly apply optimistic updates
     if (!event.confirmed) {
+      this.logger.trace('adding optimistic event', { ...this.baseLogContext, action: 'onStreamEvent()', event });
       this.optimisticEvents.push(event as OptimisticEventWithParams);
       await this.computeState(this.confirmedData, this.optimisticData, [], event as OptimisticEventWithParams);
       return;
@@ -619,6 +644,7 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
     for (let i = 0; i < this.optimisticEvents.length; i++) {
       let e = this.optimisticEvents[i];
       if (mutationIDComparator(e, event)) {
+        this.logger.trace('removing optimistic event', { ...this.baseLogContext, action: 'onStreamEvent()', event });
         this.optimisticEvents.splice(i, 1);
         await this.computeState(this.confirmedData, this.optimisticData, this.optimisticEvents, event);
         return;

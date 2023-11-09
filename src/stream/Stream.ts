@@ -197,7 +197,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
   }
 
   private onChannelMessage(message: AblyTypes.Message) {
-    this.logger.trace({ ...this.baseLogContext, action: 'onMessage()', message });
+    this.logger.trace({ ...this.baseLogContext, action: 'onChannelMessage()', message });
     if (!this.middleware) {
       throw new Error('received channel message before middleware was registered');
     }
