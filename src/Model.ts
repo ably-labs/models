@@ -419,6 +419,10 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
   }
 
   private removeStream() {
+    // no need to remove the stream if it's not yet attached to the channel
+    if (this.stream.state === 'initialized') {
+      return;
+    }
     this.logger.trace({ ...this.baseLogContext, action: 'removeStream()' });
     const callback = this.streamSubscriptionsMap.get(this.stream);
     if (callback) {
