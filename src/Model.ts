@@ -397,10 +397,15 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
   }
 
   private async resync(reason?: Error) {
-    this.logger.trace({ ...this.baseLogContext, action: 'resync()', reason });
     this.setState('syncing', reason);
 
     const fn = async () => {
+      this.logger.trace('attempting to resync...', {
+        ...this.baseLogContext,
+        action: 'resync()',
+        reason,
+        lastSyncParams: this.lastSyncParams,
+      });
       this.removeStream();
       const { data, sequenceID } = await this.syncFunc(...(this.lastSyncParams || ([] as unknown as Parameters<S>)));
       this.setConfirmedData(data);
