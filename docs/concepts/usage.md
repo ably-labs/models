@@ -14,7 +14,24 @@ A `Model` is a single instance of a live, observable data model backed by your d
 
 You can represent your data model in your frontend application however you like; it is completely decoupled from the way you represent the data in your database!
 
-To instantiate a `Model`, give it a unique name to identify the model in your application. If a model with that name does not yet exist, it will be created; otherwise, the existing instance will be returned.
+To instantiate a `Model` you must provide a unique name to identify the model in your application and the name of an [Ably channel](https://ably.com/docs/channels) over which updates to the model state will be broadcast from your backend. If a model with that name does not yet exist, it will be created; otherwise, the existing instance will be returned.
+
+```ts
+const model = modelsClient.models.get({
+  name: 'myPost',
+  channelName: 'post:123',
+  sync: /* ... */,
+  merge: /* ... */,
+})
+```
+
+You also need to pass some *registrations* which link up the model to your application code, which are described below.
+
+## Sync Function
+
+> A *sync function* tells your model how to initialise with the latest data.
+
+To initialise the data in your model, we need to provide it with a *sync function*. The sync function can be any function that optionally accepts some params and returns a promise with the latest state of your data model along with a sequence ID.
 
 ```ts
 type Post = {
@@ -22,36 +39,26 @@ type Post = {
   text: string;
   comments: string[];
 };
+
+async function sync() {
+  return {
+    sequenceID: '1',
+    data: {
+      id: 1,
+      text: 'My Post',
+      comments: [{ id: 1, text: 'My Comment' }],
+    },
+  }
+}
 ```
 
-Note that we pass in the shape of our data model (`Post`) as a type parameter.
-
-In order to instantiate the model, we need to pass some *registrations* which link up the model to your application code.
-
-```ts
-const model = modelsClient.models.get<Post, { id: string, page: number }>({
-  name: /* ... */,
-  channelName: /* ... */,
-  sync: /* ... */,
-  merge: /* ... */,
-})
-```
-
-## Sync Function
-
-> A *sync function* tells your model how to initialise with the latest data.
-
-To initialise the data in your model, we need to provide it with a *sync function*. The sync function has the following type:
-
-```ts
-type SyncFunc<T, P extends any[] | [] = []> = (...args: P) => Promise<{ data: T; sequenceID: string }>;
-```
-
-i.e it can be any function that optionally accepts some params and returns a promise with the latest state of your data model along with a sequence ID. The sequence ID is used to resume from the correct point in the change event stream to apply the correct set of change events to the returned snapshot version of the model state.
-
+> **Note:** The sequence ID is used to resume from the correct point in the change event stream to apply the correct set of change events to the returned snapshot version of the model state.
+>
 > For more information, see [Replay](./replay.md).
 
-Typically, you would implement this as a function which retrieves the model state from your backend over the network. The params allow the model to be parameterised, or paginated. For example, we might have a REST HTTP API endpoint which returns the data for our post:
+Typically, you would implement this as a function which retrieves the model state from your backend over the network.
+
+The params allow the model to be parameterised, or paginated. For example, we might have a REST HTTP API endpoint which returns the data for our post.
 
 ```ts
 async function sync(id: number, page: number) {
@@ -59,13 +66,13 @@ async function sync(id: number, page: number) {
   return result.json(); // e.g. { sequenceID: '1', data: { id: 1, text: "Hello World", comments: [] } }
 }
 
-const model = modelsClient.models.get<Post, [string, number]>({
-  sync: /* ... */,
+const model = modelsClient.models.get({
+  sync,
   /* other registrations */
 })
 ```
 
-The model will invoke this function at the start of its lifecycle to initialise your model state.
+The model will invoke the sync function at the start of its lifecycle to initialise your model state.
 
 Additionally, this function will be invoked if the model needs to re-synchronise at any point, for example after an extended period of network disconnectivity. When the SDK needs to automatically re-synchronise it will use the params from the last call to the sync function.
 
