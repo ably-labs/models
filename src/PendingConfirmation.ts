@@ -1,8 +1,6 @@
 import type { ConfirmedEvent, OptimisticEvent, OptimisticEventWithParams } from './types/model';
 import { EventComparator } from './types/optimistic.js';
-
-type ResolveFn<T> = (value: T | PromiseLike<T>) => void;
-type RejectFn = (reason?: Error) => void;
+import type { ResolveFn, RejectFn } from './types/promises.js';
 
 export default class PendingConfirmation {
   private events: OptimisticEventWithParams[];

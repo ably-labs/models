@@ -278,12 +278,16 @@ describe('Model', () => {
     expect(s1.replay).toHaveBeenCalledOnce();
 
     let subscription = new Subject<void>();
+    const subscriptionCalls = getEventPromises(subscription, 4);
     const subscriptionSpy = vi.fn<any, any>(() => subscription.next());
     model.subscribe(subscriptionSpy);
 
     events.channelEvents.next(createMessage(1));
     events.channelEvents.next(createMessage(2));
     events.channelEvents.next(createMessage(3));
+
+    // wait for the events to be processed, otherwise pause will reset the event queue
+    await Promise.all(subscriptionCalls);
 
     await model.pause();
     expect(model.state).toBe('paused');
@@ -348,12 +352,16 @@ describe('Model', () => {
     expect(s1.replay).toHaveBeenCalledOnce();
 
     let subscription = new Subject<void>();
+    const subscriptionCalls = getEventPromises(subscription, 4);
     const subscriptionSpy = vi.fn<any, any>(() => subscription.next());
     model.subscribe(subscriptionSpy);
 
     events.channelEvents.next(createMessage(1));
     events.channelEvents.next(createMessage(2));
     events.channelEvents.next(createMessage(3));
+
+    // wait for the events to be processed, otherwise pause will reset the event queue
+    await Promise.all(subscriptionCalls);
 
     await model.pause();
     expect(model.state).toBe('paused');
@@ -539,6 +547,68 @@ describe('Model', () => {
     expect(subscriptionSpy).toHaveBeenNthCalledWith(5, null, 'data_3');
     expect(model.data.optimistic).toEqual('data_3');
     expect(model.data.confirmed).toEqual('data_3');
+  });
+
+  it<ModelTestContext>('subscribes to queued updates', async ({ channelName, ably, logger, streams }) => {
+    const events = {
+      channelEvents: new Subject<Types.Message>(),
+    };
+
+    streams.newStream({ channelName }).subscribe = vi.fn(async (callback) => {
+      events.channelEvents.subscribe((message) => callback(null, message));
+    });
+
+    const sync = vi.fn(async () => ({
+      data: ['0'],
+      sequenceID: '0',
+    }));
+
+    const merge = vi.fn(async (state, event) => {
+      if (event.name === 'add') {
+        return state.concat([event.data]);
+      }
+      return state.filter((item) => item !== event.data);
+    });
+    const model = new Model(
+      'test',
+      { sync, merge },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: defaultSyncOptions,
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
+    );
+
+    await model.sync();
+
+    expect(sync).toHaveBeenCalledOnce();
+
+    let subscription = new Subject<void>();
+    const subscriptionCalls = getEventPromises(subscription, 5);
+
+    const subscriptionSpy = vi.fn<[Error | null, string[]?]>(() => subscription.next());
+    model.subscribe(subscriptionSpy);
+
+    // initial data
+    await subscriptionCalls[0];
+    expect(subscriptionSpy).toHaveBeenCalledTimes(1);
+    expect(model.data.confirmed).toEqual(['0']);
+    expect(model.data.optimistic).toEqual(['0']);
+
+    events.channelEvents.next(customMessage('1', 'add', '1'));
+    events.channelEvents.next(customMessage('2', 'add', '2'));
+    events.channelEvents.next(customMessage('3', 'delete', '2'));
+    events.channelEvents.next(customMessage('4', 'delete', '1'));
+
+    await Promise.all(subscriptionCalls);
+    expect(merge).toHaveBeenCalledTimes(4);
+    expect(subscriptionSpy).toHaveBeenCalledTimes(5);
+    expect(subscriptionSpy).toHaveBeenNthCalledWith(5, null, ['0']);
+    expect(model.data.optimistic).toEqual(['0']);
+    expect(model.data.confirmed).toEqual(['0']);
   });
 
   it<ModelTestContext>('subscribes after initialisation', async ({ channelName, ably, logger }) => {
