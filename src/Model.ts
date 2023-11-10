@@ -3,6 +3,7 @@ import type { Logger } from 'pino';
 import { Subject, Subscription } from 'rxjs';
 
 import { toError } from './Errors.js';
+import EventQueue from './EventQueue.js';
 import MutationsRegistry, { mutationIDComparator } from './MutationsRegistry.js';
 import PendingConfirmationRegistry from './PendingConfirmationRegistry.js';
 import { IStream } from './stream/Stream.js';
@@ -69,6 +70,8 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
   private subscriptionMap: WeakMap<StandardCallback<ExtractData<S>>, Subscription> = new WeakMap();
   private streamSubscriptionsMap: WeakMap<IStream, StandardCallback<AblyTypes.Message>> = new WeakMap();
 
+  private eventQueue: EventQueue;
+
   private readonly logger: Logger;
   private readonly baseLogContext: Partial<{ scope: string; action: string }>;
 
@@ -106,6 +109,8 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
     }
     this.syncFunc = registration.sync;
     this.merge = registration.merge;
+
+    this.eventQueue = new EventQueue(this.logger, this.onStreamEvent.bind(this));
   }
 
   /**
@@ -173,6 +178,7 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
       return;
     }
     this.logger.trace({ ...this.baseLogContext, action: 'pause()' });
+    this.eventQueue.reset();
     this.detachedAt = this.now();
     await this.stream.reset();
     this.setState('paused');
@@ -428,6 +434,7 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
     if (this.stream.state === 'initialized') {
       return;
     }
+    this.eventQueue.reset();
     this.logger.trace({ ...this.baseLogContext, action: 'removeStream()' });
     const callback = this.streamSubscriptionsMap.get(this.stream);
     if (callback) {
@@ -446,38 +453,35 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
   }
 
   private async onStreamMessage(err: Error | null, event?: AblyTypes.Message) {
-    try {
-      if (err) {
-        throw err;
-      }
-      this.logger.trace({ ...this.baseLogContext, action: 'onStreamMessage()', err, event });
-      let rejected = false;
-      if (event?.extras?.headers && event?.extras?.headers[MODELS_EVENT_REJECT_HEADER] === 'true') {
-        rejected = true;
-      }
-
-      const mutationID = event?.extras?.headers[MODELS_EVENT_UUID_HEADER];
-      if (!mutationID) {
-        this.logger.warn(
-          { ...this.baseLogContext, action: 'streamEventCallback' },
-          `message does not have "${MODELS_EVENT_UUID_HEADER}" header, skipping message id`,
-          event?.id,
-        );
-        return;
-      }
-
-      const modelsEvent: ConfirmedEvent = {
-        ...event!,
-        confirmed: true,
-        rejected,
-        mutationID: mutationID,
-        sequenceID: event.id,
-      };
-
-      await this.onStreamEvent(modelsEvent);
-    } catch (err) {
+    if (err) {
       await this.handleOnStreamMessageError(toError(err));
+      return;
     }
+    this.logger.trace({ ...this.baseLogContext, action: 'onStreamMessage()', err, event });
+    let rejected = false;
+    if (event?.extras?.headers && event?.extras?.headers[MODELS_EVENT_REJECT_HEADER] === 'true') {
+      rejected = true;
+    }
+
+    const mutationID = event?.extras?.headers[MODELS_EVENT_UUID_HEADER];
+    if (!mutationID) {
+      this.logger.warn(
+        { ...this.baseLogContext, action: 'streamEventCallback' },
+        `message does not have "${MODELS_EVENT_UUID_HEADER}" header, skipping message id`,
+        event?.id,
+      );
+      return;
+    }
+
+    const modelsEvent: ConfirmedEvent = {
+      ...event!,
+      confirmed: true,
+      rejected,
+      mutationID: mutationID,
+      sequenceID: event.id,
+    };
+
+    this.eventQueue.enqueue(modelsEvent);
   }
 
   private async handleOnStreamMessageError(err: Error) {
@@ -615,12 +619,16 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
 
   private async onStreamEvents(events: OptimisticEventWithParams[]) {
     for (const event of events) {
-      await this.onStreamEvent(event);
+      await this.onStreamEvent(null, event);
     }
   }
 
-  private async onStreamEvent(event?: OptimisticEventWithParams | ConfirmedEvent) {
-    this.logger.trace({ ...this.baseLogContext, action: 'onStreamEvent()', event });
+  private async onStreamEvent(err: Error | null, event?: OptimisticEventWithParams | ConfirmedEvent) {
+    this.logger.trace({ ...this.baseLogContext, action: 'onStreamEvent()', event, err });
+    if (err) {
+      await this.handleOnStreamMessageError(toError(err));
+      return;
+    }
     if (!event) {
       return;
     }
