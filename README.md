@@ -31,10 +31,8 @@ The Realtime Data Models SDK uses Ably’s fast, global message distribution net
 
 ---
 
-- [Ably Realtime data models SDK](#ably-realtime-data-models-sdk)
-  - [Status](#status)
+- [Ably Realtime Data Models SDK](#ably-realtime-data-models-sdk)
   - [Overview](#overview)
-    - [How it works](#how-it-works)
   - [Quickstart](#quickstart)
     - [Prerequisites](#prerequisites)
     - [Installation and authentication](#installation-and-authentication)
@@ -42,7 +40,7 @@ The Realtime Data Models SDK uses Ably’s fast, global message distribution net
       - [Option 2: Using a CDN (NOT YET SUPPORTED)](#option-2-using-a-cdn-not-yet-supported)
       - [Option 3: Use `npm link`](#option-3-use-npm-link)
     - [Instantiation](#instantiation)
-    - [Creating a model](#creating-a-model)
+    - [Creating a Model](#creating-a-model)
   - [Further information](#further-information)
   - [Feedback](#feedback)
 
@@ -120,7 +118,7 @@ To instantiate the Realtime Data Models SDK, create an [Ably client](https://abl
 import ModelsClient from '@ably-labs/models';
 import { Realtime } from 'ably';
 
-const ably = new Realtime.Promise({ key: "<API-key>" });
+const ably = new Realtime.Promise({ key: 'YOUR_ABLY_API_KEY' });
 const modelsClient = new ModelsClient({ ably });
 ```
 
@@ -167,7 +165,7 @@ async function updatePost(mutationID: string, content: string) {
 }
 
 // create a new model instance called 'post' by passing the sync and merge functions
-const model = modelsClient.models.get<Post>({
+const model = modelsClient.models.get({
   name: 'post',
   channelName: 'models:posts',
   sync: sync,
