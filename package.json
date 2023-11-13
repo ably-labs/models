@@ -16,11 +16,7 @@
     "build:mjs": "npx tsc --project tsconfig.mjs.json && cp res/package.mjs.json dist/mjs/package.json",
     "build:cjs": "npx tsc --project tsconfig.cjs.json && cp res/package.cjs.json dist/cjs/package.json",
     "prepare": "npx husky install",
-    "docs": "npx typedoc --tsconfig ./tsconfig.base.json"
-  },
-  "exports": {
-    "import": "./dist/mjs/index.js",
-    "require": "./dist/cjs/index.js"
+    "docs": "npx typedoc"
   },
   "repository": {
     "type": "git",
@@ -35,7 +31,15 @@
   "publishConfig": {
     "access": "public"
   },
-  "keywords": ["ably", "models", "live", "realtime", "data", "sync", "collaboration"],
+  "keywords": [
+    "ably",
+    "models",
+    "live",
+    "realtime",
+    "data",
+    "sync",
+    "collaboration"
+  ],
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^6.1.0",
     "@typescript-eslint/parser": "^6.1.0",
@@ -48,7 +52,7 @@
     "husky": "^8.0.0",
     "mock-socket": "^9.1.5",
     "prettier": "^2.8.3",
-    "typedoc": "^0.24.8",
+    "typedoc": "^0.25.3",
     "typescript": "^5.1.6",
     "vitest": "^0.34.1"
   },

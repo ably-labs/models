@@ -6,7 +6,6 @@
 scripts
 test
 demo
-docs
 examples
 __mocks__
 vitest.config.ts

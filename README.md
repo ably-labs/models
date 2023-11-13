@@ -197,14 +197,14 @@ updatePost('my-mutation-id', 'new post text')
 await confirmation;
 ```
 
-For more information, see [usage docs](./docs/concepts/usage.md).
+For more information, see [usage docs](./docs/usage.md).
 
 ## Further information
 
  For more information, see:
 
-* Read the [Concepts docs](/docs/concepts/)
-* Browse the [API docs](/docs/generated/index.html)
+* Read the [docs](/docs/)
+* Browse the [API docs](/docs/typedoc/generated/index.html)
 * Explore the [examples](/examples)
 
 ## Feedback
