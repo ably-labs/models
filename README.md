@@ -36,9 +36,8 @@ The Realtime Data Models SDK uses Ably’s fast, global message distribution net
   - [Quickstart](#quickstart)
     - [Prerequisites](#prerequisites)
     - [Installation and authentication](#installation-and-authentication)
-      - [Option 1: Using NPM (NOT YET SUPPORTED)](#option-1-using-npm-not-yet-supported)
-      - [Option 2: Using a CDN (NOT YET SUPPORTED)](#option-2-using-a-cdn-not-yet-supported)
-      - [Option 3: Use `npm link`](#option-3-use-npm-link)
+      - [Option 1: Using NPM](#option-1-using-npm)
+      - [Option 2: Use `npm link`](#option-2-use-npm-link)
     - [Instantiation](#instantiation)
     - [Creating a Model](#creating-a-model)
   - [Further information](#further-information)
@@ -69,7 +68,7 @@ To begin, you will need the following:
 ### Installation and authentication
 
 
-#### Option 1: Using NPM (NOT YET SUPPORTED)
+#### Option 1: Using NPM
 
 Install the Ably JavaScript SDK and the Realtime Data Models SDK:
 
@@ -78,17 +77,7 @@ npm install ably @ably-labs/models
 ```
 Though you can test your installation and authentication with [basic authentication](https://ably.com/docs/auth/basic), we strongly recommend [token authentication](https://ably.com/docs/auth/token) for in production environments.
 
-#### Option 2: Using a CDN (NOT YET SUPPORTED)
-
-You can use Realtime Models SDK with a CDN, such as [unpkg](https://www.unpkg.com/):
-
-```html
-<script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
-<script src="https://cdn.ably.com/spaces/0.0.13/iife/index.bundle.js"></script>
-```
-Instantiate the SDK as you would with the npm option.
-
-#### Option 3: Use `npm link`
+#### Option 2: Use `npm link`
 
 Clone this repository and run `npm link`:
 
