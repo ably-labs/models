@@ -27,7 +27,7 @@
     "url": "git+https://github.com/ably-labs/models.git"
   },
   "author": "Ably",
-  "license": "ISC",
+  "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/ably-labs/models/issues"
   },
