@@ -14,7 +14,7 @@ export default class ModelsClient {
   private opts: Omit<ModelOptions, 'channelName'>;
   private modelInstances: Record<string, Model<any>> = {};
 
-  readonly version = '0.0.1';
+  readonly version = '0.0.2';
 
   /**
    * @param {ModelsOptions} options - Options used to configure all models instantiated here, including the underlying Ably client.
