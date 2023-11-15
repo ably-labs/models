@@ -6,6 +6,7 @@ import { OrderedHistoryResumer } from './Middleware.js';
 import type { StandardCallback } from '../types/callbacks';
 import type { StreamStateChange, StreamOptions, StreamState } from '../types/stream.js';
 import EventEmitter from '../utilities/EventEmitter.js';
+import { VERSION } from '../version.js';
 
 export interface IStream {
   get state(): StreamState;
@@ -147,7 +148,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     );
     this.middleware.subscribe(this.onMiddlewareMessage.bind(this));
 
-    this.ablyChannel = this.ably.channels.get(this.options.channelName);
+    this.ablyChannel = this.ably.channels.get(this.options.channelName, { params: { agent: `models/${VERSION}` } });
     this.ablyChannel.on('failed', (change) => {
       this.dispose(change.reason);
       this.subscriptions.error(new Error('Stream failed: ' + change.reason));

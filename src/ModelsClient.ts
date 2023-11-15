@@ -1,3 +1,4 @@
+import { Types as AblyTypes } from 'ably';
 import pino from 'pino';
 
 import Model from './Model.js';
@@ -5,6 +6,13 @@ import { defaultEventBufferOptions, defaultOptimisticEventOptions, defaultSyncOp
 import type { ModelsOptions, ModelOptions, ModelSpec, SyncFuncConstraint } from './types/model.js';
 import type { OptimisticEventOptions, SyncOptions } from './types/optimistic.js';
 import type { EventBufferOptions } from './types/stream.js';
+import { VERSION } from './version.js';
+
+interface AblyClientWithOptions extends AblyTypes.RealtimePromise {
+  options?: {
+    agents?: Record<string, string | boolean>;
+  };
+}
 
 /**
  * ModelsClient captures the set of named Model instances used by your application.
@@ -13,8 +21,6 @@ import type { EventBufferOptions } from './types/stream.js';
 export default class ModelsClient {
   private opts: Omit<ModelOptions, 'channelName'>;
   private modelInstances: Record<string, Model<any>> = {};
-
-  readonly version = '0.0.2';
 
   /**
    * @param {ModelsOptions} options - Options used to configure all models instantiated here, including the underlying Ably client.
@@ -39,7 +45,16 @@ export default class ModelsClient {
       optimisticEventOptions,
       eventBufferOptions,
     };
+    this.addAgent(this.opts.ably as AblyClientWithOptions);
     this.options.ably.time();
+  }
+
+  private addAgent(client: AblyClientWithOptions) {
+    const agent = { models: VERSION };
+    if (!client['options']) {
+      client['options'] = {};
+    }
+    client['options'].agents = { ...client['options'].agents, ...agent };
   }
 
   /**

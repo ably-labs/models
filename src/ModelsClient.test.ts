@@ -2,6 +2,7 @@ import { Realtime, Types } from 'ably/promises';
 import { vi, it, describe, expect, expectTypeOf, beforeEach } from 'vitest';
 
 import ModelsClient from './ModelsClient.js';
+import { VERSION } from './version.js';
 
 interface ModelsTestContext {
   ably: Types.RealtimePromise;
@@ -23,9 +24,17 @@ describe('ModelsClient', () => {
     context.ably.connection.whenState = vi.fn<any, any>();
   });
 
-  it<ModelsTestContext>('expects the injected client to be of the type RealtimePromise', ({ ably }) => {
+  it<ModelsTestContext>('correctly instantiates the models client', ({ ably }) => {
     const modelsClient = new ModelsClient({ ably });
     expectTypeOf(modelsClient.ably).toMatchTypeOf<Types.RealtimePromise>();
+    expect(modelsClient.ably['options']).toEqual({ agents: { models: VERSION } });
+  });
+
+  it<ModelsTestContext>('preserves existing agent', ({ ably }) => {
+    ably['options'] = { agents: { foo: 'bar' } };
+    const modelsClient = new ModelsClient({ ably });
+    expectTypeOf(modelsClient.ably).toMatchTypeOf<Types.RealtimePromise>();
+    expect(modelsClient.ably['options']).toEqual({ agents: { models: VERSION, foo: 'bar' } });
   });
 
   it<ModelsTestContext>('getting a model with the same name returns the same instance', async ({
