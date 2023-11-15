@@ -32,7 +32,7 @@ export const useModel = (id: number) => {
       ably,
       logLevel: 'trace',
       optimisticEventOptions: { timeout: 5000 },
-      syncOptions: { retryStrategy: backoffRetryStrategy(3, 2, 250) },
+      syncOptions: { retryStrategy: backoffRetryStrategy(2, 500, 5) },
     });
     const init = async () => {
       const model = modelsClient.models.get({

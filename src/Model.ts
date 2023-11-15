@@ -103,7 +103,7 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
       this.options.optimisticEventOptions,
     );
 
-    this.syncRetryStrategy = options.syncOptions.retryStrategy || backoffRetryStrategy(2, 1000);
+    this.syncRetryStrategy = options.syncOptions.retryStrategy || backoffRetryStrategy(2, 1000, 10);
     if (!registration.sync) {
       throw new Error('sync func not registered');
     }
@@ -497,7 +497,6 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
         'failed to resync model after error handling stream message, pausing model and attempting to resume',
         { ...this.baseLogContext, action: 'streamEventCallback', err },
       );
-      await this.pause();
       await this.handleErrorResume();
     }
   }
@@ -507,6 +506,7 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
     const delay = 15_000;
     const fn = async () => {
       try {
+        await this.pause();
         await this.resume();
         return;
       } catch (err) {
@@ -515,8 +515,7 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
           action: 'handleErrorResume',
           err,
         });
-        // Make sure we are paused before the retry wait time kicks in
-        await this.pause();
+
         throw err;
       }
     };
