@@ -25,9 +25,9 @@ async function main() {
   await Promise.all(
     users.map((user) =>
       prisma.user.upsert({
-        where: {username: user.username},
+        where: { username: user.username },
         update: {},
-        create: {...user},
+        create: { ...user },
       }),
     ),
   );
@@ -58,10 +58,9 @@ async function main() {
             })),
           },
         },
-      })
-      console.log('created post', result.id)
-    },
-    ),
+      });
+      console.log('created post', result.id);
+    }),
   );
 }
 main()

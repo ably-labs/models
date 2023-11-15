@@ -81,7 +81,6 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
       return;
     }
     this.logger.trace({ ...this.baseLogContext, action: 'reset()' });
-    this.setState('reset');
     if (this.middleware) {
       this.middleware.unsubscribeAll();
     }
@@ -89,6 +88,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
       await this.ablyChannel.detach();
       this.ably.channels.release(this.ablyChannel.name);
     }
+    this.setState('reset');
   }
 
   public async dispose(reason?: AblyTypes.ErrorInfo | string) {
