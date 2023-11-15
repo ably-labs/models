@@ -46,7 +46,7 @@ async function main() {
   console.log('creating posts:', posts);
   await Promise.all(
     posts.map(async (post) => {
-      const authorId = Math.floor(Math.random() * users.length - 1);
+      const authorId = Math.floor(Math.random() * (users.length - 1)) + 1;
       const result = await prisma.post.create({
         data: {
           title: post.title,
