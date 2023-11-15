@@ -25,6 +25,7 @@ model outbox {
   headers     Json?
   locked_by   String?
   lock_expiry DateTime? @db.Timestamp(6)
+  processed   Boolean   @default(false)
 }
 
 model User {

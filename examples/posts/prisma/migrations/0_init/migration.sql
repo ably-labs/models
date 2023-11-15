@@ -17,7 +17,7 @@ CREATE TABLE "outbox" (
     "headers" JSONB,
     "locked_by" TEXT,
     "lock_expiry" TIMESTAMP(6),
+    "processed" BOOLEAN NOT NULL DEFAULT FALSE,
 
     CONSTRAINT "outbox_pkey" PRIMARY KEY ("sequence_id")
 );
-
