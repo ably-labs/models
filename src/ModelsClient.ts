@@ -26,6 +26,10 @@ export default class ModelsClient {
    * @param {ModelsOptions} options - Options used to configure all models instantiated here, including the underlying Ably client.
    */
   constructor(private readonly options: ModelsOptions) {
+    if (!this.isModelsOptions(options)) {
+      throw new Error('expected options to be a ModelsOptions');
+    }
+
     this.modelInstances = {};
     const optimisticEventOptions: OptimisticEventOptions = Object.assign(
       {},
@@ -73,6 +77,10 @@ export default class ModelsClient {
        * The model will not start until you call model.sync() or model.subscribe()
        */
       get: <S extends SyncFuncConstraint>(spec: ModelSpec<S>) => {
+        if (!this.isModelSpec<S>(spec)) {
+          throw new Error('expected spec to be a ModelSpec');
+        }
+
         const name = spec.name;
         const channelName = spec.channelName;
 
@@ -90,5 +98,23 @@ export default class ModelsClient {
         return model as Model<S>;
       },
     };
+  }
+
+  isModelsOptions(options: any): options is ModelsOptions {
+    return options && typeof options.ably === 'object';
+  }
+
+  isModelSpec<S extends SyncFuncConstraint>(spec: any): spec is ModelSpec<S> {
+    return (
+      spec &&
+      spec.name &&
+      typeof spec.name === 'string' &&
+      spec.channelName &&
+      typeof spec.channelName === 'string' &&
+      spec.sync &&
+      typeof spec.sync === 'function' &&
+      spec.merge &&
+      typeof spec.merge === 'function'
+    );
   }
 }
