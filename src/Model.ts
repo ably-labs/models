@@ -152,9 +152,23 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
     event: Omit<OptimisticEvent, 'confirmed'>,
     options?: Partial<OptimisticEventOptions>,
   ): Promise<[Promise<void>, () => Promise<void>]> {
+    if (!this.isEvent(event)) {
+      throw new Error('expected event to be an Event');
+    }
+
+    if (options && typeof options !== 'object') {
+      throw new Error('expected options to be an object');
+    }
+
     this.logger.trace({ ...this.baseLogContext, action: 'optimistic()', event, options });
     const clone: OptimisticEvent = Object.assign({}, event, { confirmed: false } as { confirmed: false });
     return this.mutationsRegistry.handleOptimistic(clone, options);
+  }
+
+  private isEvent(event: any): event is Event {
+    return (
+      event && event.name && typeof event.name === 'string' && event.mutationID && typeof event.mutationID === 'string'
+    );
   }
 
   /**
@@ -268,6 +282,13 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
     callback: (err: Error | null, result?: ExtractData<S>) => void,
     options: SubscriptionOptions = { optimistic: true },
   ) {
+    if (typeof callback !== 'function') {
+      throw new Error('Expected callback to be a function');
+    }
+    if (options && (typeof options !== 'object' || typeof options.optimistic !== 'boolean')) {
+      throw new Error('Expected options to be a SubscriptionOptions');
+    }
+
     this.logger.trace({ ...this.baseLogContext, action: 'subscribe()', options });
 
     if (this.state === 'initialized') {
@@ -328,6 +349,10 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
    * @param {(err: Error | null, result?: T) => void} callback - The callback to unsubscribe.
    */
   public unsubscribe(callback: (err: Error | null, result?: ExtractData<S>) => void) {
+    if (typeof callback !== 'function') {
+      throw new Error('Expected callback to be a function');
+    }
+
     this.logger.trace({ ...this.baseLogContext, action: 'unsubscribe()' });
     const subscription = this.subscriptionMap.get(callback);
     if (subscription) {
