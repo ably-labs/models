@@ -3,6 +3,7 @@ import { Logger } from 'pino';
 import { Subject, Subscription } from 'rxjs';
 
 import { OrderedHistoryResumer } from './Middleware.js';
+import { StreamDiscontinuityError } from '../Errors.js';
 import type { StandardCallback } from '../types/callbacks';
 import type { StreamStateChange, StreamOptions, StreamState } from '../types/stream.js';
 import EventEmitter from '../utilities/EventEmitter.js';
@@ -154,7 +155,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
       this.subscriptions.error(new Error('Stream failed: ' + change.reason));
     });
     this.ablyChannel.on(['suspended', 'update'], () => {
-      this.subscriptions.error(new Error('discontinuity in channel connection'));
+      this.subscriptions.error(new StreamDiscontinuityError('discontinuity in channel connection'));
     });
     await this.ably.connection.whenState('connected');
 
