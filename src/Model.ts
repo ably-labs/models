@@ -2,7 +2,7 @@ import type { Types as AblyTypes } from 'ably/promises.js';
 import type { Logger } from 'pino';
 import { Subject, Subscription } from 'rxjs';
 
-import { toError } from './Errors.js';
+import { StreamDiscontinuityError, toError } from './Errors.js';
 import EventQueue from './EventQueue.js';
 import MutationsRegistry, { mutationIDComparator } from './MutationsRegistry.js';
 import PendingConfirmationRegistry from './PendingConfirmationRegistry.js';
@@ -486,11 +486,17 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
 
   private async handleOnStreamMessageError(err: Error) {
     try {
-      this.logger.error('handle stream message failed, resyncing...', {
+      this.logger.error('handle stream message failed, attempting to resume or resync...', {
         ...this.baseLogContext,
         action: 'handleOnStreamMessageError()',
         err,
       });
+
+      if (err instanceof StreamDiscontinuityError) {
+        await this.handleErrorResume();
+        return;
+      }
+
       await this.resync(toError(err));
     } catch (err) {
       this.logger.warn(
@@ -502,7 +508,10 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
   }
 
   private async handleErrorResume() {
-    this.logger.trace({ ...this.baseLogContext, action: 'handleErrorResume()' });
+    this.logger.trace(
+      { ...this.baseLogContext, action: 'handleErrorResume()' },
+      'pausing the model, will resume or resync',
+    );
     const delay = 15_000;
     const fn = async () => {
       try {
