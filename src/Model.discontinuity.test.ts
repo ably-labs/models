@@ -36,8 +36,8 @@ describe('Model', () => {
 
     channel.on = vi.fn<any, any>(async (name: string[], callback) => {
       if (name.includes('suspended')) {
-        suspendChannel = () => {
-          callback();
+        suspendChannel = (change) => {
+          callback(change);
         };
       }
     });
@@ -96,7 +96,7 @@ describe('Model', () => {
 
     await statePromise(model, 'ready');
 
-    suspendChannel();
+    suspendChannel({ resumed: false });
     await statePromise(model, 'ready');
 
     await subscriptionCalls[1];
