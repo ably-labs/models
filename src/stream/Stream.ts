@@ -82,6 +82,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
       return;
     }
     this.logger.trace({ ...this.baseLogContext, action: 'reset()' });
+    this.setState('reset');
     if (this.middleware) {
       this.middleware.unsubscribeAll();
     }
@@ -89,7 +90,6 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
       await this.ablyChannel.detach();
       this.ably.channels.release(this.ablyChannel.name);
     }
-    this.setState('reset');
   }
 
   public async dispose(reason?: AblyTypes.ErrorInfo | string) {
@@ -154,8 +154,10 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
       this.dispose(change.reason);
       this.subscriptions.error(new Error('Stream failed: ' + change.reason));
     });
-    this.ablyChannel.on(['suspended', 'update'], () => {
-      this.subscriptions.error(new StreamDiscontinuityError('discontinuity in channel connection'));
+    this.ablyChannel.on(['suspended', 'update'], (change) => {
+      if (!change.resumed) {
+        this.subscriptions.error(new StreamDiscontinuityError('discontinuity in channel connection'));
+      }
     });
     await this.ably.connection.whenState('connected');
 
