@@ -1,6 +1,7 @@
 import { Types as AblyTypes } from 'ably';
 import pino from 'pino';
 
+import { InvalidArgumentError } from './Errors.js';
 import Model from './Model.js';
 import { defaultEventBufferOptions, defaultOptimisticEventOptions, defaultSyncOptions } from './Options.js';
 import type { ModelsOptions, ModelOptions, ModelSpec, SyncFuncConstraint } from './types/model.js';
@@ -27,7 +28,7 @@ export default class ModelsClient {
    */
   constructor(private readonly options: ModelsOptions) {
     if (!this.isModelsOptions(options)) {
-      throw new Error('expected options to be a ModelsOptions');
+      throw new InvalidArgumentError('expected options to be a ModelsOptions');
     }
 
     this.modelInstances = {};
@@ -78,14 +79,14 @@ export default class ModelsClient {
        */
       get: <S extends SyncFuncConstraint>(spec: ModelSpec<S>) => {
         if (!this.isModelSpec<S>(spec)) {
-          throw new Error('expected spec to be a ModelSpec');
+          throw new InvalidArgumentError('expected spec to be a ModelSpec');
         }
 
         const name = spec.name;
         const channelName = spec.channelName;
 
         if (!name) {
-          throw new Error('Model must have a non-empty name');
+          throw new InvalidArgumentError('Model must have a non-empty name');
         }
 
         if (this.modelInstances[name]) {
