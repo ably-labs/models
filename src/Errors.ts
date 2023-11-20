@@ -29,3 +29,15 @@ export class StreamDiscontinuityError extends Error {
     this.name = 'StreamDiscontinuityError';
   }
 }
+
+/*
+ * Represents an error that occurs by passing incorrect arguments to a public method.
+ *
+ * @extends {Error}
+ */
+export class InvalidArgumentError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidArgumentError';
+  }
+}

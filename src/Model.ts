@@ -2,7 +2,7 @@ import type { Types as AblyTypes } from 'ably/promises.js';
 import type { Logger } from 'pino';
 import { Subject, Subscription } from 'rxjs';
 
-import { StreamDiscontinuityError, toError } from './Errors.js';
+import { StreamDiscontinuityError, InvalidArgumentError, toError } from './Errors.js';
 import EventQueue from './EventQueue.js';
 import MutationsRegistry, { mutationIDComparator } from './MutationsRegistry.js';
 import PendingConfirmationRegistry from './PendingConfirmationRegistry.js';
@@ -153,11 +153,11 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
     options?: Partial<OptimisticEventOptions>,
   ): Promise<[Promise<void>, () => Promise<void>]> {
     if (!this.isEvent(event)) {
-      throw new Error('expected event to be an Event');
+      throw new InvalidArgumentError('expected event to be an Event');
     }
 
     if (options && typeof options !== 'object') {
-      throw new Error('expected options to be an object');
+      throw new InvalidArgumentError('expected options to be an object');
     }
 
     this.logger.trace({ ...this.baseLogContext, action: 'optimistic()', event, options });
@@ -283,10 +283,10 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
     options: SubscriptionOptions = { optimistic: true },
   ) {
     if (typeof callback !== 'function') {
-      throw new Error('Expected callback to be a function');
+      throw new InvalidArgumentError('Expected callback to be a function');
     }
     if (options && (typeof options !== 'object' || typeof options.optimistic !== 'boolean')) {
-      throw new Error('Expected options to be a SubscriptionOptions');
+      throw new InvalidArgumentError('Expected options to be a SubscriptionOptions');
     }
 
     this.logger.trace({ ...this.baseLogContext, action: 'subscribe()', options });
@@ -350,7 +350,7 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
    */
   public unsubscribe(callback: (err: Error | null, result?: ExtractData<S>) => void) {
     if (typeof callback !== 'function') {
-      throw new Error('Expected callback to be a function');
+      throw new InvalidArgumentError('Expected callback to be a function');
     }
 
     this.logger.trace({ ...this.baseLogContext, action: 'unsubscribe()' });
