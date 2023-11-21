@@ -1,4 +1,4 @@
-# Posts Example app
+# LiveComments Example app
 
 An example application with posts and comments that uses the Models SDK and [Ably Database Connector](https://github.com/ably-labs/adbc).
 
