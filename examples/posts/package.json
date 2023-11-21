@@ -5,9 +5,9 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "dev": "prisma generate && next dev",
+    "dev": "next dev",
     "db": "prisma generate && prisma db push && prisma db seed",
-    "build": "prisma generate && prisma db push && prisma db seed && next build",
+    "build": "next build",
     "format": "prettier './**/*.{js,ts}' --write",
     "format:check": "prettier './**/*.{js,ts}' --check",
     "start": "next start",
