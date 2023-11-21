@@ -1,8 +1,9 @@
 import { ConfirmedEvent, OptimisticEvent } from '@ably-labs/models';
+import cloneDeep from 'lodash/cloneDeep';
+
 import type { Post as PostType } from '@/lib/prisma/api';
 import type { Author as AuthorType } from '@/lib/prisma/api';
 import { Comment } from '@/lib/prisma/api';
-import cloneDeep from 'lodash/cloneDeep';
 
 export async function addComment(mutationID: string, author: AuthorType, postId: number, content: string) {
   const response = await fetch('/api/comments', {

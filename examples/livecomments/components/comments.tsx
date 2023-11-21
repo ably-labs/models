@@ -1,10 +1,11 @@
 'use client';
 
-import { Suspense } from 'react';
 import { User } from '@prisma/client';
-import NewComment from '@/components/new-comment';
+import { Suspense } from 'react';
+
 import Comment from '@/components/comment';
 import CommentPlaceholder from '@/components/comment-placeholder';
+import NewComment from '@/components/new-comment';
 import type { Comment as CommentType } from '@/lib/prisma/api';
 
 type CommentsProps = {

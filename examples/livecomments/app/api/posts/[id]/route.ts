@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+
 import { getPost } from '@/lib/prisma/api';
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
