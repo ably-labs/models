@@ -7,7 +7,7 @@ services:
       - env.local # load config from env file
     environment:
       - ADBC_POSTGRES_USER=${POSTGRES_USER}
-      - ADBC_POSTGRES_HOST=postgres # override the host to talk to postgres on ably_models_demo_posts_network
+      - ADBC_POSTGRES_HOST=postgres # override the host to talk to postgres on ably_models_demo_livecomments_network
       - ADBC_POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - ADBC_POSTGRES_DATABASE=${POSTGRES_DATABASE}
       - ADBC_ABLY_API_KEY=${NEXT_PUBLIC_ABLY_API_KEY}
@@ -17,7 +17,7 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      ably_models_demo_posts_network:
+      ably_models_demo_livecomments_network:
 
   postgres:
     image: postgres:11-alpine
@@ -32,12 +32,12 @@ services:
       interval: 2s
       retries: 30
     networks:
-      ably_models_demo_posts_network:
+      ably_models_demo_livecomments_network:
     volumes:
-      - ably_models_demo_posts_postgres_data:/var/lib/postgresql/data
+      - ably_models_demo_livecomments_postgres_data:/var/lib/postgresql/data
 
 volumes:
-  ably_models_demo_posts_postgres_data:
+  ably_models_demo_livecomments_postgres_data:
 
 networks:
-  ably_models_demo_posts_network:
+  ably_models_demo_livecomments_network:
