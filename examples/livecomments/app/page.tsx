@@ -53,7 +53,7 @@ export default function Home() {
           />
         </Link>
         <Link
-          href="https://github.com/ably-labs/models/tree/main/examples/posts"
+          href="https://github.com/ably-labs/models/tree/main/examples/livecomments"
           className="flex items-center space-x-2"
         >
           <Image
