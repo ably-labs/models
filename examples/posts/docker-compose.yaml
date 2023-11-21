@@ -4,7 +4,7 @@ services:
   adbc:
     image: ghcr.io/ably-labs/adbc:latest
     env_file:
-      - .env.local # load config from env file
+      - env.local # load config from env file
     environment:
       - ADBC_POSTGRES_USER=${POSTGRES_USER}
       - ADBC_POSTGRES_HOST=postgres # override the host to talk to postgres on ably_models_demo_posts_network

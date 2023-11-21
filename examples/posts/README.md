@@ -1,54 +1,62 @@
 # Posts Example app
 
-An example application with posts and comments that uses the Models SDK and [adbc database connector](https://github.com/ably-labs/adbc).
+An example application with posts and comments that uses the Models SDK and [Ably Database Connector](https://github.com/ably-labs/adbc).
 
 The app uses Next.js, and [Prisma](https://prisma.io).
 
 ## Getting started
 
-We recommend you run the database and connector from the adbc repo.
-This will create a postgres database, the connector, and the tables that the connector requires.
+First, set up environment variables by copying them from the template:
 
-```bash
-cd adbc/
-export ADBC_ABLY_KEY=<my-api-key>
-docker-compose up
+```
+cp env.example env.local
 ```
 
-Next, apply the prisma migrations:
-```bash
-## These env vars are used by the following prisma commands
-## so we set them here. They use the default login created by adbc's docker-compose
-export POSTGRES_URL_NON_POOLING=postgresql://postgres:postgres@localhost:5432/postgres
-export POSTGRES_PRISMA_URL=postgresql://postgres:postgres@localhost:5432/postgres
+Update your `env.local` file with the following:
 
-## The adbc startup already auto-created these tables for us. So we tell prisma that
-## the 0_init migration is already applied. If you didn't set auto_create=true in adbc
-## then skip this step.
-npx prisma migrate resolve --applied 0_init
-
-## Apply the remaining migrations
-npx prisma migrate deploy
-
-## Generate some sample data we can use in the app
-## Running this command more than once will create multiple posts, but they will all have the same content.
-npx prisma db seed
+```
+POSTGRES_URL="postgres://postgres:postgres@localhost:5432/postgres"
+POSTGRES_PRISMA_URL="postgres://postgres:postgres@localhost:5432/postgres"
+POSTGRES_URL_NON_POOLING="postgres://postgres:postgres@localhost:5432/postgres"
+POSTGRES_USER=postgres
+POSTGRES_HOST=localhost
+POSTGRES_PASSWORD=postgres
+POSTGRES_DATABASE=postgres
+SESSION_SECRET=<SOME_SECRET>
+NEXT_PUBLIC_ABLY_API_KEY=<YOUR_ABLY_API_KEY>
 ```
 
-Setup the environment variables that the server and client need, add the following to `.env.local`
+- Replace `<SOME_SECRET>` with some random string.
+- Replace `<YOUR_ABLY_API_KEY>` with your Ably API Key
+
+> **Note**
+> You can get a free Ably API Key at [https://ably.com](https://ably.com)
+
+Export the environment variables in your shell session:
+
 ```bash
-# .env.local file content
-POSTGRES_URL_NON_POOLING=postgresql://postgres:postgres@localhost:5432/postgres
-POSTGRES_PRISMA_URL=postgresql://postgres:postgres@localhost:5432/postgres
-SESSION_SECRET=
-NEXT_PUBLIC_ABLY_API_KEY=<my-api-key>
+export $(grep -s -v "^#" env.local | xargs) # export environment variables
+```
+
+Now spin up a PostgreSQL database and an instance of `adbc` which publishes change events written to the outbox table over Ably channels.
+
+```bash
+docker compose up --build -d
+```
+
+Now we can create the necessary tables in the database and create some seed data:
+
+```bash
+pnpm install # first install dependencies
+pnpm run db 
 ```
 
 You can now start the example app:
+
 ```bash
-export ABLY_KEY=<my-api-key>
-npm run dev
+pnpm run dev
 ```
 
-Open the app on [localhost:3000](http://localhost:3000)
+Open the app on [localhost:3000](http://localhost:3000).
 
+Navigate to a post and try adding, editing and removing comments from multiple tabs and see the changes reflected to all users in realtime!
