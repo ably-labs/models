@@ -1,0 +1,43 @@
+version: '3'
+
+services:
+  adbc:
+    image: ghcr.io/ably-labs/adbc:latest
+    env_file:
+      - .env.local # load config from env file
+    environment:
+      - ADBC_POSTGRES_USER=${POSTGRES_USER}
+      - ADBC_POSTGRES_HOST=postgres # override the host to talk to postgres on ably_models_demo_posts_network
+      - ADBC_POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - ADBC_POSTGRES_DATABASE=${POSTGRES_DATABASE}
+      - ADBC_ABLY_API_KEY=${NEXT_PUBLIC_ABLY_API_KEY}
+      - ADBC_OUTBOX_TABLE_AUTO_CREATE=true
+      - ADBC_NODES_TABLE_AUTO_CREATE=true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      ably_models_demo_posts_network:
+
+  postgres:
+    image: postgres:11-alpine
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    healthcheck:
+      test: ["CMD", "pg_isready", "-q", "-d", "postgres", "-U", "postgres"]
+      interval: 2s
+      retries: 30
+    networks:
+      ably_models_demo_posts_network:
+    volumes:
+      - ably_models_demo_posts_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  ably_models_demo_posts_postgres_data:
+
+networks:
+  ably_models_demo_posts_network:
