@@ -1,5 +1,5 @@
-import { getIronSession, createResponse } from 'iron-session';
 import type { User } from '@prisma/client';
+import { getIronSession, createResponse } from 'iron-session';
 
 export type SessionData = {
   user?: User;

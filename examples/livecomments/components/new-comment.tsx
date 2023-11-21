@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useContext, FormEvent } from 'react';
 import Image from 'next/image';
+import { useState, useContext, FormEvent } from 'react';
+
 import { AuthorContext } from '@/context/author';
 import { DEFAULT_AVATAR_URL } from '@/lib/image';
 import { Author as AuthorType } from '@/lib/prisma/api';

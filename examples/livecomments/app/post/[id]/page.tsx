@@ -1,7 +1,8 @@
 import { Suspense } from 'react';
-import { getPost, getRandomUser } from '@/lib/prisma/api';
+
 import Post from '@/components/post';
 import PostPlaceholder from '@/components/post-placeholder';
+import { getPost, getRandomUser } from '@/lib/prisma/api';
 
 export default async function Page({ params }: { params: { id: number } }) {
   const id = Number(params.id);

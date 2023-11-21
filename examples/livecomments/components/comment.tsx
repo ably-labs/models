@@ -1,10 +1,11 @@
 'use client';
 
-import { useContext, useState, FormEvent } from 'react';
-import Image from 'next/image';
 import { TrashIcon, PencilIcon } from '@heroicons/react/24/solid';
-import { DEFAULT_AVATAR_URL } from '@/lib/image';
+import Image from 'next/image';
+import { useContext, useState, FormEvent } from 'react';
+
 import { AuthorContext } from '@/context/author';
+import { DEFAULT_AVATAR_URL } from '@/lib/image';
 import type { Comment as CommentType } from '@/lib/prisma/api';
 
 type CommentProps = {

@@ -1,6 +1,8 @@
 import Link from 'next/link';
-import RefreshButton from './refresh-button';
+
 import { getPosts } from '@/lib/prisma/api';
+
+import RefreshButton from './refresh-button';
 
 export default async function Table() {
   const startTime = Date.now();

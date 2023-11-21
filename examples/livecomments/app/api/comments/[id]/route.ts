@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+
 import { withOutboxWrite, editComment, deleteComment } from '@/lib/prisma/api';
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {

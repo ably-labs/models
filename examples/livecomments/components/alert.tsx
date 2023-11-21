@@ -1,7 +1,8 @@
 import React from 'react';
-import { useAlert, Alert } from '@/context/alert';
 
-const typeToColour = (type: Alert['type']): string => {
+import { useAlert, type Alert as AlertType } from '@/context/alert';
+
+const typeToColour = (type: AlertType['type']): string => {
   if (type === 'success') {
     return 'bg-green-500';
   }
@@ -17,7 +18,7 @@ const typeToColour = (type: Alert['type']): string => {
   return 'bg-gray-500';
 };
 
-const Alert = ({ alert }: { alert: Alert }) => (
+const Alert = ({ alert }: { alert: AlertType }) => (
   <div className={`${typeToColour(alert.type)} text-white px-4 py-2 rounded mt-4 shadow`}>{alert.message}</div>
 );
 

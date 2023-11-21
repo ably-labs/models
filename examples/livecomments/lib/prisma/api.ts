@@ -1,5 +1,6 @@
-import * as runtime from '@prisma/client/runtime/library';
 import { Prisma, PrismaClient } from '@prisma/client';
+import * as runtime from '@prisma/client/runtime/library';
+
 import prisma from '@/lib/prisma';
 
 export type Author = {

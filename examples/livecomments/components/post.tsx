@@ -1,15 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { Post as PostType, Author as AuthorType } from '@/lib/prisma/api';
-import { AuthorProvider } from '@/context/author';
-import { AlertProvider, useAlert } from '@/context/alert';
+import { v4 as uuidv4 } from 'uuid';
+
+import AlertContainer from '@/components/alert';
 import Comments from '@/components/comments';
 import PostPlaceholder from '@/components/post-placeholder';
-import AlertContainer from '@/components/alert';
+import { AlertProvider, useAlert } from '@/context/alert';
+import { AuthorProvider } from '@/context/author';
 import { useModel, ModelType } from '@/lib/models/hook';
 import { addComment, deleteComment, editComment } from '@/lib/models/mutations';
-import { v4 as uuidv4 } from 'uuid';
+import type { Post as PostType, Author as AuthorType } from '@/lib/prisma/api';
+
 
 function Post({ model }: { model: ModelType }) {
   const { setAlert } = useAlert();
@@ -33,7 +35,7 @@ function Post({ model }: { model: ModelType }) {
     return () => {
       model.unsubscribe(onUpdate);
     };
-  }, []);
+  }, [model]);
 
   async function onAdd(author: AuthorType, postId: number, content: string) {
     const mutationID = uuidv4();
