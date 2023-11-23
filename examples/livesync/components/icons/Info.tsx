@@ -2,12 +2,7 @@ import { SVGProps } from 'react';
 
 export const InfoIcon = (props: SVGProps<SVGSVGElement>) => {
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      {...props}
-    >
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" {...props}>
       <g clipPath="url(#clip0_66_9316)">
         <path
           d="M12 9.99976C12.5523 9.99976 13 10.4475 13 10.9998V16.9998C13 17.552 12.5523 17.9998 12 17.9998C11.4477 17.9998 11 17.552 11 16.9998V10.9998C11 10.4475 11.4477 9.99976 12 9.99976Z"
@@ -26,11 +21,7 @@ export const InfoIcon = (props: SVGProps<SVGSVGElement>) => {
       </g>
       <defs>
         <clipPath id="clip0_66_9316">
-          <rect
-            width="24"
-            height="24"
-            fill="white"
-          />
+          <rect width="24" height="24" fill="white" />
         </clipPath>
       </defs>
     </svg>

@@ -62,14 +62,8 @@ export const Item = ({ title, to, Icon, value, links, isComingSoon }: MenuItemTy
   }
 
   return (
-    <Accordion.Item
-      value={value}
-      asChild
-    >
-      <Link
-        href={to}
-        className={itemClassName}
-      >
+    <Accordion.Item value={value} asChild>
+      <Link href={to} className={itemClassName}>
         {renderTrigger()}
       </Link>
     </Accordion.Item>

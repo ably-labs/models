@@ -1,0 +1,40 @@
+.list {
+  gap: 16px;
+  display: flex;
+  margin-bottom: 40px;
+}
+
+.trigger {
+  font-family: var(--font-inter);
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 20px;
+  background: transparent;
+  border: none;
+  padding: 0 4px 16px;
+  text-transform: capitalize;
+  position: relative;
+  color: var(--harbor-mist);
+  cursor: pointer;
+}
+
+.trigger:after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  background: transparent;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 15px;
+}
+
+.trigger[data-state='active']:after {
+  background-color: var(--velvet-plum);
+}
+
+.trigger[data-state='active'] {
+  color: var(--velvet-plum);
+}
