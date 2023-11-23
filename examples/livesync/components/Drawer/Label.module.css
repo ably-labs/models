@@ -1,0 +1,8 @@
+.label {
+  color: var(--harbor-mist);
+  font-family: var(--font-inter);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 18px;
+}

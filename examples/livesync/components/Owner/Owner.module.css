@@ -1,0 +1,43 @@
+.container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.avatar {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: var(--snow-white);
+
+  text-align: center;
+  font-family: var(--font-inter);
+  font-size: 8.95px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 100%;
+}
+
+.label {
+  color: #101828;
+  font-family: var(--font-inter);
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 20px;
+}
+
+.smallAvatar {
+  width: 20px;
+  height: 20px;
+}
+
+.smallLabel {
+  font-size: 12.986px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 19.479px;
+}

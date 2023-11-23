@@ -22,11 +22,7 @@ export const Header = ({ className, children }: HTMLAttributes<HTMLDivElement>) 
       <nav className={styles.header}>
         <h1 className={styles.title}>LiveSync Demo</h1>
         <div className={styles.hiddenOnMobile}>
-          <Flex
-            gap="5"
-            justify="end"
-            align="center"
-          >
+          <Flex gap="5" justify="end" align="center">
             <HowTo />
             <Button variant="secondary">
               <span>LiveSync Docs </span>
@@ -35,11 +31,7 @@ export const Header = ({ className, children }: HTMLAttributes<HTMLDivElement>) 
             <Button>Sign up</Button>
           </Flex>
         </div>
-        <button
-          className={styles.button}
-          aria-label="Mobile menu"
-          onClick={handleMenu}
-        >
+        <button className={styles.button} aria-label="Mobile menu" onClick={handleMenu}>
           <MenuIcon />
         </button>
       </nav>
@@ -50,15 +42,9 @@ export const Header = ({ className, children }: HTMLAttributes<HTMLDivElement>) 
       >
         {children}
         <div className={styles.divider} />
-        <Flex
-          gap="4"
-          direction="column"
-        >
+        <Flex gap="4" direction="column">
           <HowTo />
-          <Flex
-            gap="5"
-            align="center"
-          >
+          <Flex gap="5" align="center">
             <Button variant="secondary">
               <span>LiveSync Docs </span>
               <ExternalUrlIcon className={styles.icon} />

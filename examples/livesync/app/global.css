@@ -1,3 +1,6 @@
+@import 'react-datepicker/dist/react-datepicker.min.css';
+@import '@radix-ui/themes/styles.css';
+
 :root {
   --snow-white: #ffffff;
   --ivory-lace: #fcfcfc;
@@ -16,4 +19,19 @@
   --inkwell-gray: #2b303b;
   --icy-mist: #f4f8fb;
   --charcoal-blue: #344054;
+
+  --size-header-height-sm: 82px;
+  --size-header-height-lg: 124px;
+  --size-content-padding-x-sm: 16px;
+}
+
+.radix-themes {
+  --default-font-family: var(--font-inter);
+  --accent-a3: var(--frosty-aura);
+  --accent-a5: var(--frosty-aura);
+
+  --font-weight-light: 300;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 600;
 }

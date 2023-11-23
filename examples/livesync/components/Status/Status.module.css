@@ -1,0 +1,56 @@
+.status {
+  border-radius: 16px;
+  display: inline-flex;
+  padding: 3px 8px 3px 6px;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  font-family: var(--font-inter);
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.statusDone {
+  color: #027a48;
+  background-color: #ecfdf3;
+}
+
+.statusBlocked {
+  color: #b42318;
+  background-color: #fef3f2;
+}
+
+.statusInProgress {
+  color: #b54708;
+  background-color: #fffaeb;
+}
+
+.statusTodo {
+  color: var(--charcoal-blue);
+  background-color: #f2f4f7;
+}
+
+.indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.indicatorDone {
+  background-color: #12b76a;
+}
+
+.indicatorBlocked {
+  background-color: #f04438;
+}
+
+.indicatorInProgress {
+  background-color: #f79009;
+}
+
+.indicatorTodo {
+  background-color: var(--harbor-mist);
+}

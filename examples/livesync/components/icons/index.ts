@@ -6,3 +6,4 @@ export * from './ChevronUp';
 export * from './Menu';
 export * from './ExternalUrl';
 export * from './Info';
+export * from './Calendar';
