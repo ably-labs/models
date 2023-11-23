@@ -33,11 +33,10 @@ The Realtime Data Models SDK uses Ably’s fast, global message distribution net
 
 - [Ably Realtime Data Models SDK](#ably-realtime-data-models-sdk)
   - [Overview](#overview)
+  - [Development Status](#development-status)
   - [Quickstart](#quickstart)
     - [Prerequisites](#prerequisites)
     - [Installation and authentication](#installation-and-authentication)
-      - [Option 1: Using NPM](#option-1-using-npm)
-      - [Option 2: Use `npm link`](#option-2-use-npm-link)
     - [Instantiation](#instantiation)
     - [Creating a Model](#creating-a-model)
   - [Further information](#further-information)
@@ -55,6 +54,10 @@ Your backend publishes mutation events to Ably. The Realtime Data Models SDK upd
 
 > **Note:** Ably's realtime messaging platform integrates with the Realtime Data Models SDK to provide a fast, reliable, scalable global distribution network with seamless recovery.
 
+## Development Status
+
+The Models SDK is in the public alpha stage. It's designed primarily for experimental use and is currently unsuitable for production use. Your valuable feedback will help us focus on enhancements and resolve issues for upcoming versions.
+
 ## Quickstart
 
 ### Prerequisites
@@ -67,9 +70,6 @@ To begin, you will need the following:
 
 ### Installation and authentication
 
-
-#### Option 1: Using NPM
-
 Install the Ably JavaScript SDK and the Realtime Data Models SDK:
 
 ```sh
@@ -77,35 +77,13 @@ npm install ably @ably-labs/models
 ```
 Though you can test your installation and authentication with [basic authentication](https://ably.com/docs/auth/basic), we strongly recommend [token authentication](https://ably.com/docs/auth/token) for in production environments.
 
-#### Option 2: Use `npm link`
-
-Clone this repository and run `npm link`:
-
-```sh
-git clone git@github.com:ably-labs/models.git
-cd models
-npm link
-```
-
-From your project, link to the cloned project and build it:
-
-```sh
-cd ./your/project
-npm link @ably-labs/models
-pushd ./node_modules/@ably-labs/models
-npm run build
-popd
-```
-
-You should now be able to import `@ably-labs/models` in your project.
-
 ### Instantiation
 
 To instantiate the Realtime Data Models SDK, create an [Ably client](https://ably.com/docs/getting-started/setup) and pass it into the ModelsClient constructor:
 
 ```typescript
 import ModelsClient from '@ably-labs/models';
-import { Realtime } from 'ably';
+import { Realtime } from 'ably/promises';
 
 const ably = new Realtime.Promise({ key: 'YOUR_ABLY_API_KEY' });
 const modelsClient = new ModelsClient({ ably });
@@ -133,7 +111,7 @@ type Post = {
 // a function used by the model to initialise with the correct data from your backend
 async function sync() {
   const result = await fetch('/api/post');
-  return result.json();
+  return result.json(); // e.g. { sequenceID: 1, data: { ... } }
 }
 
 // a function used by the model to merge a change event that is received and the existing model state
