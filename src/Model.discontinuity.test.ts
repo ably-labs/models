@@ -36,8 +36,8 @@ describe('Model', () => {
 
     channel.on = vi.fn<any, any>(async (name: string[], callback) => {
       if (name.includes('suspended')) {
-        suspendChannel = (change) => {
-          callback(change);
+        suspendChannel = () => {
+          callback();
         };
       }
     });
@@ -68,7 +68,7 @@ describe('Model', () => {
       return event.data;
     });
 
-    const model = new Model(
+    const model = new Model<string>(
       'test',
       { sync: sync, merge: mergeFn },
       {
@@ -96,7 +96,7 @@ describe('Model', () => {
 
     await statePromise(model, 'ready');
 
-    suspendChannel({ resumed: false });
+    suspendChannel();
     await statePromise(model, 'ready');
 
     await subscriptionCalls[1];
@@ -144,7 +144,7 @@ describe('Model', () => {
       return event.data;
     });
 
-    const model = new Model(
+    const model = new Model<string>(
       'test',
       { sync: sync, merge: mergeFn },
       {

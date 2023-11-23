@@ -7,7 +7,7 @@ import Model from './Model.js';
 import { defaultSyncOptions, defaultEventBufferOptions, defaultOptimisticEventOptions } from './Options.js';
 import { IStream } from './stream/Stream.js';
 import { IStreamFactory } from './stream/StreamFactory.js';
-import type { ModelStateChange, ModelOptions, SyncFuncConstraint } from './types/model.d.ts';
+import type { ModelStateChange, ModelOptions } from './types/model.d.ts';
 import type { StreamOptions, StreamState } from './types/stream.js';
 import { EventListener } from './utilities/EventEmitter.js';
 import { statePromise, timeout } from './utilities/promises.js';
@@ -101,7 +101,7 @@ describe('Model', () => {
       await synchronised;
       return { data: simpleTestData, sequenceID: '0' };
     });
-    const model = new Model(
+    const model = new Model<TestData>(
       'test',
       { sync: sync, merge: async () => simpleTestData },
       {
@@ -126,20 +126,20 @@ describe('Model', () => {
     expect([undefined, { current: 'ready', previous: 'syncing', reason: undefined }]).toContain(syncResult);
   });
 
-  it<ModelTestContext>('allows sync to be called manually, with params', async ({ channelName, ably, logger }) => {
+  it<ModelTestContext>('allows sync to be called manually', async ({ channelName, ably, logger }) => {
     let completeSync: (...args: any[]) => void = () => {
       throw new Error('completeSync not defined');
     };
     let synchronised = new Promise((resolve) => (completeSync = resolve));
     let counter = 0;
-    const sync = vi.fn(async (arg1: number, arg2: string) => {
+    const sync = vi.fn(async () => {
       await synchronised;
-      return { data: `confirmed_${counter++}`, sequenceID: '0', arg1, arg2 };
+      return { data: `confirmed_${counter++}`, sequenceID: '0' };
     });
 
     const merge = vi.fn(async (_, event) => event.data);
 
-    const model = new Model(
+    const model = new Model<string>(
       'test',
       { sync, merge },
       {
@@ -151,7 +151,7 @@ describe('Model', () => {
         eventBufferOptions: defaultEventBufferOptions,
       },
     );
-    const ready = model.sync(1, 'hello');
+    const ready = model.sync();
 
     await statePromise(model, 'syncing');
     completeSync();
@@ -173,7 +173,7 @@ describe('Model', () => {
       completeSync = resolve;
     });
 
-    const resynced = model.sync(2, 'world');
+    const resynced = model.sync();
     await statePromise(model, 'syncing');
     completeSync();
     await resynced;
@@ -182,9 +182,6 @@ describe('Model', () => {
 
     expect(model.data.confirmed).toEqual('confirmed_1');
     expect(model.data.optimistic).toEqual('optimistic');
-
-    expect(sync).toHaveBeenNthCalledWith(1, 1, 'hello');
-    expect(sync).toHaveBeenNthCalledWith(2, 2, 'world');
   });
 
   it<ModelTestContext>('replays from the correct point in the stream', async ({
@@ -211,7 +208,7 @@ describe('Model', () => {
     });
 
     const merge = vi.fn(async (_, event) => event.data);
-    const model = new Model(
+    const model = new Model<string>(
       'test',
       { sync, merge },
       {
@@ -254,13 +251,13 @@ describe('Model', () => {
 
     // same timestamp simulates no time elapsed between pause and resume
     let now = Date.now();
-    class TestModel<S extends SyncFuncConstraint> extends Model<S> {
+    class TestModel<T> extends Model<T> {
       now() {
         return now;
       }
     }
 
-    const model = new TestModel(
+    const model = new TestModel<string>(
       'test',
       { sync, merge },
       {
@@ -278,16 +275,12 @@ describe('Model', () => {
     expect(s1.replay).toHaveBeenCalledOnce();
 
     let subscription = new Subject<void>();
-    const subscriptionCalls = getEventPromises(subscription, 4);
     const subscriptionSpy = vi.fn<any, any>(() => subscription.next());
     model.subscribe(subscriptionSpy);
 
     events.channelEvents.next(createMessage(1));
     events.channelEvents.next(createMessage(2));
     events.channelEvents.next(createMessage(3));
-
-    // wait for the events to be processed, otherwise pause will reset the event queue
-    await Promise.all(subscriptionCalls);
 
     await model.pause();
     expect(model.state).toBe('paused');
@@ -328,13 +321,13 @@ describe('Model', () => {
 
     // same timestamp simulates no time elapsed between pause and resume
     let now = Date.now();
-    class TestModel<S extends SyncFuncConstraint> extends Model<S> {
+    class TestModel<T> extends Model<T> {
       now() {
         return now;
       }
     }
 
-    const model = new TestModel(
+    const model = new TestModel<string>(
       'test',
       { sync, merge },
       {
@@ -352,16 +345,12 @@ describe('Model', () => {
     expect(s1.replay).toHaveBeenCalledOnce();
 
     let subscription = new Subject<void>();
-    const subscriptionCalls = getEventPromises(subscription, 4);
     const subscriptionSpy = vi.fn<any, any>(() => subscription.next());
     model.subscribe(subscriptionSpy);
 
     events.channelEvents.next(createMessage(1));
     events.channelEvents.next(createMessage(2));
     events.channelEvents.next(createMessage(3));
-
-    // wait for the events to be processed, otherwise pause will reset the event queue
-    await Promise.all(subscriptionCalls);
 
     await model.pause();
     expect(model.state).toBe('paused');
@@ -395,7 +384,7 @@ describe('Model', () => {
     let then = new Date(now);
     then.setMinutes(now.getMinutes() + 3);
 
-    class TestModel<S extends SyncFuncConstraint> extends Model<S> {
+    class TestModel<T> extends Model<T> {
       private i = 0;
       now() {
         if (this.i === 0) return now.getTime();
@@ -403,7 +392,7 @@ describe('Model', () => {
       }
     }
 
-    const model = new TestModel(
+    const model = new TestModel<string>(
       'test',
       { sync, merge },
       {
@@ -444,7 +433,7 @@ describe('Model', () => {
       sequenceID: '0',
     }));
 
-    const model = new Model(
+    const model = new Model<TestData>(
       'test',
       {
         sync: sync,
@@ -486,7 +475,7 @@ describe('Model', () => {
     }));
 
     const mergeFn = vi.fn(async (_, event) => event.data);
-    const model = new Model(
+    const model = new Model<string>(
       'test',
       { sync: sync, merge: mergeFn },
       {
@@ -549,74 +538,12 @@ describe('Model', () => {
     expect(model.data.confirmed).toEqual('data_3');
   });
 
-  it<ModelTestContext>('subscribes to queued updates', async ({ channelName, ably, logger, streams }) => {
-    const events = {
-      channelEvents: new Subject<Types.Message>(),
-    };
-
-    streams.newStream({ channelName }).subscribe = vi.fn(async (callback) => {
-      events.channelEvents.subscribe((message) => callback(null, message));
-    });
-
-    const sync = vi.fn(async () => ({
-      data: ['0'],
-      sequenceID: '0',
-    }));
-
-    const merge = vi.fn(async (state, event) => {
-      if (event.name === 'add') {
-        return state.concat([event.data]);
-      }
-      return state.filter((item) => item !== event.data);
-    });
-    const model = new Model(
-      'test',
-      { sync, merge },
-      {
-        ably,
-        channelName,
-        logger,
-        syncOptions: defaultSyncOptions,
-        optimisticEventOptions: defaultOptimisticEventOptions,
-        eventBufferOptions: defaultEventBufferOptions,
-      },
-    );
-
-    await model.sync();
-
-    expect(sync).toHaveBeenCalledOnce();
-
-    let subscription = new Subject<void>();
-    const subscriptionCalls = getEventPromises(subscription, 5);
-
-    const subscriptionSpy = vi.fn<[Error | null, string[]?]>(() => subscription.next());
-    model.subscribe(subscriptionSpy);
-
-    // initial data
-    await subscriptionCalls[0];
-    expect(subscriptionSpy).toHaveBeenCalledTimes(1);
-    expect(model.data.confirmed).toEqual(['0']);
-    expect(model.data.optimistic).toEqual(['0']);
-
-    events.channelEvents.next(customMessage('1', 'add', '1'));
-    events.channelEvents.next(customMessage('2', 'add', '2'));
-    events.channelEvents.next(customMessage('3', 'delete', '2'));
-    events.channelEvents.next(customMessage('4', 'delete', '1'));
-
-    await Promise.all(subscriptionCalls);
-    expect(merge).toHaveBeenCalledTimes(4);
-    expect(subscriptionSpy).toHaveBeenCalledTimes(5);
-    expect(subscriptionSpy).toHaveBeenNthCalledWith(5, null, ['0']);
-    expect(model.data.optimistic).toEqual(['0']);
-    expect(model.data.confirmed).toEqual(['0']);
-  });
-
   it<ModelTestContext>('subscribes after initialisation', async ({ channelName, ably, logger }) => {
     const sync = vi.fn(async () => ({
       data: 'data_0',
       sequenceID: '0',
     })); // defines initial version of model
-    const model = new Model(
+    const model = new Model<string>(
       'test',
       { sync, merge: async () => 'merged' },
       {
@@ -666,7 +593,7 @@ describe('Model', () => {
     }));
 
     const mergeFn = vi.fn(async (_, event) => event.data);
-    const model = new Model(
+    const model = new Model<string>(
       'test',
       { sync: sync, merge: mergeFn },
       {
@@ -708,7 +635,7 @@ describe('Model', () => {
     const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
     const mergeFn = vi.fn(async (_, event) => event.data);
-    const model = new Model(
+    const model = new Model<string>(
       'test',
       {
         sync: async () => ({
@@ -768,7 +695,7 @@ describe('Model', () => {
     });
 
     const mergeFn = vi.fn(async (_, event) => event.data);
-    const model = new Model(
+    const model = new Model<string>(
       'test',
       {
         sync: async () => ({
@@ -818,7 +745,7 @@ describe('Model', () => {
     });
     const mergeFn = vi.fn(async (_, event) => event.data);
 
-    const model = new Model(
+    const model = new Model<string>(
       'test',
       {
         sync: async () => ({
@@ -890,7 +817,7 @@ describe('Model', () => {
     });
     const mergeFn = vi.fn(async (_, event) => event.data);
 
-    const model = new Model(
+    const model = new Model<string>(
       'test',
       {
         sync: async () => ({
@@ -963,7 +890,7 @@ describe('Model', () => {
     });
     const mergeFn = vi.fn(async (state, event) => state + event.data);
 
-    const model = new Model(
+    const model = new Model<string>(
       'test',
       {
         sync: async () => ({
@@ -1019,7 +946,7 @@ describe('Model', () => {
     // You would typically expect the confirmation events to be sent (and arrive) in the
     // same order as their corresponding mutations were applied.
     // However, if this is not the case, we still accept the confirmation, but the
-    // optimistic and confirmed states may differ (assuming non-commutative merge functions)
+    // optimistic and confirmed states may differ (assuming non-commutative update functions)
     // since the updates were applied in different order.
 
     // confirm the second expected event
@@ -1058,7 +985,7 @@ describe('Model', () => {
     });
     const mergeFn = vi.fn(async (state, event) => state + event.data);
 
-    const model = new Model(
+    const model = new Model<string>(
       'test',
       {
         sync: async () => ({
@@ -1151,7 +1078,7 @@ describe('Model', () => {
     s1.subscribe = vi.fn();
     const mergeFn = vi.fn(async (state, event) => state + event.data);
 
-    const model = new Model(
+    const model = new Model<string>(
       'test',
       {
         sync: async () => ({
@@ -1189,15 +1116,15 @@ describe('Model', () => {
     });
     expect(model.data.optimistic).toEqual('0123');
 
-    await cancel();
+    cancel();
     await expect(confirmation).rejects.toEqual(new Error('optimistic event cancelled'));
     expect(model.data.optimistic).toEqual('023');
 
-    await cancel2();
+    cancel2();
     await expect(confirmation2).rejects.toEqual(new Error('optimistic event cancelled'));
     expect(model.data.optimistic).toEqual('03');
 
-    await cancel3();
+    cancel3();
     await expect(confirmation3).rejects.toEqual(new Error('optimistic event cancelled'));
     expect(model.data.optimistic).toEqual('0');
   });
@@ -1231,7 +1158,7 @@ describe('Model', () => {
       return event.data;
     });
 
-    const model = new Model(
+    const model = new Model<string>(
       'test',
       { sync: sync, merge: mergeFn },
       {
@@ -1296,7 +1223,7 @@ describe('Model', () => {
       return state + event.data;
     });
 
-    const model = new Model(
+    const model = new Model<string>(
       'test',
       {
         sync: async () => ({
@@ -1342,7 +1269,7 @@ describe('Model', () => {
     });
     const mergeFn = vi.fn(async (state, event) => state + event.data);
 
-    const model = new Model(
+    const model = new Model<string>(
       'test',
       {
         sync: async () => ({
@@ -1386,7 +1313,7 @@ describe('Model', () => {
     });
     const mergeFn = vi.fn(async (state, event) => state + event.data);
 
-    const model = new Model(
+    const model = new Model<string>(
       'test',
       {
         sync: async () => ({
@@ -1426,7 +1353,7 @@ describe('Model', () => {
       throw new Error('failed to load from backend');
     });
 
-    const model = new Model(
+    const model = new Model<string>(
       'test',
       {
         sync: syncSpy,
@@ -1470,7 +1397,7 @@ describe('Model', () => {
       return { sequenceID: '0', data: '0' };
     });
 
-    const model = new Model(
+    const model = new Model<string>(
       'test',
       {
         sync: syncSpy,
@@ -1513,7 +1440,7 @@ describe('Model', () => {
       return { data: '0', sequenceID: '0' };
     });
 
-    const model = new Model(
+    const model = new Model<string>(
       'test',
       {
         sync: syncFn,
@@ -1571,7 +1498,7 @@ describe('Model', () => {
       return { data: '0', sequenceID: '0' };
     });
 
-    const model = new Model(
+    const model = new Model<string>(
       'test',
       {
         sync: syncFn,

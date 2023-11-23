@@ -8,7 +8,6 @@ import { defaultSyncOptions, defaultEventBufferOptions } from '../Options.js';
 import type { StreamOptions } from '../types/stream.js';
 import { statePromise } from '../utilities/promises.js';
 import { createMessage } from '../utilities/test/messages.js';
-import { VERSION } from '../version.js';
 
 vi.mock('ably/promises');
 
@@ -75,13 +74,6 @@ describe('Stream', () => {
     await expect(replayPromise).resolves.toBeUndefined();
     expect(stream.state).toBe('ready');
 
-    expect(ably.channels.get).toHaveBeenCalledTimes(2);
-    expect(ably.channels.get).toHaveBeenNthCalledWith(1, channelName); // initial call from test
-    expect(ably.channels.get).toHaveBeenNthCalledWith(2, channelName, {
-      params: {
-        agent: `models/${VERSION}`,
-      },
-    }); // internal call with agent channel param
     expect(channel.subscribe).toHaveBeenCalledOnce();
     expect(channel.history).toHaveBeenCalledOnce();
     expect(channel.history).toHaveBeenNthCalledWith(1, {

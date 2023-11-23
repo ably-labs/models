@@ -5,7 +5,6 @@ node_modules/
 .vscode
 coverage
 .env
-docs/typedoc/generated/
 **/*.swp
 
 .DS_Store
