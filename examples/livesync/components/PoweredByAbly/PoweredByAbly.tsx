@@ -2,9 +2,20 @@ import styles from './PoweredByAbly.module.css';
 
 export const PoweredByAbly = () => {
   return (
-    <a href="https://ably.com" target="_blank" rel="noreferrer noopener" className={styles.poweredBy}>
+    <a
+      href="https://ably.com"
+      target="_blank"
+      rel="noreferrer noopener"
+      className={styles.poweredBy}
+    >
       <span className={styles.label}>Powered by</span>
-      <svg xmlns="http://www.w3.org/2000/svg" width="78" height="24" viewBox="0 0 78 24" fill="none">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="78"
+        height="24"
+        viewBox="0 0 78 24"
+        fill="none"
+      >
         <path
           d="M48.1386 18.7338V3.06592H51.0239V8.73823C52.0013 7.82606 53.2601 7.32015 54.5894 7.32015C57.7092 7.32015 60.4772 9.6504 60.4772 13.1611C60.4772 16.6718 57.7092 19.0097 54.5894 19.0097C53.1898 19.0097 51.8683 18.4655 50.8831 17.4767V18.7338H48.1386ZM57.5919 13.1611C57.5919 11.1988 56.1689 9.8267 54.3079 9.8267C52.4939 9.8267 51.0942 11.1298 51.0239 13.0231V13.1611C51.0239 15.1234 52.447 16.4955 54.3079 16.4955C56.1689 16.4955 57.5919 15.1234 57.5919 13.1611ZM61.8143 18.7338V3.06592H64.6995V18.7338H61.8143ZM68.7342 22.7964L70.4153 18.8641L65.849 7.5961H68.9688L71.8775 15.4683L74.8331 7.5961H77.9999L71.8071 22.804H68.7342V22.7964ZM43.5566 7.5961V9.01418C42.5557 7.94104 41.1561 7.32782 39.7174 7.32782C36.5976 7.32782 33.8296 9.65806 33.8296 13.1688C33.8296 16.6871 36.5976 19.0097 39.7174 19.0097C41.2109 19.0097 42.6261 18.3735 43.6504 17.2314V18.7414H46.1682V7.5961H43.5566ZM43.2751 13.1611C43.2751 15.1004 41.852 16.4955 39.9911 16.4955C38.1301 16.4955 36.707 15.1004 36.707 13.1611C36.707 11.2218 38.1301 9.8267 39.9911 9.8267C41.8051 9.8267 43.2047 11.1528 43.2751 13.0231V13.1611Z"
           fill="#03020D"
@@ -27,11 +38,26 @@ export const PoweredByAbly = () => {
             gradientUnits="userSpaceOnUse"
           >
             <stop stopColor="#FF5416" />
-            <stop offset="0.2535" stopColor="#FF5115" />
-            <stop offset="0.461" stopColor="#FF4712" />
-            <stop offset="0.6523" stopColor="#FF350E" />
-            <stop offset="0.8327" stopColor="#FF1E08" />
-            <stop offset="1" stopColor="#FF0000" />
+            <stop
+              offset="0.2535"
+              stopColor="#FF5115"
+            />
+            <stop
+              offset="0.461"
+              stopColor="#FF4712"
+            />
+            <stop
+              offset="0.6523"
+              stopColor="#FF350E"
+            />
+            <stop
+              offset="0.8327"
+              stopColor="#FF1E08"
+            />
+            <stop
+              offset="1"
+              stopColor="#FF0000"
+            />
           </linearGradient>
           <linearGradient
             id="paint1_linear_66_9101"
@@ -42,11 +68,26 @@ export const PoweredByAbly = () => {
             gradientUnits="userSpaceOnUse"
           >
             <stop stopColor="#FF5416" />
-            <stop offset="0.2535" stopColor="#FF5115" />
-            <stop offset="0.461" stopColor="#FF4712" />
-            <stop offset="0.6523" stopColor="#FF350E" />
-            <stop offset="0.8327" stopColor="#FF1E08" />
-            <stop offset="1" stopColor="#FF0000" />
+            <stop
+              offset="0.2535"
+              stopColor="#FF5115"
+            />
+            <stop
+              offset="0.461"
+              stopColor="#FF4712"
+            />
+            <stop
+              offset="0.6523"
+              stopColor="#FF350E"
+            />
+            <stop
+              offset="0.8327"
+              stopColor="#FF1E08"
+            />
+            <stop
+              offset="1"
+              stopColor="#FF0000"
+            />
           </linearGradient>
         </defs>
       </svg>

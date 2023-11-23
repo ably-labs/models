@@ -13,9 +13,16 @@ export const MenuItems = ({ items }: Props) => {
   const pathname = usePathname();
 
   return (
-    <Accordion.Root type="single" collapsible defaultValue={pathname.includes('/projects') ? 'projects' : undefined}>
+    <Accordion.Root
+      type="single"
+      collapsible
+      defaultValue={pathname.includes('/projects') ? 'projects' : undefined}
+    >
       {items.map((item) => (
-        <Item key={item.value} {...item} />
+        <Item
+          key={item.value}
+          {...item}
+        />
       ))}
     </Accordion.Root>
   );

@@ -74,7 +74,7 @@
   color: var(--coal-noir);
 }
 
-@media screen and (min-width: 376px) {
+@media screen and (min-width: 640px) {
   .hiddenOnMobile {
     display: block;
   }

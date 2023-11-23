@@ -45,7 +45,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className={cn(styles.body, inter.variable, nextBook.variable)}>
-        <Theme radius="large" appearance="light">
+        <Theme
+          radius="large"
+          appearance="light"
+        >
           <div className={cn(styles.page)}>
             <div className={styles.sidebar}>
               <MenuItems items={items} />
