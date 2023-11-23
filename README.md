@@ -11,7 +11,7 @@
 
 Build collaborative, stateful applications with the [Ably](https://ably.com) Realtime Data Models SDK. Backed by your database, you can define live, observable data models in your client applications. You can also render live changes to data from your database in realtime.
 
-![Models SDK Diagram](/docs/images/models-diagram.png "Models SDK Diagram")
+![Models SDK Diagram](/docs/images/models-diagram.png 'Models SDK Diagram')
 
 **Bring your own database**
 
@@ -31,14 +31,15 @@ The Realtime Data Models SDK uses Ably’s fast, global message distribution net
 
 ---
 
-- [Ably Realtime Data Models SDK](#ably-realtime-data-models-sdk)
+- [Ably Realtime data models SDK](#ably-realtime-data-models-sdk)
+  - [Status](#status)
   - [Overview](#overview)
   - [Development Status](#development-status)
   - [Quickstart](#quickstart)
     - [Prerequisites](#prerequisites)
     - [Installation and authentication](#installation-and-authentication)
     - [Instantiation](#instantiation)
-    - [Creating a Model](#creating-a-model)
+    - [Creating a model](#creating-a-model)
   - [Further information](#further-information)
   - [Feedback](#feedback)
 
@@ -64,9 +65,9 @@ The Models SDK is in the public alpha stage. It's designed primarily for experim
 
 To begin, you will need the following:
 
-* An Ably account. You can [sign up](https://ably.com/signup) for free.
-* An Ably API key. You can create API keys in an app within your [Ably account](https://ably.com/dashboard).
-  * The API key needs `subscribe` [capabilities](https://ably.com/docs/auth/capabilities).
+- An Ably account. You can [sign up](https://ably.com/signup) for free.
+- An Ably API key. You can create API keys in an app within your [Ably account](https://ably.com/dashboard).
+  - The API key needs `subscribe` [capabilities](https://ably.com/docs/auth/capabilities).
 
 ### Installation and authentication
 
@@ -75,6 +76,7 @@ Install the Ably JavaScript SDK and the Realtime Data Models SDK:
 ```sh
 npm install ably @ably-labs/models
 ```
+
 Though you can test your installation and authentication with [basic authentication](https://ably.com/docs/auth/basic), we strongly recommend [token authentication](https://ably.com/docs/auth/token) for in production environments.
 
 ### Instantiation
@@ -85,7 +87,7 @@ To instantiate the Realtime Data Models SDK, create an [Ably client](https://abl
 import ModelsClient from '@ably-labs/models';
 import { Realtime } from 'ably/promises';
 
-const ably = new Realtime.Promise({ key: 'YOUR_ABLY_API_KEY' });
+const ably = new Realtime.Promise({ key: '<API-key>' });
 const modelsClient = new ModelsClient({ ably });
 ```
 
@@ -119,7 +121,7 @@ async function merge(state: Post, event: OptimisticEvent | ConfirmedEvent) {
   return {
     ...state,
     text: event.data, // replace the previous post text field with the new value
-  }
+  };
 }
 
 // a function that you might use to mutate the model data in your backend
@@ -132,12 +134,12 @@ async function updatePost(mutationID: string, content: string) {
 }
 
 // create a new model instance called 'post' by passing the sync and merge functions
-const model = modelsClient.models.get({
+const model = modelsClient.models.get<Post>({
   name: 'post',
   channelName: 'models:posts',
   sync: sync,
   merge: merge,
-})
+});
 
 // subscribe to live changes to the model data!
 model.subscribe((err, post) => {
@@ -147,32 +149,31 @@ model.subscribe((err, post) => {
   console.log('post updated:', post);
 });
 
-
 // apply an optimistic update to the model
 // confirmation is a promise that resolves when the optimistic update is confirmed by the backend.
 // cancel is a function that can be used to cancel and rollback the optimistic update.
 const [confirmation, cancel] = await model.optimistic({
-    mutationID: 'my-mutation-id',
-    name: 'updatePost',
-    data: 'new post text',
-})
+  mutationID: 'my-mutation-id',
+  name: 'updatePost',
+  data: 'new post text',
+});
 
 // call your backend to apply the actual change
-updatePost('my-mutation-id', 'new post text')
+updatePost('my-mutation-id', 'new post text');
 
 // wait for confirmation of the change from the backend
 await confirmation;
 ```
 
-For more information, see [usage docs](./docs/usage.md).
+For more information, see [usage docs](./docs/concepts/usage.md).
 
 ## Further information
 
- For more information, see:
+For more information, see:
 
-* Read the [docs](/docs/)
-* Browse the [API docs](/docs/typedoc/generated/index.html)
-* Explore the [examples](/examples)
+- Read the [Concepts docs](/docs/concepts/)
+- Browse the [API docs](/docs/generated/index.html)
+- Explore the [examples](/examples)
 
 ## Feedback
 

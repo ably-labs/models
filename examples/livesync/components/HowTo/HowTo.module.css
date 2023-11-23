@@ -1,0 +1,27 @@
+.howTo {
+  color: var(--slate-night);
+  font-family: var(--font-next-book);
+  font-size: 18px;
+  font-style: normal;
+  font-weight: 300;
+  line-height: 26px;
+  padding: 0 8px;
+}
+
+.icon {
+  width: 20px;
+  height: 20px;
+}
+
+@media screen and (min-width: 376px) {
+  .howTo {
+    font-size: 16px;
+    line-height: 23px;
+    padding: 0;
+  }
+
+  .icon {
+    width: 24px;
+    height: 24px;
+  }
+}

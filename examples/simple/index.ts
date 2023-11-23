@@ -1,7 +1,7 @@
-import ModelsClient, { Event, ConfirmedEvent, OptimisticEvent } from '@ably-labs/models';
+import ModelsClient, {Event, ConfirmedEvent, OptimisticEvent} from '@ably-labs/models';
 import Ably from 'ably/promises';
 import pino from 'pino';
-import { v4 as uuidv4 } from 'uuid';
+import {v4 as uuidv4} from 'uuid';
 
 const logger = pino();
 
@@ -15,7 +15,7 @@ const ably = new Ably.Realtime.Promise({
   key: process.env.ABLY_API_KEY,
 });
 
-const modelsClient = new ModelsClient({ ably, logLevel: 'silent', optimisticEventOptions: { timeout: 5000 } });
+const modelsClient = new ModelsClient({ably, logLevel: 'silent', optimisticEventOptions: {timeout: 5000}});
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -29,7 +29,7 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
       comments: [],
     };
     const sequenceID = '10000';
-    return { data, sequenceID };
+    return {data, sequenceID};
   }
 
   let sequentialID = 1;
@@ -47,12 +47,12 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
         },
       };
       await ably.channels.get(channelName).publish(message);
-      logger.debug({ message }, 'simulated confirmation');
+      logger.debug({message}, 'simulated confirmation');
     }, 3000);
   }
 
   async function merge(state: Post, event: OptimisticEvent | ConfirmedEvent) {
-    logger.info({ event }, 'merging event');
+    logger.info({event}, 'merging event');
 
     switch (event.name) {
       case 'updatePost':
@@ -68,20 +68,20 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     }
   }
 
-  const model = modelsClient.models.get({ name: 'post', channelName: channelName, sync, merge });
+  const model = modelsClient.models.get<Post>({name: 'post', channelName: channelName, sync: sync, merge: merge});
   logger.info('sync: starting the model');
   await model.sync();
 
-  model.on((event) => logger.info({ event }, 'model state update'));
+  model.on((event) => logger.info({event}, 'model state update'));
 
   model.subscribe(
     (err, post) => {
       if (err) {
         throw err;
       }
-      logger.info({ post }, 'subscribe (non-optimistic)');
+      logger.info({post}, 'subscribe (non-optimistic)');
     },
-    { optimistic: false },
+    {optimistic: false},
   );
 
   model.subscribe(
@@ -89,9 +89,9 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
       if (err) {
         throw err;
       }
-      logger.info({ post }, 'subscribe (optimistic)');
+      logger.info({post}, 'subscribe (optimistic)');
     },
-    { optimistic: true },
+    {optimistic: true},
   );
 
   const event1: Event = {

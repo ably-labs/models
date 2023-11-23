@@ -1,0 +1,30 @@
+.trigger {
+  background-color: transparent;
+  border: none;
+  color: var(--blackend-indigo);
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 20px;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-left: -12px;
+}
+
+.trigger:hover {
+  background-color: var(--frosty-aura);
+}
+
+.icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 100%;
+  border: 0.75px solid #b5bcc2;
+  color: #b5bcc2;
+}

@@ -2,8 +2,7 @@ import type { Types as AblyTypes } from 'ably/promises.js';
 import type { Logger } from 'pino';
 import { Subject, Subscription } from 'rxjs';
 
-import { StreamDiscontinuityError, InvalidArgumentError, toError } from './Errors.js';
-import EventQueue from './EventQueue.js';
+import { toError } from './Errors.js';
 import MutationsRegistry, { mutationIDComparator } from './MutationsRegistry.js';
 import PendingConfirmationRegistry from './PendingConfirmationRegistry.js';
 import { IStream } from './stream/Stream.js';
@@ -15,12 +14,11 @@ import type {
   ModelState,
   ModelStateChange,
   ModelOptions,
+  SyncFunc,
   Registration,
   SubscriptionOptions,
   OptimisticEvent,
   ConfirmedEvent,
-  ExtractData,
-  SyncFuncConstraint,
 } from './types/model.js';
 import {
   MODELS_EVENT_REJECT_HEADER,
@@ -45,15 +43,16 @@ import { backoffRetryStrategy, fixedRetryStrategy } from './utilities/retries.js
  *
  * @extends {EventEmitter<Record<ModelState, ModelStateChange>>} Allows you to listen for model state changes to hook into the model lifecycle.
  */
-export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Record<ModelState, ModelStateChange>> {
+export default class Model<T> extends EventEmitter<Record<ModelState, ModelStateChange>> {
   private currentState: ModelState = 'initialized';
-  private optimisticData!: ExtractData<S>;
-  private confirmedData!: ExtractData<S>;
+  private optimisticData!: T;
+  private confirmedData!: T;
 
   private syncRetryStrategy: RetryStrategyFunc;
-  private syncFunc: S;
-  private lastSyncParams?: Parameters<S>;
-  private merge: MergeFunc<ExtractData<S>> = async () => {
+  private syncFunc: SyncFunc<T> = async () => {
+    throw new Error('sync func not registered');
+  };
+  private merge: MergeFunc<T> = async () => {
     throw new Error('merge func not registered');
   };
 
@@ -66,11 +65,9 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
     mutationIDComparator,
   );
 
-  private readonly subscriptions = new Subject<{ confirmed: boolean; data: ExtractData<S> }>();
-  private subscriptionMap: WeakMap<StandardCallback<ExtractData<S>>, Subscription> = new WeakMap();
+  private readonly subscriptions = new Subject<{ confirmed: boolean; data: T }>();
+  private subscriptionMap: WeakMap<StandardCallback<T>, Subscription> = new WeakMap();
   private streamSubscriptionsMap: WeakMap<IStream, StandardCallback<AblyTypes.Message>> = new WeakMap();
-
-  private eventQueue: EventQueue;
 
   private readonly logger: Logger;
   private readonly baseLogContext: Partial<{ scope: string; action: string }>;
@@ -82,7 +79,7 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
    * @param {string} name - A unique name used to identify this model in your application.
    * @param {ModelOptions} options - Options used to configure this model instance.
    */
-  constructor(readonly name: string, registration: Registration<S>, readonly options: ModelOptions) {
+  constructor(readonly name: string, registration: Registration<T>, readonly options: ModelOptions) {
     super();
     this.logger = this.options.logger;
     this.baseLogContext = { scope: `Model:${name}` };
@@ -103,14 +100,9 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
       this.options.optimisticEventOptions,
     );
 
-    this.syncRetryStrategy = options.syncOptions.retryStrategy || backoffRetryStrategy(2, 1000, 10);
-    if (!registration.sync) {
-      throw new Error('sync func not registered');
-    }
+    this.syncRetryStrategy = options.syncOptions.retryStrategy || backoffRetryStrategy(2, 1000);
     this.syncFunc = registration.sync;
     this.merge = registration.merge;
-
-    this.eventQueue = new EventQueue(this.logger, this.onStreamEvent.bind(this));
   }
 
   /**
@@ -152,32 +144,15 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
     event: Omit<OptimisticEvent, 'confirmed'>,
     options?: Partial<OptimisticEventOptions>,
   ): Promise<[Promise<void>, () => Promise<void>]> {
-    if (!this.isEvent(event)) {
-      throw new InvalidArgumentError('expected event to be an Event');
-    }
-
-    if (options && typeof options !== 'object') {
-      throw new InvalidArgumentError('expected options to be an object');
-    }
-
-    this.logger.trace({ ...this.baseLogContext, action: 'optimistic()', event, options });
     const clone: OptimisticEvent = Object.assign({}, event, { confirmed: false } as { confirmed: false });
     return this.mutationsRegistry.handleOptimistic(clone, options);
-  }
-
-  private isEvent(event: any): event is Event {
-    return (
-      event && event.name && typeof event.name === 'string' && event.mutationID && typeof event.mutationID === 'string'
-    );
   }
 
   /**
    * The sync function that allows the model to be manually resynced
    * @returns A promise that resolves when the model has successfully re-synchronised its state and is ready to start emitting updates.
    */
-  public async sync(...params: Parameters<S>) {
-    this.logger.trace({ ...this.baseLogContext, action: 'sync()', params });
-    this.lastSyncParams = params;
+  public async sync() {
     await this.resync();
     return statePromise(this, 'ready');
   }
@@ -192,7 +167,6 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
       return;
     }
     this.logger.trace({ ...this.baseLogContext, action: 'pause()' });
-    this.eventQueue.reset();
     this.detachedAt = this.now();
     await this.stream.reset();
     this.setState('paused');
@@ -221,13 +195,6 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
     }
     const margin = 5000; // 5 second margin to reduce chance of messages expiring while paginating through history
     if (!this.lastSeenSequenceID || !this.detachedAt || this.now() - this.detachedAt >= interval - margin) {
-      this.logger.trace('resyncing without replay attempt', {
-        ...this.baseLogContext,
-        action: 'resume()',
-        lastSeenSequenceID: this.lastSeenSequenceID,
-        interval,
-        detachedAt: this.detachedAt,
-      });
       await this.resync();
       this.detachedAt = null;
       return;
@@ -279,27 +246,20 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
    * optimistic or only confirmed updates. Defaults to optimistic.
    */
   public async subscribe(
-    callback: (err: Error | null, result?: ExtractData<S>) => void,
+    callback: (err: Error | null, result?: T) => void,
     options: SubscriptionOptions = { optimistic: true },
   ) {
-    if (typeof callback !== 'function') {
-      throw new InvalidArgumentError('Expected callback to be a function');
-    }
-    if (options && (typeof options !== 'object' || typeof options.optimistic !== 'boolean')) {
-      throw new InvalidArgumentError('Expected options to be a SubscriptionOptions');
-    }
-
     this.logger.trace({ ...this.baseLogContext, action: 'subscribe()', options });
 
     if (this.state === 'initialized') {
-      await this.sync(...(this.lastSyncParams || ([] as unknown as Parameters<S>)));
+      await this.sync();
     }
 
     if (this.state === 'disposed') {
       throw new Error('Cannot subscribe to a disposed model');
     }
 
-    const errorHandledCallback = (err: Error | null, result?: ExtractData<S>) => {
+    const errorHandledCallback = (err: Error | null, result?: T) => {
       try {
         callback(err, result);
       } catch (error) {
@@ -348,11 +308,7 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
    * Unsubscribes the given callback to changes to the data.
    * @param {(err: Error | null, result?: T) => void} callback - The callback to unsubscribe.
    */
-  public unsubscribe(callback: (err: Error | null, result?: ExtractData<S>) => void) {
-    if (typeof callback !== 'function') {
-      throw new InvalidArgumentError('Expected callback to be a function');
-    }
-
+  public unsubscribe(callback: (err: Error | null, result?: T) => void) {
     this.logger.trace({ ...this.baseLogContext, action: 'unsubscribe()' });
     const subscription = this.subscriptionMap.get(callback);
     if (subscription) {
@@ -413,12 +369,6 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
         if (delay < 0) {
           throw err;
         }
-        this.logger.warn('retryable function failed, scheduling retry', {
-          ...this.baseLogContext,
-          action: 'retryable()',
-          delay,
-          attempt: i,
-        });
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
@@ -428,17 +378,12 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
   }
 
   private async resync(reason?: Error) {
+    this.logger.trace({ ...this.baseLogContext, action: 'resync()', reason });
     this.setState('syncing', reason);
 
     const fn = async () => {
-      this.logger.trace('attempting to resync...', {
-        ...this.baseLogContext,
-        action: 'resync()',
-        reason,
-        lastSyncParams: this.lastSyncParams,
-      });
       this.removeStream();
-      const { data, sequenceID } = await this.syncFunc(...(this.lastSyncParams || ([] as unknown as Parameters<S>)));
+      const { data, sequenceID } = await this.syncFunc();
       this.setConfirmedData(data);
       await this.computeState(this.confirmedData, this.optimisticData, this.optimisticEvents);
       await this.addStream(sequenceID);
@@ -448,19 +393,12 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
     try {
       await this.retryable(this.syncRetryStrategy, fn);
     } catch (err) {
-      this.logger.error('retries exhausted', { ...this.baseLogContext, action: 'resync()', err });
       this.setState('errored', toError(err));
       throw err;
     }
   }
 
   private removeStream() {
-    // no need to remove the stream if it's not yet attached to the channel
-    if (this.stream.state === 'initialized') {
-      return;
-    }
-    this.eventQueue.reset();
-    this.logger.trace({ ...this.baseLogContext, action: 'removeStream()' });
     const callback = this.streamSubscriptionsMap.get(this.stream);
     if (callback) {
       this.stream.unsubscribe(callback);
@@ -470,7 +408,6 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
   }
 
   private async addStream(sequenceID: string) {
-    this.logger.trace({ ...this.baseLogContext, action: 'addStream()', sequenceID });
     const callback = this.onStreamMessage.bind(this);
     this.stream.subscribe(callback);
     this.streamSubscriptionsMap.set(this.stream, callback);
@@ -478,85 +415,71 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
   }
 
   private async onStreamMessage(err: Error | null, event?: AblyTypes.Message) {
-    if (err) {
+    try {
+      if (err) {
+        throw err;
+      }
+      let rejected = false;
+      if (event?.extras?.headers && event?.extras?.headers[MODELS_EVENT_REJECT_HEADER] === 'true') {
+        rejected = true;
+      }
+
+      const mutationID = event?.extras?.headers[MODELS_EVENT_UUID_HEADER];
+      if (!mutationID) {
+        this.logger.warn(
+          { ...this.baseLogContext, action: 'streamEventCallback' },
+          `message does not have "${MODELS_EVENT_UUID_HEADER}" header, skipping message id`,
+          event?.id,
+        );
+        return;
+      }
+
+      const modelsEvent: ConfirmedEvent = {
+        ...event!,
+        confirmed: true,
+        rejected,
+        mutationID: mutationID,
+        sequenceID: event.id,
+      };
+
+      await this.onStreamEvent(modelsEvent);
+    } catch (err) {
       await this.handleOnStreamMessageError(toError(err));
-      return;
     }
-    this.logger.trace({ ...this.baseLogContext, action: 'onStreamMessage()', err, event });
-    let rejected = false;
-    if (event?.extras?.headers && event?.extras?.headers[MODELS_EVENT_REJECT_HEADER] === 'true') {
-      rejected = true;
-    }
-
-    const mutationID = event?.extras?.headers[MODELS_EVENT_UUID_HEADER];
-    if (!mutationID) {
-      this.logger.warn(
-        { ...this.baseLogContext, action: 'streamEventCallback' },
-        `message does not have "${MODELS_EVENT_UUID_HEADER}" header, skipping message id`,
-        event?.id,
-      );
-      return;
-    }
-
-    const modelsEvent: ConfirmedEvent = {
-      ...event!,
-      confirmed: true,
-      rejected,
-      mutationID: mutationID,
-      sequenceID: event.id,
-    };
-
-    this.eventQueue.enqueue(modelsEvent);
   }
 
   private async handleOnStreamMessageError(err: Error) {
     try {
-      this.logger.error('handle stream message failed, attempting to resume or resync...', {
-        ...this.baseLogContext,
-        action: 'handleOnStreamMessageError()',
-        err,
-      });
-
-      if (err instanceof StreamDiscontinuityError) {
-        await this.handleErrorResume();
-        return;
-      }
-
       await this.resync(toError(err));
-    } catch (err) {
+    } catch (error) {
       this.logger.warn(
-        'failed to resync model after error handling stream message, pausing model and attempting to resume',
-        { ...this.baseLogContext, action: 'streamEventCallback', err },
+        { ...this.baseLogContext, action: 'streamEventCallback' },
+        `error when trying to resync model after error in stream subscibe callback, pausing model and attempting to resume`,
       );
+      await this.pause();
       await this.handleErrorResume();
     }
   }
 
   private async handleErrorResume() {
-    this.logger.trace(
-      { ...this.baseLogContext, action: 'handleErrorResume()' },
-      'pausing the model, will resume or resync',
-    );
-    const delay = 15_000;
     const fn = async () => {
       try {
-        await this.pause();
         await this.resume();
         return;
-      } catch (err) {
-        this.logger.warn(`failed to resume model after error handling stream message, retrying in ${delay}`, {
-          ...this.baseLogContext,
-          action: 'handleErrorResume',
-          err,
-        });
-
-        throw err;
+      } catch (error) {
+        this.logger.warn(
+          { ...this.baseLogContext, action: 'handleErrorResume' },
+          `error when trying to resume model after error in stream subscibe callback, retrying in 30seconds`,
+        );
+        // Make sure we are paused before the retry wait time kicks in
+        await this.pause();
+        throw error;
       }
     };
-    await this.retryable(fixedRetryStrategy(delay), fn);
+    await this.retryable(fixedRetryStrategy(15_000), fn);
   }
 
-  private setOptimisticData(data: ExtractData<S>) {
+  private setOptimisticData(data: T) {
     this.logger.trace({ ...this.baseLogContext, action: 'setOptimisticData()', data });
     this.optimisticData = data;
     setTimeout(() => {
@@ -567,7 +490,7 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
     }, 0);
   }
 
-  private setConfirmedData(data: ExtractData<S>) {
+  private setConfirmedData(data: T) {
     this.logger.trace({ ...this.baseLogContext, action: 'setConfirmedData()', data });
     this.confirmedData = data;
     setTimeout(() => {
@@ -578,42 +501,24 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
     }, 0);
   }
 
-  private async applyUpdate(
-    initialData: ExtractData<S>,
-    event: OptimisticEvent | ConfirmedEvent,
-  ): Promise<ExtractData<S>> {
+  private async applyUpdate(initialData: T, event: OptimisticEvent | ConfirmedEvent): Promise<T> {
+    this.logger.trace({ ...this.baseLogContext, action: 'applyUpdate()', initialData, event });
     const data = await this.merge(initialData, event);
-    this.logger.trace({ ...this.baseLogContext, action: 'applyUpdate()', initialData, event, data });
     return data;
   }
 
   private async computeState(
-    confirmedData: ExtractData<S>,
-    optimisticData: ExtractData<S>,
+    confirmedData: T,
+    optimisticData: T,
     optimisticEvents: OptimisticEvent[],
     event?: OptimisticEvent | ConfirmedEvent,
   ) {
-    this.logger.trace({
-      ...this.baseLogContext,
-      action: 'computeState()',
-      confirmedData,
-      optimisticData,
-      optimisticEvents,
-      event,
-    });
+    this.logger.trace({ ...this.baseLogContext, action: 'computeState()' });
     const optimisticEvent = event && !event.confirmed;
     const confirmedEvent = event && event.confirmed;
     const noEvent = !event;
 
     if (optimisticEvent) {
-      this.logger.trace('handling optimistic event', {
-        ...this.baseLogContext,
-        action: 'computeState()',
-        confirmedData,
-        optimisticData,
-        optimisticEvents,
-        event,
-      });
       const data = await this.applyUpdate(optimisticData, event);
       this.setOptimisticData(data);
       return;
@@ -621,24 +526,8 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
 
     if (confirmedEvent) {
       if (event.rejected) {
-        this.logger.trace('handling rejection event', {
-          ...this.baseLogContext,
-          action: 'computeState()',
-          confirmedData,
-          optimisticData,
-          optimisticEvents,
-          event,
-        });
         return;
       }
-      this.logger.trace('handling confirmation event', {
-        ...this.baseLogContext,
-        action: 'computeState()',
-        confirmedData,
-        optimisticData,
-        optimisticEvents,
-        event,
-      });
       const data = await this.applyUpdate(confirmedData, event);
       this.setConfirmedData(data);
       await this.rebase(optimisticEvents);
@@ -652,23 +541,18 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
 
   private async onStreamEvents(events: OptimisticEventWithParams[]) {
     for (const event of events) {
-      await this.onStreamEvent(null, event);
+      await this.onStreamEvent(event);
     }
   }
 
-  private async onStreamEvent(err: Error | null, event?: OptimisticEventWithParams | ConfirmedEvent) {
-    this.logger.trace({ ...this.baseLogContext, action: 'onStreamEvent()', event, err });
-    if (err) {
-      await this.handleOnStreamMessageError(toError(err));
-      return;
-    }
+  private async onStreamEvent(event?: OptimisticEventWithParams | ConfirmedEvent) {
+    this.logger.trace({ ...this.baseLogContext, action: 'onStreamEvent()', event });
     if (!event) {
       return;
     }
 
     // eagerly apply optimistic updates
     if (!event.confirmed) {
-      this.logger.trace('adding optimistic event', { ...this.baseLogContext, action: 'onStreamEvent()', event });
       this.optimisticEvents.push(event as OptimisticEventWithParams);
       await this.computeState(this.confirmedData, this.optimisticData, [], event as OptimisticEventWithParams);
       return;
@@ -685,7 +569,6 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
     for (let i = 0; i < this.optimisticEvents.length; i++) {
       let e = this.optimisticEvents[i];
       if (mutationIDComparator(e, event)) {
-        this.logger.trace('removing optimistic event', { ...this.baseLogContext, action: 'onStreamEvent()', event });
         this.optimisticEvents.splice(i, 1);
         await this.computeState(this.confirmedData, this.optimisticData, this.optimisticEvents, event);
         return;
@@ -698,7 +581,6 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
   }
 
   private async rebase(optimisticEvents: OptimisticEvent[]) {
-    this.logger.trace({ ...this.baseLogContext, action: 'rebase()', optimisticEvents });
     let base = this.confirmedData;
     for (const event of optimisticEvents) {
       base = await this.applyUpdate(base, event);
