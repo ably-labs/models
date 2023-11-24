@@ -1,7 +1,8 @@
 import cn from 'classnames';
 import styles from './Status.module.css';
+import { StatusTypeValues } from '@/data/types';
 
-export type StatusType = 'done' | 'inprogress' | 'blocked' | 'todo';
+export type StatusType = (typeof StatusTypeValues)[number];
 
 interface Props {
   status: StatusType;

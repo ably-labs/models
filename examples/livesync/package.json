@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "seed": "pnpm dlx tsx ./data/seed.ts"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.1.2",
@@ -20,13 +21,17 @@
     "shader": "^1.0.0"
   },
   "devDependencies": {
+    "@faker-js/faker": "^8.3.1",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-datepicker": "^4.19.3",
     "@types/react-dom": "^18",
+    "chalk": "^5.3.0",
+    "dotenv": "^16.3.1",
     "eslint": "^8",
     "eslint-config-next": "14.0.1",
     "eslint-config-prettier": "^9.0.0",
+    "postgres": "^3.4.3",
     "prettier": "^3.0.3",
     "typescript": "^5"
   }
