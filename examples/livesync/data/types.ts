@@ -1,9 +1,11 @@
+import { Row, RowList } from 'postgres';
 import { StatusType } from '../components/Status';
 
 export const StatusTypeValues = ['done', 'inprogress', 'blocked', 'todo'] as const;
 
+export type TableIds = RowList<Row[]>;
+
 export interface Project {
-  id: string;
   slug: string;
   name: string;
   description: string;
@@ -11,32 +13,27 @@ export interface Project {
 }
 
 export interface User {
-  id: string;
   slug: string;
   first_name: string;
   last_name: string;
   email: string;
   color: string;
-  date_added: Date;
   title: string;
 }
 
 export interface Issue {
-  id: string;
   slug: string;
   name: string;
   due_date: Date;
   status: StatusType;
-  owner: string;
+  owner_id: number;
   story_points: number;
   description: string;
-  project_id: string;
+  project_id: number;
 }
 
 export interface Comment {
-  id: string;
-  issue: string;
-  user_id: string;
-  created_on: Date;
+  issue_id: number;
+  user_id: number;
   content: string;
 }
