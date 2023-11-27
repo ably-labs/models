@@ -78,17 +78,43 @@ function isArray<T>(arg: unknown): arg is Array<T> {
   return Array.isArray(arg);
 }
 
+/**
+ * A map of event names to event payloads
+ */
 type EventMap = Record<string, any>;
-// extract all the keys of an event map and use them as a type
+
+/**
+ * Extract the keys fo an event map into a type
+ *
+ * @template T - the map of events names to event payloads.
+ */
 type EventKey<T extends EventMap> = string & keyof T;
+
+/**
+ * A listener for an event
+ * @callback
+ * @template T the type of the callback's parameters
+ * @param params the parameters for the callback
+ */
 export type EventListener<T> = (params: T) => void;
 
+/**
+ * An event emitter for state changes
+ * @template T - type of events emitted.
+ */
 export default class EventEmitter<T extends EventMap> {
+  /**
+   * Callbacks for any event
+   */
   any: Array<Function>;
   private events: Record<string, Function[]>;
   private anyOnce: Array<Function>;
   private eventsOnce: Record<string, Function[]>;
 
+  /**
+   * Create a new EventEmitter
+   * @template T - type of events emitted.
+   */
   constructor() {
     this.any = [];
     this.events = Object.create(null);
@@ -98,6 +124,7 @@ export default class EventEmitter<T extends EventMap> {
 
   /**
    * Add an event listener
+   * @template K - the type of the event to listen to
    * @param listenerOrEvents (optional) the name of the event to listen to or the listener to be called.
    * @param listener (optional) the listener to be called.
    */
@@ -128,6 +155,7 @@ export default class EventEmitter<T extends EventMap> {
 
   /**
    * Remove one or more event listeners
+   * @template K - the type of the event to listen to
    * @param listenerOrEvents (optional) the name of the event whose listener is to be removed. If not supplied,
    * the listener is treated as an 'any' listener.
    * @param listener (optional) the listener to remove. If not supplied, all listeners are removed.
@@ -182,6 +210,7 @@ export default class EventEmitter<T extends EventMap> {
 
   /**
    * Get the array of listeners for a given event; excludes once events
+   * @template K - the type of the event to listen to
    * @param event (optional) the name of the event, or none for 'any'
    * @return array of events, or null if none
    */
@@ -201,6 +230,7 @@ export default class EventEmitter<T extends EventMap> {
 
   /**
    * Emit an event
+   * @template K - the type of the event to listen to
    * @param event the event name
    * @param args the arguments to pass to the listener
    */
@@ -235,6 +265,7 @@ export default class EventEmitter<T extends EventMap> {
 
   /**
    * Listen for a single occurrence of an event
+   * @template K - the type of the event to listen to
    * @param listenerOrEvents (optional) the name of the event to listen to
    * @param listener (optional) the listener to be called
    */
@@ -282,7 +313,7 @@ export default class EventEmitter<T extends EventMap> {
    * @param targetState the name of the state event to listen to
    * @param currentState the name of the current state of this object
    * @param listener the listener to be called
-   * @param listenerArgs
+   * @param listenerArgs the arguments for the listener
    */
   whenState(targetState: string, currentState: string, listener: EventListener<T>, ...listenerArgs: unknown[]) {
     const eventThis = { event: targetState };

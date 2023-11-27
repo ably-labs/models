@@ -8,9 +8,10 @@ import MutationsRegistry, { mutationIDComparator } from './MutationsRegistry.js'
 import PendingConfirmationRegistry from './PendingConfirmationRegistry.js';
 import { IStream } from './stream/Stream.js';
 import StreamFactory, { IStreamFactory as IStreamFactory } from './stream/StreamFactory.js';
-import type { StandardCallback } from './types/callbacks';
+import type { StandardCallback, SubscriptionCallback } from './types/callbacks';
 import { MergeFunc } from './types/merge.js';
 import type {
+  Event,
   OptimisticEventWithParams,
   ModelState,
   ModelStateChange,
@@ -26,11 +27,18 @@ import {
   MODELS_EVENT_REJECT_HEADER,
   MODELS_EVENT_UUID_HEADER,
   OptimisticEventOptions,
+  OptimisticEventConfirmation,
   RetryStrategyFunc,
 } from './types/optimistic.js';
 import EventEmitter from './utilities/EventEmitter.js';
 import { statePromise } from './utilities/promises.js';
 import { backoffRetryStrategy, fixedRetryStrategy } from './utilities/retries.js';
+
+/**
+ * A type that represents a partial version of the given type.
+ * @template T - The type to make partial.
+ */
+type partial<T> = Partial<T>;
 
 /**
  * A Model encapsulates an observable, collaborative data model backed by a transactional database in your backend.
@@ -41,7 +49,9 @@ import { backoffRetryStrategy, fixedRetryStrategy } from './utilities/retries.js
  * Additionally, the Model supports optimistic events which are applied locally to generate an optimistic
  * view of your data, which must be confirmed by your backend within the configured timeout.
  *
- * @template T - The type of your data model.
+ * @template S - The type of the sync function that is used to synchronise the model state with your backend.
+ * @property {string} name - A unique name used to identify this model in your application.
+ * @property {ModelOptions} options - Options used to configure this model instance.
  *
  * @extends {EventEmitter<Record<ModelState, ModelStateChange>>} Allows you to listen for model state changes to hook into the model lifecycle.
  */
@@ -79,8 +89,12 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
   private lastSeenSequenceID: string | null = null;
 
   /**
-   * @param {string} name - A unique name used to identify this model in your application.
+   * Create a new model
+   *
+   * @property {string} name - A unique name used to identify this model in your application.
+   * @param {Registration<S>} registration - A registration object that contains the sync and merge functions for this model.
    * @param {ModelOptions} options - Options used to configure this model instance.
+   * @template S - The type of the sync function that is used to synchronise the model state with your backend.
    */
   constructor(readonly name: string, registration: Registration<S>, readonly options: ModelOptions) {
     super();
@@ -127,9 +141,15 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
     const self = this;
 
     return {
+      /**
+       * @returns The optimistic state of the model.
+       */
       get optimistic() {
         return self.optimisticData;
       },
+      /**
+       * @returns The confirmed state of the model.
+       */
       get confirmed() {
         return self.confirmedData;
       },
@@ -139,19 +159,15 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
   /**
    * The optimistic function that allows optimistic events to be included in the model state.
    * Optimistic events are expected to be confirmed by later confirmed events consumed on the channel.
-   * @param {string} mutationID - The identifier for this mutation. This ID will be used to match this
-   * optimistic event against a confirmed event received on the channel.
    * @param {Event} event - The event to apply optimistically.
-   * @param {Partial<OptimisticEventOptions>} options - Options for handling this specific optimisitic event.
-   * @returns {Promise<[Promise<void>,() => void]>} A Promise that resolves to a [confirmed, cancel] tuple
+   * @param {partial} options - Options for handling this specific optimisitic event.
+   * @returns {Promise<[Promise<void>, () => Promise<void>]>} A Promise that resolves to a [confirmed, cancel] tuple
    * when the model has successfully applied the optimistic update. The confirmed field from the tuple is a
    * promise that resolves when the optimistic event is confirmed. The cancel field from the tuple is a
    * function that can be used to trigger the rollback of the optimistic event.
+   * @interface
    */
-  public optimistic(
-    event: Omit<OptimisticEvent, 'confirmed'>,
-    options?: Partial<OptimisticEventOptions>,
-  ): Promise<[Promise<void>, () => Promise<void>]> {
+  public optimistic(event: Event, options?: partial<OptimisticEventOptions>): OptimisticEventConfirmation {
     if (!this.isEvent(event)) {
       throw new InvalidArgumentError('expected event to be an Event');
     }
@@ -173,6 +189,8 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
 
   /**
    * The sync function that allows the model to be manually resynced
+   * @template S - The type of the sync function that is used to synchronise the model state with your backend.
+   * @param {Parameters<S>} params - The parameters to pass to the sync function.
    * @returns A promise that resolves when the model has successfully re-synchronised its state and is ready to start emitting updates.
    */
   public async sync(...params: Parameters<S>) {
@@ -274,14 +292,11 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
   /**
    * Subscribes to changes to the data. If the model has not been started yet by calling
    * model.sync(), subscribe will start the model by calling sync().
-   * @param {(err: Error | null, result?: T) => void} callback - The callback to invoke with the latest data, or an error.
+   * @param {SubscriptionCallback<S>} callback - The callback to invoke when the model data changes.
    * @param {SubscriptionOptions} options - Optional subscription options that can be used to specify whether to subscribe to
    * optimistic or only confirmed updates. Defaults to optimistic.
    */
-  public async subscribe(
-    callback: (err: Error | null, result?: ExtractData<S>) => void,
-    options: SubscriptionOptions = { optimistic: true },
-  ) {
+  public async subscribe(callback: SubscriptionCallback<S>, options: SubscriptionOptions = { optimistic: true }) {
     if (typeof callback !== 'function') {
       throw new InvalidArgumentError('Expected callback to be a function');
     }
@@ -346,9 +361,10 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
 
   /**
    * Unsubscribes the given callback to changes to the data.
-   * @param {(err: Error | null, result?: T) => void} callback - The callback to unsubscribe.
+   * @template S - The type of the sync function that is used to synchronise the model state with your backend.
+   * @param {SubscriptionCallback<S>} callback - The callback to unsubscribe.
    */
-  public unsubscribe(callback: (err: Error | null, result?: ExtractData<S>) => void) {
+  public unsubscribe(callback: SubscriptionCallback<S>) {
     if (typeof callback !== 'function') {
       throw new InvalidArgumentError('Expected callback to be a function');
     }

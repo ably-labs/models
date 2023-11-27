@@ -7,6 +7,7 @@
 	"excludeExternals": true,
 	"excludeReferences": true,
   "includeVersion": true,
+  "plugin": ["typedoc-plugin-missing-exports"],
   "out": "docs/typedoc/generated",
   "readme": "docs/typedoc/intro.md",
   "requiredToBeDocumented": [
@@ -30,8 +31,8 @@
     "SetSignature",
     "TypeAlias",
     "TypeParameter",
-    "Variable",
+    "Variable"
   ],
-  // "treatWarningsAsErrors": true, // TODO: enable this when we have better docs coverage
-  "validation": true,
+  "treatWarningsAsErrors": true,
+  "validation": true
 }
