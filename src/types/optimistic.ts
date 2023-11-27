@@ -3,6 +3,9 @@ import type { Event } from './model';
 /**
  * EventComparator compares an optimistic event with a confirmed event and returns
  * true if the confirmed event corresponds to the optimistic event (i.e. it confirms it).
+ * @param {Event} optimistic - The optimistic event.
+ * @param {Event} confirmed - The confirmed event.
+ * @returns {boolean} True if the confirmed event corresponds to the optimistic event.
  */
 export type EventComparator = (optimistic: Event, confirmed: Event) => boolean;
 
@@ -10,6 +13,9 @@ export type EventComparator = (optimistic: Event, confirmed: Event) => boolean;
  * EventOrderer is used to determine the order of elements in the event buffer. It expects
  * to return a negative value of the first argument is less than the second argument, zero
  * if they are equal, and a positive value otherwise.
+ * @param {string} a - The first event ID.
+ * @param {string} b - The second event ID.
+ * @param {number} - A negative value if a < b, zero if a == b, a positive value otherwise.
  */
 export type EventOrderer = (a: string, b: string) => number;
 
@@ -76,5 +82,17 @@ export type OptimisticInvocationParams = {
   options?: Partial<OptimisticEventOptions>;
 };
 
+/**
+ * Promise that resolves to a [confirmed, cancel] tuple.
+ * @interface
+ */
+export type OptimisticEventConfirmation = Promise<[Promise<void>, () => Promise<void>]>;
+
+/**
+ * The header name of the models event UUID.
+ */
 export const MODELS_EVENT_UUID_HEADER = 'x-ably-models-event-uuid';
+/**
+ * The header name of the models event rejection field.
+ */
 export const MODELS_EVENT_REJECT_HEADER = 'x-ably-models-reject';
