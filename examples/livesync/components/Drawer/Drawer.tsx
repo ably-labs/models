@@ -1,26 +1,60 @@
 'use client';
 
+import { useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import cn from 'classnames';
 import { Badge, Button, Heading, Select, TextArea } from '@radix-ui/themes';
+import { useForm } from 'react-hook-form';
 // @ts-ignore
 import shader from 'shader';
 import { Owner } from '../Owner';
 import { Status, StatusType } from '../Status';
 import { DatePicker } from '../DatePicker';
+import { CloseIcon } from '../icons';
 import { Label } from './Label';
+import { Comment } from './Comment';
 
 import styles from './Drawer.module.css';
-import { CloseIcon } from '../icons/Close';
 
 interface Props {
   children: React.ReactNode;
+}
+
+interface FormData {
+  comment: string;
 }
 
 export const Drawer = ({ children }: Props) => {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
+  const [comments, setComments] = useState<{ issue_id: number; user_id: number; content: string }[]>([
+    {
+      issue_id: 1,
+      user_id: 1,
+      content:
+        'The goal is to improve the usability and user experience of our current dashboard. The dashboard is the first thing our users see after logging in, and it&apos;s crucial that it&apos;s intuitive and user-friendly. The optimization should focus on better information architecture, visual hierarchy, and quicker access to important features.',
+    },
+  ]);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { isValid },
+    setValue,
+  } = useForm<FormData>();
+
+  const onSubmit = (data: FormData) => {
+    setComments((prev) => [
+      ...prev,
+      {
+        issue_id: 1,
+        user_id: 1,
+        content: data.comment,
+      },
+    ]);
+    setValue('comment', '');
+  };
 
   const handleCloseDrawer = () => {
     router.push(pathname);
@@ -105,6 +139,34 @@ export const Drawer = ({ children }: Props) => {
               defaultValue="The goal is to improve the usability and user experience of our current dashboard. The dashboard is the first thing our users see after logging in, and it's crucial that it's intuitive and user-friendly. The optimization should focus on better information architecture, visual hierarchy, and quicker access to important features."
             />
           </div>
+        </div>
+        <div className={styles.commentsContainer}>
+          <div className={styles.commentsListContainer}>
+            <Heading mb="4" size="3" weight="medium" as="h4" className={styles.commentsTitle}>
+              Comments
+            </Heading>
+            {comments.map(({ content, user_id }, index) => (
+              <Comment key={`${user_id}-${index}`} content={content} />
+            ))}
+          </div>
+          <form className={styles.newCommentSection} onSubmit={handleSubmit(onSubmit)}>
+            <Owner firstName="Ariana" lastName="Grande" color="#00A5EC" variant="large" />
+            <TextArea
+              variant="soft"
+              placeholder="Add a comment"
+              rows={3}
+              className={styles.commentTextarea}
+              {...register('comment', {
+                required: true,
+                minLength: { value: 1, message: 'Comment must have something' },
+              })}
+            />
+            {isValid && (
+              <Button variant="solid" className={styles.commentButton} type="submit">
+                Comment
+              </Button>
+            )}
+          </form>
         </div>
       </aside>
     </>
