@@ -11,16 +11,36 @@ import type { EventBufferOptions } from './stream';
  * Options used to configure a model instance.
  */
 export type ModelOptions = {
+  /**
+   * The Ably Realtime client.
+   */
   ably: AblyTypes.RealtimePromise;
+  /**
+   * The name of the channel to use for the model.
+   */
   channelName: string;
+  /**
+   * The logger to use for the model.
+   */
   logger: Logger;
+  /**
+   * Options used to configure the sync behaviour of the model.
+   */
   syncOptions: SyncOptions;
+  /**
+   * Options used to configure the optimistic event behaviour of the model.
+   */
   optimisticEventOptions: OptimisticEventOptions;
+  /**
+   * Options used to configure the event buffer behaviour of the model.
+   */
   eventBufferOptions: EventBufferOptions;
 };
 
 /**
  * Base options used to configure model instances.
+ * @property {LevelWithSilent} logLevel - The log level to use for the model.
+ * @interface
  */
 export type ModelsOptions = OptionalValues<
   OptionalFields<
@@ -32,8 +52,12 @@ export type ModelsOptions = OptionalValues<
 
 /**
  * Identifies a model created or accessed from the ModelsClient.
+ * @template S - The sync function type.
+ * @property {string} name - The name of the model.
+ * @property {string} channelName - The name of the channel used by the model.
+ * @interface
  */
-export type ModelSpec<S extends (...args: any) => Promise<{ data: any; sequenceID: string }>> = {
+export type ModelSpec<S extends SyncFuncConstraint> = {
   name: string;
   channelName: string;
 } & Registration<S>;
@@ -72,8 +96,17 @@ export type ModelState =
  * Represents a change event that can be applied to a model via a merge function.
  */
 export type Event = {
+  /**
+   * The ID of the mutation that caused the event.
+   */
   mutationID: string;
+  /**
+   * The name of the event.
+   */
   name: string;
+  /**
+   * The data associated with the event.
+   */
   data?: any;
 };
 
@@ -91,6 +124,9 @@ export type EventParams = {
  * An event that is emitted locally only in order to apply local optimistic updates to the model state.
  */
 export type OptimisticEvent = Event & {
+  /**
+   * Optimistic events are never confirmed.
+   */
   confirmed: false;
 };
 
@@ -98,7 +134,13 @@ export type OptimisticEvent = Event & {
  * An event received from the backend over Ably that represents a confirmed change on the underlying state in the database.
  */
 export type ConfirmedEvent = Event & {
+  /**
+   * Confirmed events are always confirmed.
+   */
   confirmed: true;
+  /**
+   * The sequence ID of the event.
+   */
   sequenceID: string;
   /**
    * If true, indicates that the backend is (asynchronously) explicitly rejecting this optimistic change.
@@ -114,27 +156,42 @@ export type ConfirmedEvent = Event & {
  * Decorates an optimistic event with event-specific parameters.
  */
 export type OptimisticEventWithParams = OptimisticEvent & {
+  /**
+   * The parameters to decorate the event with.
+   */
   params: EventParams;
 };
 
 /**
  * Defines a function which the library will use to pull the latest state of the model from the backend.
  * Invoked on initialisation and whenever some discontinuity occurs that requires a re-sync.
+ * @template F - The sync function type.
  */
 export type SyncFunc<F extends SyncFuncConstraint> = F;
 
 /**
  * Captures the return type of the sync function.
+ * @template T - The data type returned by the sync function from the backend.
+ * @returns {Promise<{data: T, sequenceID: string}>} A promise containing the data from the backend and a sequenceID.
+ * @interface
  */
 export type SyncReturnType<T> = Promise<{ data: T; sequenceID: string }>;
 
 /**
  * Type constraint for a sync function.
+ * @param args - The arguments to the sync function.
+ * @returns The return type of the sync function.
+ * @callback
  */
 export type SyncFuncConstraint = (...args: any[]) => SyncReturnType<any>;
 
 /**
  * Utility type to infer the type of the data payload returned by the sync function.
+ * @template F - The sync function type.
+ * @template D - The data type returned by the sync function.
+ * @param args - The arguments to the sync function.
+ * @returns The data type returned by the sync function.
+ * @interface
  */
 export type ExtractData<F extends SyncFuncConstraint> = F extends (...args: any[]) => SyncReturnType<infer D>
   ? D
@@ -144,8 +201,17 @@ export type ExtractData<F extends SyncFuncConstraint> = F extends (...args: any[
  * A state transition emitted as an event from the model describing a change to the model's lifecycle.
  */
 export type ModelStateChange = {
+  /**
+   * The current state of the model.
+   */
   current: ModelState;
+  /**
+   * The previous state of the model.
+   */
   previous: ModelState;
+  /**
+   * The error that chased the state change, if any.
+   */
   reason?: Error;
 };
 
@@ -162,8 +228,9 @@ export type SubscriptionOptions = {
 
 /**
  * A type used to capture the bulk registration of the required methods on the model.
+ * @template S - The sync function type.
  */
-export type Registration<S extends (...args: any) => Promise<{ data: any; sequenceID: string }>> = {
+export type Registration<S extends SyncFuncConstraint> = {
   /**
    * The sync function used to pull the latest state of the model.
    */
