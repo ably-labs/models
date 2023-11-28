@@ -14,6 +14,7 @@
   --gentle-gray: #b0b5ba;
   --lilac-breeze: #f9f5ff;
   --velvet-plum: #6941c6;
+  --vivid-violet: #7f56d9;
   --soft-denim: #98a2b3;
   --frosty-aura: #f9fafb;
   --inkwell-gray: #2b303b;
@@ -29,6 +30,8 @@
   --default-font-family: var(--font-inter);
   --accent-a3: var(--frosty-aura);
   --accent-a5: var(--frosty-aura);
+  --accent-9: var(--vivid-violet);
+  --accent-10: var(--velvet-plum);
 
   --font-weight-light: 300;
   --font-weight-regular: 400;

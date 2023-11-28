@@ -7,3 +7,5 @@ export * from './Menu';
 export * from './ExternalUrl';
 export * from './Info';
 export * from './Calendar';
+export * from './Dot';
+export * from './Close';
