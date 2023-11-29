@@ -39,7 +39,10 @@ export type MutationCallbacks = {
  * The MutationsRegistry class encapsulates the processing of optimistic events that can be executed on a given model.
  */
 export default class MutationsRegistry {
-  constructor(readonly callbacks: MutationCallbacks, readonly options?: Partial<OptimisticEventOptions>) {}
+  constructor(
+    readonly callbacks: MutationCallbacks,
+    readonly options?: Partial<OptimisticEventOptions>,
+  ) {}
 
   /**
    * Processes optimistic events and waits for them to be applied before returning.

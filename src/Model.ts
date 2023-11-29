@@ -96,7 +96,11 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
    * @param {ModelOptions} options - Options used to configure this model instance.
    * @template S - The type of the sync function that is used to synchronise the model state with your backend.
    */
-  constructor(readonly name: string, registration: Registration<S>, readonly options: ModelOptions) {
+  constructor(
+    readonly name: string,
+    registration: Registration<S>,
+    readonly options: ModelOptions,
+  ) {
     super();
     this.logger = this.options.logger;
     this.baseLogContext = { scope: `Model:${name}` };

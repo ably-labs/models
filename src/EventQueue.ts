@@ -11,7 +11,10 @@ export default class EventQueue {
 
   private readonly baseLogContext: Partial<{ scope: string; action: string }>;
 
-  constructor(private readonly logger: Logger, private eventHandler: EventHandler) {
+  constructor(
+    private readonly logger: Logger,
+    private eventHandler: EventHandler,
+  ) {
     this.baseLogContext = { scope: `EventQueue` };
   }
 
