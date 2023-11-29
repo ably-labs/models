@@ -7,10 +7,25 @@ import type { EventOrderer, SyncOptions } from '../types/optimistic.js';
  * Options used to configure a stream instance.
  */
 export type StreamOptions = {
+  /**
+   * The name of the channel to use for the stream.
+   */
   channelName: string;
+  /**
+   * The Ably Realtime client.
+   */
   ably: Types.RealtimePromise;
+  /**
+   * The logger to use for the stream.
+   */
   logger: Logger;
+  /**
+   * Options used to configure the sync behaviour of the stream.
+   */
   syncOptions: SyncOptions;
+  /**
+   * Options used to configure the event buffer behaviour of the stream.
+   */
   eventBufferOptions: EventBufferOptions;
 };
 
@@ -36,8 +51,17 @@ export type EventBufferOptions = {
  * A state transition emitted as an event from the stream describing a change to the stream's lifecycle.
  */
 export type StreamStateChange = {
+  /**
+   * The current state of the stream.
+   */
   current: StreamState;
+  /**
+   * The previous state of the stream.
+   */
   previous: StreamState;
+  /**
+   * The reason for the state change, if any
+   */
   reason?: Types.ErrorInfo | string;
 };
 

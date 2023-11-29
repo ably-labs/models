@@ -24,6 +24,7 @@ export default class ModelsClient {
   private modelInstances: Record<string, Model<any>> = {};
 
   /**
+   * Constructs a new ModelsClient instance.
    * @param {ModelsOptions} options - Options used to configure all models instantiated here, including the underlying Ably client.
    */
   constructor(private readonly options: ModelsOptions) {
@@ -69,13 +70,19 @@ export default class ModelsClient {
     return this.options.ably;
   }
 
+  /**
+   * Namespace for getting an existing model instance or creating a new model instance.
+   * @returns {Object} An object with a get method for getting an existing model instance or creating a new model instance.
+   */
   get models() {
     return {
       /**
        * Gets an existing or creates a new model instance with the given name.
+       * @template S - The sync function type.
        * @param {ModelSpec} spec - The name, channelName, sync and merge functions for this model.
        * The names and funcitons will be automatically setup on the model returned.
        * The model will not start until you call model.sync() or model.subscribe()
+       * @returns {Model} The model instance.
        */
       get: <S extends SyncFuncConstraint>(spec: ModelSpec<S>) => {
         if (!this.isModelSpec<S>(spec)) {
@@ -101,11 +108,11 @@ export default class ModelsClient {
     };
   }
 
-  isModelsOptions(options: any): options is ModelsOptions {
+  private isModelsOptions(options: any): options is ModelsOptions {
     return options && typeof options.ably === 'object';
   }
 
-  isModelSpec<S extends SyncFuncConstraint>(spec: any): spec is ModelSpec<S> {
+  private isModelSpec<S extends SyncFuncConstraint>(spec: any): spec is ModelSpec<S> {
     return (
       spec &&
       spec.name &&
