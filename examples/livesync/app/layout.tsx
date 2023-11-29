@@ -5,6 +5,7 @@ import { Theme } from '@radix-ui/themes';
 import cn from 'classnames';
 import { Header, PoweredByAbly, MenuItems } from '@/components';
 import { DashboardIcon, ProjectsIcon, ReportingIcon, TeamMembersIcon } from '@/components/icons';
+import { fetchProjects } from './utils';
 
 import './global.css';
 import styles from './layout.module.css';
@@ -41,14 +42,26 @@ export const metadata: Metadata = {
   description: 'Demo of LiveSync with Next.js',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const links = await fetchProjects();
+  const menuItems = [
+    {
+      title: 'Projects',
+      to: '/projects',
+      Icon: <ProjectsIcon />,
+      value: 'projects',
+      links,
+    },
+    ...items,
+  ];
+
   return (
     <html lang="en">
       <body className={cn(styles.body, inter.variable, nextBook.variable)}>
         <Theme radius="large" appearance="light">
           <div className={cn(styles.page)}>
             <div className={styles.sidebar}>
-              <MenuItems items={items} />
+              <MenuItems items={menuItems} />
               <PoweredByAbly />
             </div>
             <main className={styles.content}>{children}</main>
@@ -63,22 +76,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 }
 
 const items = [
-  {
-    title: 'Projects',
-    to: '/projects',
-    Icon: <ProjectsIcon />,
-    value: 'projects',
-    links: [
-      {
-        title: 'Project socials',
-        href: '/projects/socials',
-      },
-      {
-        title: 'Project marketing',
-        href: '/projects/marketing',
-      },
-    ],
-  },
   {
     title: 'Reporting',
     to: '/reporting',

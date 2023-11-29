@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import sql from './db';
+import { sql } from './db';
 import { createComments, createIssues, projects, users } from './fakeData';
 
 const seedData = async () => {
