@@ -7,10 +7,9 @@ import { useState, useEffect } from 'react';
 import { merge } from '@/lib/models/mutations';
 import type { Post as PostType } from '@/lib/prisma/api';
 
-
-
-
 configureAbly({ key: process.env.NEXT_PUBLIC_ABLY_API_KEY });
+
+const channelNamespace = process.env.NEXT_PUBLIC_ABLY_CHANNEL_NAMESPACE ? `${process.env.NEXT_PUBLIC_ABLY_CHANNEL_NAMESPACE}:` : '';
 
 export type ModelType = Model<() => SyncReturnType<PostType>>;
 
@@ -41,7 +40,7 @@ export const useModel = (id: number) => {
     const init = async () => {
       const model = modelsClient.models.get({
         name: `post:${id}`,
-        channelName: `post:${id}`,
+        channelName: `${channelNamespace}post:${id}`,
         sync: async () => getPost(id),
         merge: merge,
       });

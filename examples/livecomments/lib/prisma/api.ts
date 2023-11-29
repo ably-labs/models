@@ -3,6 +3,8 @@ import * as runtime from '@prisma/client/runtime/library';
 
 import prisma from '@/lib/prisma';
 
+const channelNamespace = process.env.NEXT_PUBLIC_ABLY_CHANNEL_NAMESPACE ? `${process.env.NEXT_PUBLIC_ABLY_CHANNEL_NAMESPACE}:` : '';
+
 export type Author = {
   id: number;
   username: string;
@@ -85,7 +87,7 @@ export async function addComment(
     include: { author: true },
   });
 
-  return { mutation_id: mutationID, channel: `post:${comment.postId}`, name: 'addComment', data: comment, headers: {} };
+  return { mutation_id: mutationID, channel: `${channelNamespace}post:${comment.postId}`, name: 'addComment', data: comment, headers: {} };
 }
 
 export async function editComment(
@@ -103,7 +105,7 @@ export async function editComment(
 
   return {
     mutation_id: mutationID,
-    channel: `post:${comment.postId}`,
+    channel: `${channelNamespace}post:${comment.postId}`,
     name: 'editComment',
     data: comment,
     headers: {},
@@ -117,7 +119,7 @@ export async function deleteComment(tx: TxClient, mutationID: string, id: number
 
   return {
     mutation_id: mutationID,
-    channel: `post:${comment.postId}`,
+    channel: `${channelNamespace}post:${comment.postId}`,
     name: 'deleteComment',
     data: comment,
     headers: {},

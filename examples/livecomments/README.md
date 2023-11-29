@@ -24,10 +24,12 @@ POSTGRES_PASSWORD=postgres
 POSTGRES_DATABASE=postgres
 SESSION_SECRET=<SOME_SECRET>
 NEXT_PUBLIC_ABLY_API_KEY=<YOUR_ABLY_API_KEY>
+NEXT_PUBLIC_ABLY_CHANNEL_NAMESPACE=<SOME_NAMESPACE>
 ```
 
 - Replace `<SOME_SECRET>` with some random string.
 - Replace `<YOUR_ABLY_API_KEY>` with your Ably API Key
+- Optionally replace `<SOME_NAMESPACE>` with a string value used as a [namespace](https://faqs.ably.com/what-is-a-channel-namespace-and-how-can-i-use-them) for the model's Ably channel.
 
 > **Note**
 > You can get a free Ably API Key at [https://ably.com](https://ably.com)
