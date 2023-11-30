@@ -1,17 +1,17 @@
 .container {
   background-color: var(--snow-white);
   position: fixed;
-  height: 100vh;
-  top: 0;
+  height: calc(100vh - var(--size-header-height-sm));
+  top: var(--size-header-height-sm);
   right: 0;
   width: 100%;
   border-left: 1px solid #e1e4e9;
-  padding-top: var(--size-header-height-sm);
   transition: transform 0.15s ease-in-out;
   transform: translateX(100%);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  overflow-y: auto;
 }
 
 .isOpen {
@@ -80,15 +80,21 @@
 
 .description :global(.rt-TextAreaInput) {
   background-color: var(--snow-white);
+  position: relative;
   margin: 0 -8px;
+}
+
+.description :global(.rt-TextAreaChrome) {
+  display: none;
 }
 
 .closeButton {
   position: absolute;
-  top: calc(var(--size-header-height-sm) + 20px);
+  top: 32px;
   right: 28px;
   color: #bdbdbd;
   cursor: pointer;
+  z-index: 10;
 }
 
 .commentsContainer {
@@ -97,8 +103,6 @@
 }
 
 .commentsListContainer {
-  max-height: 267px;
-  overflow-y: auto;
   padding: 0 24px;
 }
 
@@ -112,12 +116,11 @@
 
 .newCommentSection {
   padding: 24px 24px 26px;
-  position: sticky;
-  bottom: 0;
   border-top: 1px solid #e1e4e9;
   display: flex;
   align-items: flex-start;
   gap: 8px;
+  background: #f8f9fa;
 }
 
 .commentTextarea {
@@ -146,16 +149,22 @@
 @media screen and (min-width: 376px) {
   .container {
     height: calc(100vh - var(--size-header-height-lg));
+    top: var(--size-header-height-lg);
     width: 480px;
     max-width: 100%;
-    padding-top: var(--size-header-height-lg);
   }
 
   .inner {
     padding: 32px 30px;
   }
 
-  .closeButton {
-    top: calc(var(--size-header-height-lg) + 28px);
+  .commentsListContainer {
+    overflow-y: auto;
+    max-height: 267px;
+  }
+
+  .newCommentSection {
+    position: sticky;
+    bottom: 0;
   }
 }
