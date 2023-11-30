@@ -31,7 +31,7 @@ export const Drawer = ({ children }: Props) => {
       {children}
       <aside
         className={cn(styles.container, {
-          [styles.isOpen]: searchParams.has('task'),
+          [styles.isOpen]: searchParams.has('issue'),
         })}
       >
         <Button radius="full" variant="ghost" className={styles.closeButton} onClick={handleCloseDrawer}>

@@ -35,6 +35,10 @@
   min-width: 184px;
 }
 
+.issueName {
+  min-width: 309px;
+}
+
 .table th,
 .table td {
   padding: 12px 24px;
