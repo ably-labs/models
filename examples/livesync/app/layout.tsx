@@ -59,7 +59,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en">
       <body className={cn(styles.body, inter.variable, nextBook.variable)}>
         <Theme radius="large" appearance="light">
-          <div className={cn(styles.page)}>
+          <div className={styles.page}>
             <div className={styles.sidebar}>
               <MenuItems items={menuItems} />
               <PoweredByAbly />
