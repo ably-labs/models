@@ -1,12 +1,14 @@
-import { Projects, Tabs } from '@/components';
+import { Issue, Project, Tabs } from '@/components';
 
 import styles from './page.module.css';
+import { fetchProjectBySlug } from '@/app/utils';
 
-export default function ProjectSlug() {
+export default async function ProjectSlug({ params: { slug } }: { params: { slug: string } }) {
+  const { name, description, issues } = await fetchProjectBySlug(slug);
   const tabs = [
     {
       tab: 'list',
-      content: <Projects />,
+      content: <Project issues={issues} />,
     },
     { tab: 'board', content: 'Coming soon!' },
     { tab: 'timeline', content: 'Coming soon!' },
@@ -15,8 +17,8 @@ export default function ProjectSlug() {
   return (
     <div className={styles.main}>
       <div>
-        <h1 className={styles.title}>Project Marketing Issues</h1>
-        <p className={styles.subtitle}>View your team’s project issues.</p>
+        <h1 className={styles.title}>{name}</h1>
+        <p className={styles.subtitle}>{description}</p>
       </div>
       <Tabs tabs={tabs} />
     </div>

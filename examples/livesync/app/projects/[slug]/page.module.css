@@ -11,6 +11,7 @@
   font-weight: 500;
   line-height: 38px;
   margin: 0 0 4px;
+  text-transform: capitalize;
 }
 
 .subtitle {

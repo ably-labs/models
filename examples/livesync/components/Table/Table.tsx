@@ -6,30 +6,27 @@ import { Status, StatusType } from '../Status';
 
 import styles from './Table.module.css';
 
-interface Row {
-  id: string;
+export interface Issue {
+  id: number;
+  slug: string;
   name: string;
-  dueDate: string;
+  due_date: string;
   status: StatusType;
-  owner: {
-    firstName: string;
-    lastName: string;
-    color: string;
-  };
-  storyPoints: number;
+  owner_id: number;
+  story_points: number;
+  description: string;
+  owner_first_name: string;
+  owner_last_name: string;
+  owner_color: string;
 }
 
 interface Props {
-  rows: Row[];
+  rows: Issue[];
 }
 
 export const Table = ({ rows }: Props) => {
   const pathname = usePathname();
   const router = useRouter();
-
-  const handleRowClick = () => {
-    router.push(`${pathname}?task=1`);
-  };
 
   return (
     <div className={styles.tableWrapper}>
@@ -44,19 +41,27 @@ export const Table = ({ rows }: Props) => {
           </tr>
         </thead>
         <tbody className={styles.tbody}>
-          {rows.map(({ id, name, dueDate, status, owner, storyPoints }) => (
-            <tr key={id} onClick={handleRowClick}>
-              <th>{name}</th>
-              <td className={styles.date}>{dueDate}</td>
-              <td>
-                <Status status={status} />
-              </td>
-              <td className={styles.owner}>
-                <Owner {...owner} />
-              </td>
-              <td className={styles.points}>{storyPoints}</td>
-            </tr>
-          ))}
+          {rows.map(
+            ({ id, slug, name, due_date, status, owner_color, owner_first_name, owner_last_name, story_points }) => (
+              <tr key={slug} onClick={() => router.push(`${pathname}?issue=${id}`)}>
+                <th className={styles.issueName}>{name}</th>
+                <td className={styles.date}>
+                  {new Intl.DateTimeFormat('en-US', {
+                    dateStyle: 'medium',
+                  })
+                    .format(new Date(due_date))
+                    .toString()}
+                </td>
+                <td>
+                  <Status status={status} />
+                </td>
+                <td className={styles.owner}>
+                  <Owner firstName={owner_first_name} lastName={owner_last_name} color={owner_color} />
+                </td>
+                <td className={styles.points}>{story_points}</td>
+              </tr>
+            ),
+          )}
         </tbody>
       </table>
     </div>
