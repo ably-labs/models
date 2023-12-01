@@ -13,6 +13,7 @@ export interface Project {
 }
 
 export interface User {
+  id: number;
   slug: string;
   first_name: string;
   last_name: string;
@@ -22,7 +23,6 @@ export interface User {
 }
 
 export interface Issue {
-  slug: string;
   name: string;
   due_date: Date;
   status: StatusType;
@@ -33,7 +33,9 @@ export interface Issue {
 }
 
 export interface Comment {
+  id: number;
   issue_id: number;
   user_id: number;
   content: string;
+  updated_at: Date;
 }

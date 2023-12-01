@@ -10,3 +10,4 @@ export * from './MenuItems';
 export * from './Drawer';
 export * from './Project';
 export * from './DatePicker';
+export * from './Select';

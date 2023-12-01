@@ -4,11 +4,11 @@ import styles from './page.module.css';
 import { fetchProjectBySlug } from '@/app/utils';
 
 export default async function ProjectSlug({ params: { slug } }: { params: { slug: string } }) {
-  const { name, description, issues } = await fetchProjectBySlug(slug);
+  const { id, name, description, issues } = await fetchProjectBySlug(slug);
   const tabs = [
     {
       tab: 'list',
-      content: <Project issues={issues} />,
+      content: <Project id={id} issues={issues} />,
     },
     { tab: 'board', content: 'Coming soon!' },
     { tab: 'timeline', content: 'Coming soon!' },

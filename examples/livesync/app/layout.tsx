@@ -88,11 +88,6 @@ const items = [
     to: '/dashboard',
     Icon: <DashboardIcon />,
     value: 'dashboard',
-  },
-  {
-    title: 'Team Members',
-    to: '/team',
-    Icon: <TeamMembersIcon />,
-    value: 'team',
+    isComingSoon: true,
   },
 ];

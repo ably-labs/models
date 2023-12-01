@@ -60,7 +60,6 @@ const seedData = async () => {
     await sql`
       CREATE TABLE issues (
         id SERIAL PRIMARY KEY,
-        slug VARCHAR(255) UNIQUE NOT NULL,
         name VARCHAR(255) NOT NULL,
         due_date TIMESTAMP NOT NULL DEFAULT NOW(),
         status statuses NOT NULL,
@@ -74,7 +73,6 @@ const seedData = async () => {
     const issues = createIssues(usersRows, projectsRows);
     const issuesRows = await sql`INSERT INTO issues ${sql(
       issues,
-      'slug',
       'name',
       'due_date',
       'status',

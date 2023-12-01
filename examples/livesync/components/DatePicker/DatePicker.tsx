@@ -7,8 +7,12 @@ import { CalendarIcon } from '../icons';
 
 import styles from './DatePicker.module.css';
 
-export const DatePicker = () => {
-  const [startDate, setStartDate] = useState<Date | null>(new Date());
+interface Props {
+  value: string;
+}
+
+export const DatePicker = ({ value }: Props) => {
+  const [startDate, setStartDate] = useState<Date | null>(new Date(value));
   return <ReactDatePicker selected={startDate} onChange={(date) => setStartDate(date)} customInput={<Trigger />} />;
 };
 
