@@ -3,11 +3,12 @@ import { Table, Issue } from '../Table';
 
 interface Props {
   issues: Issue[];
+  id: number;
 }
 
-export const Project = ({ issues }: Props) => {
+export const Project = ({ issues, id }: Props) => {
   return (
-    <Drawer>
+    <Drawer projectId={id}>
       <Table rows={issues} />
     </Drawer>
   );

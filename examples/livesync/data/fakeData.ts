@@ -21,6 +21,7 @@ const createUser = (): User => {
   const last_name = faker.person.lastName();
 
   return {
+    id: faker.number.int(),
     slug: faker.helpers.slugify(`${first_name} ${last_name}`),
     first_name,
     last_name,
@@ -36,10 +37,7 @@ export const users: User[] = faker.helpers.multiple(createUser, {
 
 const createIssue = (users: TableIds, projects: TableIds): (() => Issue) => {
   return () => {
-    const slug = faker.string.uuid();
-
     return {
-      slug,
       name: faker.hacker.phrase(),
       due_date: faker.date.future(),
       status: faker.helpers.arrayElement(StatusTypeValues),
@@ -61,6 +59,7 @@ export const createIssues = (users: TableIds, projects: TableIds): Issue[] => {
 
 const createComment = (issues: TableIds, users: TableIds): (() => Comment) => {
   return () => ({
+    id: faker.number.int(),
     issue_id: faker.helpers.arrayElement(issues).id,
     user_id: faker.helpers.arrayElement(users).id,
     content: faker.lorem.paragraph(),

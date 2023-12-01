@@ -1,17 +1,25 @@
 import { Owner } from '../Owner';
 import { DotIcon } from '../icons';
+import { Comment as CommentType, User } from '@/data';
 
 import styles from './Comment.module.css';
 
-export const Comment = ({ content }: { content: string }) => {
+export interface CommentData extends CommentType, Pick<User, 'first_name' | 'last_name' | 'id' | 'color'> {}
+
+export const Comment = ({ content, first_name, last_name, color, updated_at }: CommentData) => {
   return (
     <div className={styles.comment}>
-      <Owner firstName="Xander" lastName="Cage" color="#bada55" variant="large" />
+      <Owner firstName={first_name} lastName={last_name} color={color} variant="large" />
       <div className={styles.commentHeader}>
-        {/* TODO: Adapt names and date fields when the data comes  */}
-        <span className={styles.commentAuthor}>Xander Cage</span>
+        <span className={styles.commentAuthor}>
+          {first_name} {last_name}
+        </span>
         <DotIcon className={styles.commentDate} />
-        <span className={styles.commentDate}>2 days ago</span>
+        <span className={styles.commentDate}>
+          {new Intl.DateTimeFormat('en-US', {
+            dateStyle: 'medium',
+          }).format(new Date(updated_at))}
+        </span>
       </div>
       <p className={styles.commentText}>{content}</p>
     </div>
