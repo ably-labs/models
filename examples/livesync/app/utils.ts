@@ -13,7 +13,6 @@ export const fetchProjectBySlug = async (slug: string) => {
     const issues: Issue[] = await sql`
       SELECT
         i.id,
-        i.slug,
         i.name,
         i.due_date,
         i.status,

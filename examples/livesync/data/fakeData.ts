@@ -63,6 +63,7 @@ const createComment = (issues: TableIds, users: TableIds): (() => Comment) => {
     issue_id: faker.helpers.arrayElement(issues).id,
     user_id: faker.helpers.arrayElement(users).id,
     content: faker.lorem.paragraph(),
+    updated_at: faker.date.past(),
   });
 };
 
