@@ -47,3 +47,20 @@ export const fetchIssueById = async (id: number) => {
   });
   return data;
 };
+
+export const postComment = async ({
+  userId,
+  issueId,
+  content,
+}: {
+  userId: number;
+  issueId: number;
+  content: string;
+}) => {
+  const newComment: Comment[] = await sql`
+    INSERT INTO comments (user_id, issue_id, content)
+    VALUES (${userId}, ${issueId}, ${content})
+    RETURNING *
+  `;
+  return newComment[0];
+};

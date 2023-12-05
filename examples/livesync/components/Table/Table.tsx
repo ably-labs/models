@@ -43,7 +43,7 @@ export const Table = ({ rows }: Props) => {
         <tbody className={styles.tbody}>
           {rows.map(
             ({ id, slug, name, due_date, status, owner_color, owner_first_name, owner_last_name, story_points }) => (
-              <tr key={slug} onClick={() => router.push(`${pathname}?issue=${id}`)}>
+              <tr key={`${id}-${slug}`} onClick={() => router.push(`${pathname}?issue=${id}`)}>
                 <th className={styles.issueName}>{name}</th>
                 <td className={styles.date}>
                   {new Intl.DateTimeFormat('en-US', {
