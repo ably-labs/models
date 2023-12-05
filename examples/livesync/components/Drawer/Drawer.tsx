@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import cn from 'classnames';
+import sample from 'lodash.sample';
 import { Badge, Button, Heading, TextArea } from '@radix-ui/themes';
 import { useForm } from 'react-hook-form';
 import Skeleton from 'react-loading-skeleton';
+import cookies from 'js-cookie';
 // @ts-ignore
 import shader from 'shader';
 import { StatusTypeValues, User } from '@/data/types';
@@ -17,7 +19,7 @@ import { Issue } from '../Table';
 import { Select, SelectItem } from '../Select';
 import { Label } from './Label';
 import { Comment, CommentData } from './Comment';
-import { fetchDrawerData, fetchIssueById } from './actions';
+import { fetchDrawerData, fetchIssueById, postComment } from './actions';
 
 import styles from './Drawer.module.css';
 import { ProjectType } from '..';
@@ -27,7 +29,7 @@ interface Props {
 }
 
 interface FormData {
-  comment: string;
+  content: string;
 }
 
 export const Drawer = ({ children, projectId }: Props) => {
@@ -39,9 +41,10 @@ export const Drawer = ({ children, projectId }: Props) => {
   const issueId = issue ? parseInt(issue) : null;
 
   const [issueData, setIssue] = useState<Issue | null>(null);
-  const [projects, setProjects] = useState<ProjectType[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
-  const [comments, setComments] = useState<CommentData[]>([]);
+  const [projects, setProjects] = useState<ProjectType[] | null>(null);
+  const [users, setUsers] = useState<User[] | null>(null);
+  const [comments, setComments] = useState<CommentData[] | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | undefined>();
 
   const {
     register,
@@ -50,14 +53,36 @@ export const Drawer = ({ children, projectId }: Props) => {
     setValue,
   } = useForm<FormData>();
 
-  const onSubmit = (data: FormData) => {
-    // TODO: COL-575 mutation to add comment
-    setValue('comment', '');
+  const onSubmit = async ({ content }: FormData) => {
+    if (issueId === null || !currentUser) return;
+
+    const newComment = await postComment({ userId: currentUser.id, issueId, content });
+    setComments((prev) => [
+      {
+        ...newComment,
+        ...currentUser,
+      },
+      ...(prev || []),
+    ]);
+    setValue('content', '');
   };
 
   const handleCloseDrawer = () => {
     router.push(pathname);
   };
+
+  useEffect(() => {
+    if (!users) return;
+    const user = cookies.get('livesync_user');
+
+    if (user) {
+      setCurrentUser(JSON.parse(user));
+      return;
+    }
+    const newUser = sample(users);
+    cookies.set('livesync_user', JSON.stringify(newUser));
+    setCurrentUser(newUser);
+  }, [users]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -97,7 +122,7 @@ export const Drawer = ({ children, projectId }: Props) => {
           {issueData?.name ? <h3 className={styles.name}>{issueData.name}</h3> : <Skeleton height={58} />}
           <div className={styles.drawerSummary}>
             <Label>Owner</Label>
-            {issueData?.owner_id ? (
+            {issueData?.owner_id && users ? (
               <div>
                 <Select defaultValue={`${issueData?.owner_id}`}>
                   {users.map(({ id, first_name, last_name, color, slug }) => (
@@ -120,21 +145,25 @@ export const Drawer = ({ children, projectId }: Props) => {
             )}
             <Label>Projects</Label>
             <div>
-              <Select defaultValue={`${projectId}`}>
-                {projects.map(({ name, color, id, slug }) => (
-                  <SelectItem key={slug} value={`${id}`}>
-                    <Badge
-                      style={{ backgroundColor: color, color: shader(color, -0.6) }}
-                      variant="soft"
-                      radius="full"
-                      highContrast
-                      className={styles.badge}
-                    >
-                      {name}
-                    </Badge>
-                  </SelectItem>
-                ))}
-              </Select>
+              {projects ? (
+                <Select defaultValue={`${projectId}`}>
+                  {projects.map(({ name, color, id, slug }) => (
+                    <SelectItem key={`${id}-${slug}`} value={`${id}`}>
+                      <Badge
+                        style={{ backgroundColor: color, color: shader(color, -0.6) }}
+                        variant="soft"
+                        radius="full"
+                        highContrast
+                        className={styles.badge}
+                      >
+                        {name}
+                      </Badge>
+                    </SelectItem>
+                  ))}
+                </Select>
+              ) : (
+                <Skeleton height={32} />
+              )}
             </div>
 
             <Label>Status</Label>
@@ -174,23 +203,26 @@ export const Drawer = ({ children, projectId }: Props) => {
             <Heading mb="4" size="3" weight="medium" as="h4" className={styles.commentsTitle}>
               Comments
             </Heading>
-            {comments.map((props) => (
-              <Comment key={`comment-${props.id}`} {...props} />
-            ))}
+            {comments?.map((props) => <Comment key={`comment-${props.id}`} {...props} />)}
           </div>
           <form className={styles.newCommentSection} onSubmit={handleSubmit(onSubmit)}>
-            <Owner firstName="Ariana" lastName="Grande" color="#00A5EC" variant="large" />
+            <Owner
+              firstName={currentUser?.first_name}
+              lastName={currentUser?.last_name}
+              color={currentUser?.color}
+              variant="large"
+            />
             <TextArea
               variant="soft"
               placeholder="Add a comment"
               rows={3}
               className={styles.commentTextarea}
-              {...register('comment', {
+              {...register('content', {
                 required: true,
                 minLength: { value: 1, message: 'Comment must have something' },
               })}
             />
-            {isValid && (
+            {isValid && currentUser && (
               <Button variant="solid" className={styles.commentButton} type="submit">
                 Comment
               </Button>
