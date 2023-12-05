@@ -19,6 +19,7 @@ import { Issue } from '../Table';
 import { Select, SelectItem } from '../Select';
 import { Label } from './Label';
 import { Comment, CommentData } from './Comment';
+import { FieldWithLoader } from './FieldWithLoader';
 import { fetchDrawerData, fetchIssueById, postComment } from './actions';
 
 import styles from './Drawer.module.css';
@@ -41,8 +42,8 @@ export const Drawer = ({ children, projectId }: Props) => {
   const issueId = issue ? parseInt(issue) : null;
 
   const [issueData, setIssue] = useState<Issue | null>(null);
-  const [projects, setProjects] = useState<ProjectType[] | null>(null);
-  const [users, setUsers] = useState<User[] | null>(null);
+  const [projects, setProjects] = useState<ProjectType[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [comments, setComments] = useState<CommentData[] | null>(null);
   const [currentUser, setCurrentUser] = useState<User | undefined>();
 
@@ -96,9 +97,8 @@ export const Drawer = ({ children, projectId }: Props) => {
   useEffect(() => {
     setIssue(null);
     setComments([]);
-    if (!issueId) {
-      return;
-    }
+    if (!issueId) return;
+
     const fetchIssue = async (id: number) => {
       const { issue, comments } = await fetchIssueById(id);
       setIssue(issue);
@@ -122,64 +122,50 @@ export const Drawer = ({ children, projectId }: Props) => {
           {issueData?.name ? <h3 className={styles.name}>{issueData.name}</h3> : <Skeleton height={58} />}
           <div className={styles.drawerSummary}>
             <Label>Owner</Label>
-            {issueData?.owner_id && users ? (
-              <div>
-                <Select defaultValue={`${issueData?.owner_id}`}>
-                  {users.map(({ id, first_name, last_name, color, slug }) => (
-                    <SelectItem key={slug} value={`${id}`}>
-                      <Owner variant="small" firstName={first_name} lastName={last_name} color={color} />
-                    </SelectItem>
-                  ))}
-                </Select>
-              </div>
-            ) : (
-              <Skeleton height={32} />
-            )}
+            <FieldWithLoader isLoading={!issueData?.owner_id || users.length === 0}>
+              <Select defaultValue={`${issueData?.owner_id}`}>
+                {users.map(({ id, first_name, last_name, color, slug }) => (
+                  <SelectItem key={slug} value={`${id}`}>
+                    <Owner variant="small" firstName={first_name} lastName={last_name} color={color} />
+                  </SelectItem>
+                ))}
+              </Select>
+            </FieldWithLoader>
+
             <Label>Due date</Label>
-            {issueData?.due_date ? (
-              <div>
-                <DatePicker value={issueData?.due_date.toString()} />
-              </div>
-            ) : (
-              <Skeleton height={32} />
-            )}
+            <FieldWithLoader isLoading={!issueData?.due_date}>
+              <DatePicker value={issueData?.due_date.toString() || ''} />
+            </FieldWithLoader>
+
             <Label>Projects</Label>
-            <div>
-              {projects ? (
-                <Select defaultValue={`${projectId}`}>
-                  {projects.map(({ name, color, id, slug }) => (
-                    <SelectItem key={`${id}-${slug}`} value={`${id}`}>
-                      <Badge
-                        style={{ backgroundColor: color, color: shader(color, -0.6) }}
-                        variant="soft"
-                        radius="full"
-                        highContrast
-                        className={styles.badge}
-                      >
-                        {name}
-                      </Badge>
-                    </SelectItem>
-                  ))}
-                </Select>
-              ) : (
-                <Skeleton height={32} />
-              )}
-            </div>
+            <FieldWithLoader isLoading={projects.length === 0}>
+              <Select defaultValue={`${projectId}`}>
+                {projects.map(({ name, color, id, slug }) => (
+                  <SelectItem key={`${id}-${slug}`} value={`${id}`}>
+                    <Badge
+                      style={{ backgroundColor: color, color: shader(color, -0.6) }}
+                      variant="soft"
+                      radius="full"
+                      highContrast
+                      className={styles.badge}
+                    >
+                      {name}
+                    </Badge>
+                  </SelectItem>
+                ))}
+              </Select>
+            </FieldWithLoader>
 
             <Label>Status</Label>
-            {issueData?.status ? (
-              <div>
-                <Select defaultValue={issueData?.status}>
-                  {StatusTypeValues.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      <Status status={status as StatusType} />
-                    </SelectItem>
-                  ))}
-                </Select>
-              </div>
-            ) : (
-              <Skeleton height={32} />
-            )}
+            <FieldWithLoader isLoading={!issueData?.status}>
+              <Select defaultValue={issueData?.status || ''}>
+                {StatusTypeValues.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    <Status status={status as StatusType} />
+                  </SelectItem>
+                ))}
+              </Select>
+            </FieldWithLoader>
           </div>
           <div>
             <Heading mb="3" size="2" weight="bold" as="h4" className={styles.descriptionTitle}>
