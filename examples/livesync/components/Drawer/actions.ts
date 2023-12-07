@@ -41,7 +41,9 @@ export const fetchIssueById = async (id: number) => {
       FROM comments c
         LEFT OUTER JOIN users u
         ON u.id = c.user_id 
-      WHERE issue_id = ${id}`;
+      WHERE issue_id = ${id}
+      ORDER BY c.updated_at DESC
+    `;
 
     return { issue: issues[0], comments };
   });
