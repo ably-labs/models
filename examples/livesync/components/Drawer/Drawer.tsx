@@ -3,11 +3,10 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import cn from 'classnames';
-import sample from 'lodash.sample';
 import { Badge, Button, Heading, TextArea } from '@radix-ui/themes';
-import { useForm } from 'react-hook-form';
 import Skeleton from 'react-loading-skeleton';
 import cookies from 'js-cookie';
+import sample from 'lodash.sample';
 // @ts-ignore
 import shader from 'shader';
 import { StatusTypeValues, User } from '@/data/types';
@@ -18,19 +17,16 @@ import { CloseIcon } from '../icons';
 import { Issue } from '../Table';
 import { Select, SelectItem } from '../Select';
 import { Label } from './Label';
-import { Comment, CommentData } from './Comment';
 import { FieldWithLoader } from './FieldWithLoader';
-import { fetchDrawerData, fetchIssueById, postComment } from './actions';
+import { Comments } from './Comments';
+import { UpdateIssueData, fetchDrawerData, fetchIssueById, updateIssue } from './actions';
 
 import styles from './Drawer.module.css';
 import { ProjectType } from '..';
+
 interface Props {
   projectId: number;
   children: React.ReactNode;
-}
-
-interface FormData {
-  content: string;
 }
 
 export const Drawer = ({ children, projectId }: Props) => {
@@ -44,33 +40,55 @@ export const Drawer = ({ children, projectId }: Props) => {
   const [issueData, setIssue] = useState<Issue | null>(null);
   const [projects, setProjects] = useState<ProjectType[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [comments, setComments] = useState<CommentData[] | null>(null);
   const [currentUser, setCurrentUser] = useState<User | undefined>();
-
-  const {
-    register,
-    handleSubmit,
-    formState: { isValid },
-    setValue,
-  } = useForm<FormData>();
-
-  const onSubmit = async ({ content }: FormData) => {
-    if (issueId === null || !currentUser) return;
-
-    const newComment = await postComment({ userId: currentUser.id, issueId, content });
-    setComments((prev) => [
-      {
-        ...newComment,
-        ...currentUser,
-      },
-      ...(prev || []),
-    ]);
-    setValue('content', '');
-  };
 
   const handleCloseDrawer = () => {
     router.push(pathname);
   };
+
+  const handleIssueUpdate = async ({
+    project_id,
+    owner_id,
+    status,
+    due_date,
+  }: {
+    project_id?: string;
+    owner_id?: string;
+    status?: StatusType;
+    due_date?: string | null;
+  }) => {
+    if (!issueId || !issueData) return;
+
+    const newData: UpdateIssueData = {
+      project_id: project_id ? parseInt(project_id) : projectId,
+      owner_id: owner_id ? parseInt(owner_id) : issueData.owner_id,
+      status: status ?? issueData.status,
+      due_date: due_date ?? issueData.due_date,
+    };
+
+    const updatedIssueData = await updateIssue(issueId, newData);
+    setIssue(updatedIssueData);
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { projects, users } = await fetchDrawerData();
+      setProjects(projects);
+      setUsers(users);
+    };
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    setIssue(null);
+    if (!issueId) return;
+
+    const fetchIssue = async (id: number) => {
+      const issue = await fetchIssueById(id);
+      setIssue(issue);
+    };
+    fetchIssue(issueId);
+  }, [issueId]);
 
   useEffect(() => {
     if (!users) return;
@@ -84,28 +102,6 @@ export const Drawer = ({ children, projectId }: Props) => {
     cookies.set('livesync_user', JSON.stringify(newUser));
     setCurrentUser(newUser);
   }, [users]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      const { projects, users } = await fetchDrawerData();
-      setProjects(projects);
-      setUsers(users);
-    };
-    fetchData();
-  }, []);
-
-  useEffect(() => {
-    setIssue(null);
-    setComments([]);
-    if (!issueId) return;
-
-    const fetchIssue = async (id: number) => {
-      const { issue, comments } = await fetchIssueById(id);
-      setIssue(issue);
-      setComments(comments);
-    };
-    fetchIssue(issueId);
-  }, [issueId]);
 
   return (
     <>
@@ -123,7 +119,7 @@ export const Drawer = ({ children, projectId }: Props) => {
           <div className={styles.drawerSummary}>
             <Label>Owner</Label>
             <FieldWithLoader isLoading={!issueData?.owner_id || users.length === 0}>
-              <Select defaultValue={`${issueData?.owner_id}`}>
+              <Select defaultValue={`${issueData?.owner_id}`} name="owner_id" onChange={handleIssueUpdate}>
                 {users.map(({ id, first_name, last_name, color, slug }) => (
                   <SelectItem key={slug} value={`${id}`}>
                     <Owner variant="small" firstName={first_name} lastName={last_name} color={color} />
@@ -134,12 +130,12 @@ export const Drawer = ({ children, projectId }: Props) => {
 
             <Label>Due date</Label>
             <FieldWithLoader isLoading={!issueData?.due_date}>
-              <DatePicker value={issueData?.due_date.toString() || ''} />
+              <DatePicker value={issueData?.due_date.toString() || ''} name="due_date" onChange={handleIssueUpdate} />
             </FieldWithLoader>
 
             <Label>Projects</Label>
             <FieldWithLoader isLoading={projects.length === 0}>
-              <Select defaultValue={`${projectId}`}>
+              <Select defaultValue={`${projectId}`} name="project_id" onChange={handleIssueUpdate}>
                 {projects.map(({ name, color, id, slug }) => (
                   <SelectItem key={`${id}-${slug}`} value={`${id}`}>
                     <Badge
@@ -158,7 +154,7 @@ export const Drawer = ({ children, projectId }: Props) => {
 
             <Label>Status</Label>
             <FieldWithLoader isLoading={!issueData?.status}>
-              <Select defaultValue={issueData?.status || ''}>
+              <Select defaultValue={issueData?.status || ''} name="status" onChange={handleIssueUpdate}>
                 {StatusTypeValues.map((status) => (
                   <SelectItem key={status} value={status}>
                     <Status status={status as StatusType} />
@@ -184,37 +180,7 @@ export const Drawer = ({ children, projectId }: Props) => {
             )}
           </div>
         </div>
-        <div className={styles.commentsContainer}>
-          <div className={styles.commentsListContainer}>
-            <Heading mb="4" size="3" weight="medium" as="h4" className={styles.commentsTitle}>
-              Comments
-            </Heading>
-            {comments?.map((props) => <Comment key={`comment-${props.id}`} {...props} />)}
-          </div>
-          <form className={styles.newCommentSection} onSubmit={handleSubmit(onSubmit)}>
-            <Owner
-              firstName={currentUser?.first_name}
-              lastName={currentUser?.last_name}
-              color={currentUser?.color}
-              variant="large"
-            />
-            <TextArea
-              variant="soft"
-              placeholder="Add a comment"
-              rows={3}
-              className={styles.commentTextarea}
-              {...register('content', {
-                required: true,
-                minLength: { value: 1, message: 'Comment must have something' },
-              })}
-            />
-            {isValid && currentUser && (
-              <Button variant="solid" className={styles.commentButton} type="submit">
-                Comment
-              </Button>
-            )}
-          </form>
-        </div>
+        <Comments issueId={issueId} user={currentUser} />
       </aside>
     </>
   );
