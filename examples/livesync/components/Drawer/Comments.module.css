@@ -1,0 +1,60 @@
+.commentsContainer {
+  position: relative;
+  background: #f8f9fa;
+}
+
+.commentsListContainer {
+  padding: 0 24px;
+}
+
+.commentsTitle {
+  padding: 24px 0 6px;
+  position: sticky;
+  background: #f8f9fa;
+  top: 0;
+  color: var(--harbor-mist);
+}
+
+.newCommentSection {
+  padding: 24px 24px 26px;
+  border-top: 1px solid #e1e4e9;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: #f8f9fa;
+}
+
+.commentTextarea {
+  flex: 1;
+  border: 1.5px solid #e1e4e9;
+  background: var(--snow-white);
+  color: var(--inkwell-gray);
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 140%;
+}
+
+.commentButton {
+  position: absolute;
+  cursor: pointer;
+  right: 34px;
+  bottom: 36px;
+  color: var(--snow-white);
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+@media screen and (min-width: 376px) {
+  .commentsListContainer {
+    overflow-y: auto;
+    max-height: 267px;
+  }
+
+  .newCommentSection {
+    position: sticky;
+    bottom: 0;
+  }
+}

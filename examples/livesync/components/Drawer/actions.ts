@@ -2,7 +2,7 @@
 
 import { Comment, User, sql } from '@/data';
 import { Issue } from '../Table';
-import { ProjectType } from '..';
+import { ProjectType, StatusType } from '..';
 import { CommentData } from './Comment';
 
 export const fetchDrawerData = async () => {
@@ -16,26 +16,29 @@ export const fetchDrawerData = async () => {
 };
 
 export const fetchIssueById = async (id: number) => {
-  const data = await sql.begin(async (sql) => {
-    const issues: Issue[] = await sql`
-            SELECT
-              i.id,
-              i.name,
-              i.due_date,
-              i.status,
-              i.owner_id,
-              i.story_points,
-              i.description,
-              u.first_name as owner_first_name,
-              u.last_name as owner_last_name,
-              u.color as owner_color
-            FROM issues i
-              LEFT OUTER JOIN users u
-              ON u.id = i.owner_id
-            WHERE i.id = ${id}
-          `;
+  const issues: Issue[] = await sql`
+    SELECT
+      i.id,
+      i.name,
+      i.due_date,
+      i.status,
+      i.owner_id,
+      i.story_points,
+      i.description,
+      u.first_name as owner_first_name,
+      u.last_name as owner_last_name,
+      u.color as owner_color
+    FROM issues i
+      LEFT OUTER JOIN users u
+      ON u.id = i.owner_id
+    WHERE i.id = ${id}
+  `;
 
-    const comments: CommentData[] = await sql`
+  return issues[0];
+};
+
+export const fetchComments = async (id: number) => {
+  const comments: CommentData[] = await sql`
       SELECT 
         c.id, c.content, c.updated_at, u.last_name, u.first_name, u.color
       FROM comments c
@@ -45,9 +48,7 @@ export const fetchIssueById = async (id: number) => {
       ORDER BY c.updated_at DESC
     `;
 
-    return { issue: issues[0], comments };
-  });
-  return data;
+  return comments;
 };
 
 export const postComment = async ({
@@ -65,4 +66,22 @@ export const postComment = async ({
     RETURNING *
   `;
   return newComment[0];
+};
+
+export interface UpdateIssueData {
+  project_id: number;
+  owner_id: number;
+  status: StatusType;
+  due_date: string;
+}
+
+export const updateIssue = async (id: number, { project_id, owner_id, status, due_date }: UpdateIssueData) => {
+  const issue: Issue[] = await sql`
+    UPDATE issues
+    SET project_id = ${project_id}, owner_id= ${owner_id}, status=${status}, due_date = ${due_date}
+    WHERE id = ${id}
+    RETURNING * 
+  `;
+
+  return issue[0];
 };

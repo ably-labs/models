@@ -9,11 +9,17 @@ import styles from './DatePicker.module.css';
 
 interface Props {
   value: string;
+  name: string;
+  onChange: (data: { [k: string]: Date | null }) => void;
 }
 
-export const DatePicker = ({ value }: Props) => {
+export const DatePicker = ({ value, name, onChange }: Props) => {
   const [startDate, setStartDate] = useState<Date | null>(new Date(value));
-  return <ReactDatePicker selected={startDate} onChange={(date) => setStartDate(date)} customInput={<Trigger />} />;
+  const handleChange = (date: Date | null) => {
+    setStartDate(date);
+    onChange({ [name]: date });
+  };
+  return <ReactDatePicker name={name} selected={startDate} onChange={handleChange} customInput={<Trigger />} />;
 };
 
 const Trigger = forwardRef(

@@ -18,6 +18,7 @@ export interface Issue {
   owner_first_name: string;
   owner_last_name: string;
   owner_color: string;
+  project_id: string;
 }
 
 interface Props {
