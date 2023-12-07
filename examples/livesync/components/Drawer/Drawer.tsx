@@ -7,6 +7,7 @@ import { Badge, Button, Heading, TextArea } from '@radix-ui/themes';
 import Skeleton from 'react-loading-skeleton';
 import cookies from 'js-cookie';
 import sample from 'lodash.sample';
+import debounce from 'lodash.debounce';
 // @ts-ignore
 import shader from 'shader';
 import { StatusTypeValues, User } from '@/data/types';
@@ -19,7 +20,7 @@ import { Select, SelectItem } from '../Select';
 import { Label } from './Label';
 import { FieldWithLoader } from './FieldWithLoader';
 import { Comments } from './Comments';
-import { UpdateIssueData, fetchDrawerData, fetchIssueById, updateIssue } from './actions';
+import { UpdateIssueData, fetchDrawerData, fetchIssueById, updateDescription, updateIssue } from './actions';
 
 import styles from './Drawer.module.css';
 import { ProjectType } from '..';
@@ -45,6 +46,12 @@ export const Drawer = ({ children, projectId }: Props) => {
   const handleCloseDrawer = () => {
     router.push(pathname);
   };
+
+  const handleDescriptionChange = debounce(async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (!issueId) return;
+    const issue = await updateDescription(issueId, e.target.value);
+    setIssue(issue);
+  }, 500);
 
   const handleIssueUpdate = async ({
     project_id,
@@ -174,6 +181,7 @@ export const Drawer = ({ children, projectId }: Props) => {
                 rows={10}
                 className={styles.description}
                 defaultValue={issueData.description}
+                onChange={handleDescriptionChange}
               />
             ) : (
               <Skeleton height={212} />

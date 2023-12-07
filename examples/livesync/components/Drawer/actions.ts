@@ -85,3 +85,14 @@ export const updateIssue = async (id: number, { project_id, owner_id, status, du
 
   return issue[0];
 };
+
+export const updateDescription = async (id: number, description: string) => {
+  const issue: Issue[] = await sql`
+    UPDATE issues
+    SET description = ${description}
+    WHERE id = ${id}
+    RETURNING * 
+  `;
+
+  return issue[0];
+};
