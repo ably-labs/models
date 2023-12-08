@@ -20,10 +20,11 @@ import { Select, SelectItem } from '../Select';
 import { Label } from './Label';
 import { FieldWithLoader } from './FieldWithLoader';
 import { Comments } from './Comments';
-import { UpdateIssueData, fetchDrawerData, fetchIssueById, updateDescription, updateIssue } from './actions';
+import { UpdateIssueData, fetchDrawerData, fetchIssueById, updateInput, updateIssue } from './actions';
 
 import styles from './Drawer.module.css';
 import { ProjectType } from '..';
+import { useInputHeight } from './useInputHeight';
 
 interface Props {
   projectId: number;
@@ -43,15 +44,23 @@ export const Drawer = ({ children, projectId }: Props) => {
   const [users, setUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | undefined>();
 
+  const setNameInputHeight = useInputHeight('textarea[name="name"]', issueData?.name);
+
   const handleCloseDrawer = () => {
     router.push(pathname);
   };
 
-  const handleDescriptionChange = debounce(async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    if (!issueId) return;
-    const issue = await updateDescription(issueId, e.target.value);
+  const debouncedUpdateInput = debounce(async (id: number, name: string, value: string) => {
+    const issue = await updateInput(id, name, value);
     setIssue(issue);
   }, 500);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setNameInputHeight();
+
+    if (!issueId) return;
+    debouncedUpdateInput(issueId, e.target.name, e.target.value);
+  };
 
   const handleIssueUpdate = async ({
     project_id,
@@ -122,7 +131,17 @@ export const Drawer = ({ children, projectId }: Props) => {
           <CloseIcon />
         </Button>
         <div className={styles.inner}>
-          {issueData?.name ? <h3 className={styles.name}>{issueData.name}</h3> : <Skeleton height={58} />}
+          {issueData?.name ? (
+            <TextArea
+              className={styles.name}
+              rows={1}
+              defaultValue={issueData.name}
+              name="name"
+              onChange={handleInputChange}
+            />
+          ) : (
+            <Skeleton height={58} />
+          )}
           <div className={styles.drawerSummary}>
             <Label>Owner</Label>
             <FieldWithLoader isLoading={!issueData?.owner_id || users.length === 0}>
@@ -179,9 +198,10 @@ export const Drawer = ({ children, projectId }: Props) => {
                 variant="soft"
                 placeholder="..."
                 rows={10}
+                name="description"
                 className={styles.description}
                 defaultValue={issueData.description}
-                onChange={handleDescriptionChange}
+                onChange={handleInputChange}
               />
             ) : (
               <Skeleton height={212} />

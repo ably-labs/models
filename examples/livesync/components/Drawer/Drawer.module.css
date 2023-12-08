@@ -22,13 +22,15 @@
   padding: 32px var(--size-content-padding-x-sm);
 }
 
-.name {
+.name textarea {
   color: var(--blackend-indigo);
   font-family: var(--font-inter);
   font-size: 24px;
   font-style: normal;
   font-weight: 500;
   line-height: normal;
+  resize: none;
+  overflow: hidden;
 }
 
 .drawerSummary {
@@ -48,13 +50,15 @@
   text-transform: capitalize;
 }
 
-.description :global(.rt-TextAreaInput) {
+.description :global(.rt-TextAreaInput),
+.name :global(.rt-TextAreaInput) {
   background-color: var(--snow-white);
   position: relative;
   margin: 0 -8px;
 }
 
-.description :global(.rt-TextAreaChrome) {
+.description :global(.rt-TextAreaChrome),
+.name :global(.rt-TextAreaChrome) {
   display: none;
 }
 

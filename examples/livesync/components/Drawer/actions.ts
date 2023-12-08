@@ -86,13 +86,23 @@ export const updateIssue = async (id: number, { project_id, owner_id, status, du
   return issue[0];
 };
 
-export const updateDescription = async (id: number, description: string) => {
+export const updateInput = async (id: number, name: string, input: string) => {
+  if (name === 'description') {
+    const issue: Issue[] = await sql`
+      UPDATE issues
+      SET description = ${input}
+      WHERE id = ${id}
+      RETURNING * 
+    `;
+    return issue[0];
+  }
+
   const issue: Issue[] = await sql`
-    UPDATE issues
-    SET description = ${description}
-    WHERE id = ${id}
-    RETURNING * 
-  `;
+      UPDATE issues
+      SET name = ${input}
+      WHERE id = ${id}
+      RETURNING * 
+    `;
 
   return issue[0];
 };
