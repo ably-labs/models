@@ -30,7 +30,7 @@
     "eslint-config-next": "13.3.0",
     "iron-session": "8.0.0-alpha.0",
     "ms": "^2.1.3",
-    "next": "13.3.2",
+    "next": "13.5.1",
     "postcss": "8.4.31",
     "prettier": "^2.8.3",
     "react": "18.2.0",
