@@ -63,7 +63,7 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
   private syncRetryStrategy: RetryStrategyFunc;
   private syncFunc: S;
   private lastSyncParams?: Parameters<S>;
-  private merge: MergeFunc<ExtractData<S>> = async () => {
+  private merge: MergeFunc<ExtractData<S>> = () => {
     throw new Error('merge func not registered');
   };
 
@@ -602,7 +602,7 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
     initialData: ExtractData<S>,
     event: OptimisticEvent | ConfirmedEvent,
   ): Promise<ExtractData<S>> {
-    const data = await this.merge(initialData, event);
+    const data = this.merge(initialData, event);
     this.logger.trace({ ...this.baseLogContext, action: 'applyUpdate()', initialData, event, data });
     return data;
   }

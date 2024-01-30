@@ -8,4 +8,4 @@ import type { OptimisticEvent, ConfirmedEvent } from './model';
  * @param {OptimisticEvent | ConfirmedEvent} event - The event to apply to the model state.
  * @returns {Promise<T>} A promise containing the resultant model state.
  */
-export type MergeFunc<T> = (state: T, event: OptimisticEvent | ConfirmedEvent) => Promise<T>;
+export type MergeFunc<T> = (state: T, event: OptimisticEvent | ConfirmedEvent) => T;

@@ -103,7 +103,7 @@ describe('Model', () => {
     });
     const model = new Model(
       'test',
-      { sync: sync, merge: async () => simpleTestData },
+      { sync: sync, merge: () => simpleTestData },
       {
         ably,
         channelName,
@@ -137,7 +137,7 @@ describe('Model', () => {
       return { data: `confirmed_${counter++}`, sequenceID: '0', arg1, arg2 };
     });
 
-    const merge = vi.fn(async (_, event) => event.data);
+    const merge = vi.fn((_, event) => event.data);
 
     const model = new Model(
       'test',
@@ -210,7 +210,7 @@ describe('Model', () => {
       };
     });
 
-    const merge = vi.fn(async (_, event) => event.data);
+    const merge = vi.fn((_, event) => event.data);
     const model = new Model(
       'test',
       { sync, merge },
@@ -250,7 +250,7 @@ describe('Model', () => {
       data: 'data_0',
       sequenceID: '0',
     }));
-    const merge = vi.fn(async (_, event) => event.data);
+    const merge = vi.fn((_, event) => event.data);
 
     // same timestamp simulates no time elapsed between pause and resume
     let now = Date.now();
@@ -324,7 +324,7 @@ describe('Model', () => {
       data: 'data_0',
       sequenceID: '0',
     }));
-    const merge = vi.fn(async (_, event) => event.data);
+    const merge = vi.fn((_, event) => event.data);
 
     // same timestamp simulates no time elapsed between pause and resume
     let now = Date.now();
@@ -388,7 +388,7 @@ describe('Model', () => {
       data: 'data_0',
       sequenceID: '0',
     }));
-    const merge = vi.fn(async (_, event) => event.data);
+    const merge = vi.fn((_, event) => event.data);
 
     // same timestamp simulates no time elapsed between pause and resume
     let now = new Date();
@@ -448,7 +448,7 @@ describe('Model', () => {
       'test',
       {
         sync: sync,
-        merge: async (state) => state,
+        merge: (state) => state,
       },
       {
         ably,
@@ -485,7 +485,7 @@ describe('Model', () => {
       sequenceID: '0',
     }));
 
-    const mergeFn = vi.fn(async (_, event) => event.data);
+    const mergeFn = vi.fn((_, event) => event.data);
     const model = new Model(
       'test',
       { sync: sync, merge: mergeFn },
@@ -563,7 +563,7 @@ describe('Model', () => {
       sequenceID: '0',
     }));
 
-    const merge = vi.fn(async (state, event) => {
+    const merge = vi.fn((state, event) => {
       if (event.name === 'add') {
         return state.concat([event.data]);
       }
@@ -618,7 +618,7 @@ describe('Model', () => {
     })); // defines initial version of model
     const model = new Model(
       'test',
-      { sync, merge: async () => 'merged' },
+      { sync, merge: () => 'merged' },
       {
         ably,
         channelName,
@@ -665,7 +665,7 @@ describe('Model', () => {
       sequenceID: '0',
     }));
 
-    const mergeFn = vi.fn(async (_, event) => event.data);
+    const mergeFn = vi.fn((_, event) => event.data);
     const model = new Model(
       'test',
       { sync: sync, merge: mergeFn },
@@ -707,7 +707,7 @@ describe('Model', () => {
   it<ModelTestContext>('updates model state with optimistic event', async ({ channelName, ably, logger, streams }) => {
     const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
-    const mergeFn = vi.fn(async (_, event) => event.data);
+    const mergeFn = vi.fn((_, event) => event.data);
     const model = new Model(
       'test',
       {
@@ -767,7 +767,7 @@ describe('Model', () => {
       events.e1.subscribe((message) => callback(null, message));
     });
 
-    const mergeFn = vi.fn(async (_, event) => event.data);
+    const mergeFn = vi.fn((_, event) => event.data);
     const model = new Model(
       'test',
       {
@@ -816,7 +816,7 @@ describe('Model', () => {
     s1.subscribe = vi.fn(async (callback) => {
       events.e1.subscribe((message) => callback(null, message));
     });
-    const mergeFn = vi.fn(async (_, event) => event.data);
+    const mergeFn = vi.fn((_, event) => event.data);
 
     const model = new Model(
       'test',
@@ -888,7 +888,7 @@ describe('Model', () => {
     s1.subscribe = vi.fn<any, any>((callback) => {
       events.subscribe((message) => callback(null, message));
     });
-    const mergeFn = vi.fn(async (_, event) => event.data);
+    const mergeFn = vi.fn((_, event) => event.data);
 
     const model = new Model(
       'test',
@@ -961,7 +961,7 @@ describe('Model', () => {
     s1.subscribe = vi.fn(async (callback) => {
       events.e1.subscribe((message) => callback(null, message));
     });
-    const mergeFn = vi.fn(async (state, event) => state + event.data);
+    const mergeFn = vi.fn((state, event) => state + event.data);
 
     const model = new Model(
       'test',
@@ -1056,7 +1056,7 @@ describe('Model', () => {
     s1.subscribe = vi.fn(async (callback) => {
       events.e1.subscribe((message) => callback(null, message));
     });
-    const mergeFn = vi.fn(async (state, event) => state + event.data);
+    const mergeFn = vi.fn((state, event) => state + event.data);
 
     const model = new Model(
       'test',
@@ -1149,7 +1149,7 @@ describe('Model', () => {
   it<ModelTestContext>('revert optimistic events on cancel', async ({ channelName, ably, logger, streams }) => {
     const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
-    const mergeFn = vi.fn(async (state, event) => state + event.data);
+    const mergeFn = vi.fn((state, event) => state + event.data);
 
     const model = new Model(
       'test',
@@ -1224,7 +1224,7 @@ describe('Model', () => {
       sequenceID: '0',
     }));
 
-    const mergeFn = vi.fn(async (_, event) => {
+    const mergeFn = vi.fn((_, event) => {
       if (event.data === '3') {
         throw new Error('test');
       }
@@ -1289,7 +1289,7 @@ describe('Model', () => {
   }) => {
     const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
-    const mergeFn = vi.fn(async (state, event) => {
+    const mergeFn = vi.fn((state, event) => {
       if (event.data === '4') {
         throw new Error('update error');
       }
@@ -1340,7 +1340,7 @@ describe('Model', () => {
     s1.subscribe = vi.fn(async (callback) => {
       events.e1.subscribe((message) => callback(null, message));
     });
-    const mergeFn = vi.fn(async (state, event) => state + event.data);
+    const mergeFn = vi.fn((state, event) => state + event.data);
 
     const model = new Model(
       'test',
@@ -1384,7 +1384,7 @@ describe('Model', () => {
     s1.subscribe = vi.fn(async (callback) => {
       events.subscribe((message) => callback(null, message));
     });
-    const mergeFn = vi.fn(async (state, event) => state + event.data);
+    const mergeFn = vi.fn((state, event) => state + event.data);
 
     const model = new Model(
       'test',
@@ -1458,7 +1458,7 @@ describe('Model', () => {
   });
 
   it<ModelTestContext>('sync function succeeds after retrying', async ({ channelName, ably, logger }) => {
-    const mergeFn = vi.fn(async (state, event) => state + event.data);
+    const mergeFn = vi.fn((state, event) => state + event.data);
 
     let called = false;
     const syncSpy = vi.fn(async () => {
@@ -1517,7 +1517,7 @@ describe('Model', () => {
       'test',
       {
         sync: syncFn,
-        merge: async () => {
+        merge: () => {
           throw new Error('merge failed');
         },
       },
@@ -1575,7 +1575,7 @@ describe('Model', () => {
       'test',
       {
         sync: syncFn,
-        merge: async () => {
+        merge: () => {
           throw new Error('merge failed');
         },
       },
