@@ -115,7 +115,7 @@ async function sync() {
 }
 
 // a function used by the model to merge a change event that is received and the existing model state
-async function merge(state: Post, event: OptimisticEvent | ConfirmedEvent) {
+function merge(state: Post, event: OptimisticEvent | ConfirmedEvent) {
   return {
     ...state,
     text: event.data, // replace the previous post text field with the new value

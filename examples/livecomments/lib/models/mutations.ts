@@ -37,7 +37,7 @@ export async function deleteComment(mutationID: string, id: number) {
   return response.json();
 }
 
-export async function merge(existingState: PostType, event: OptimisticEvent | ConfirmedEvent): Promise<PostType> {
+export function merge(existingState: PostType, event: OptimisticEvent | ConfirmedEvent): PostType {
   // Optimistic and confirmed events use the same merge function logic.
 
   // The models function keeps track of the state before events are applied

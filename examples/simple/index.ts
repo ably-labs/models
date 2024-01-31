@@ -51,7 +51,7 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     }, 3000);
   }
 
-  async function merge(state: Post, event: OptimisticEvent | ConfirmedEvent) {
+  function merge(state: Post, event: OptimisticEvent | ConfirmedEvent) {
     logger.info({ event }, 'merging event');
 
     switch (event.name) {
