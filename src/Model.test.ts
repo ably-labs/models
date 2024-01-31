@@ -1421,7 +1421,7 @@ describe('Model', () => {
     ably,
     logger,
   }) => {
-    const mergeFn = vi.fn(async (state, event) => state + event.data);
+    const mergeFn = vi.fn((state, event) => state + event.data);
     const syncSpy = vi.fn(async () => {
       throw new Error('failed to load from backend');
     });

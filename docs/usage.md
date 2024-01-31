@@ -85,7 +85,7 @@ The params are optional, and can be left out by omitting them from the sync func
 When changes occur to your data model in your backend, your backend is expected to emit *events* which describe the result of the mutation that occurred. The Models SDK will consume these events and apply them to its local copy of the model state to produce the next updated version. The way the next state is calculated is expressed as a *merge function*, which has the following type:
 
 ```ts
-export type MergeFunc<T> = (state: T, event: OptimisticEvent | ConfirmedEvent) => Promise<T>;
+export type MergeFunc<T> = (state: T, event: OptimisticEvent | ConfirmedEvent) => T;
 ```
 
 i.e. it is a function that accepts the previous model state and the event and returns the next model state.
