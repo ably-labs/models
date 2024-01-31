@@ -42,7 +42,7 @@ export const useModel = (id: number) => {
         name: `post:${id}`,
         channelName: `${channelNamespace}post:${id}`,
         sync: async () => getPost(id),
-        merge: merge,
+        merge,
       });
       await model.sync();
 
