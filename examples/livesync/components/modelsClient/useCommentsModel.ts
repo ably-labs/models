@@ -47,6 +47,8 @@ export const useCommentsModel = (issueId: number | null): [CommentData[] | undef
       setComments(data);
     };
 
+    model.subscribe(subscribe);
+
     return () => {
       model.unsubscribe(subscribe);
     };
