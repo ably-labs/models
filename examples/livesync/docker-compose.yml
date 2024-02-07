@@ -1,0 +1,68 @@
+version: '3'
+
+services:
+  adbc:
+    container_name: adbc
+    image: ghcr.io/ably-labs/adbc:latest
+    env_file:
+      - .env # load config from env file
+    ports:
+      - 2259:2259
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      adbc_network:
+
+  postgres:
+    container_name: adbc-postgres
+    image: postgres:11-alpine
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-q', '-d', 'postgres', '-U', 'postgres']
+      interval: 2s
+      retries: 30
+    volumes:
+      - adbc_postgres_data:/var/lib/postgresql/data
+    networks:
+      adbc_network:
+  postgres_setup:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: "postgres-setup"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      adbc_network:
+    command: "pnpm seed"
+
+  app:
+    env_file:
+      - .env # load config from env file
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nextjs-app
+    ports:
+      - 3002:3002
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      adbc_network:
+
+volumes:
+  adbc_postgres_data:
+
+networks:
+  adbc_network:

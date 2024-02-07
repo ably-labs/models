@@ -6,7 +6,7 @@ import { Status, StatusType } from '../Status';
 
 import styles from './Table.module.css';
 
-export interface Issue {
+export interface IssueType {
   id: number;
   slug: string;
   name: string;
@@ -22,7 +22,7 @@ export interface Issue {
 }
 
 interface Props {
-  rows: Issue[];
+  rows: IssueType[];
 }
 
 export const Table = ({ rows }: Props) => {

@@ -1,8 +1,8 @@
 import { Drawer } from '../Drawer';
-import { Table, Issue } from '../Table';
+import { Table, IssueType } from '../Table';
 
 interface Props {
-  issues: Issue[];
+  issues: IssueType[];
   id: number;
 }
 
