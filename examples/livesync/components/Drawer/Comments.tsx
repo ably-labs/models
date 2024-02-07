@@ -1,14 +1,15 @@
-import { useEffect, useState } from 'react';
 import { Button, Heading, TextArea } from '@radix-ui/themes';
 import { useForm } from 'react-hook-form';
+import { v4 as uuidv4 } from 'uuid';
 
 import { User } from '@/data/types';
 
 import { Comment, CommentData } from './Comment';
-import { fetchComments, postComment } from './actions';
+import { postComment } from './actions';
 import { Owner } from '../Owner';
 
 import styles from './Comments.module.css';
+import { CommentsMergeEvent, useCommentsModel } from '../modelsClient';
 
 interface Props {
   issueId: number | null;
@@ -20,7 +21,7 @@ interface FormData {
 }
 
 export const Comments = ({ issueId, user }: Props) => {
-  const [comments, setComments] = useState<CommentData[] | null>(null);
+  const [comments, model] = useCommentsModel(issueId);
   const {
     register,
     handleSubmit,
@@ -29,29 +30,35 @@ export const Comments = ({ issueId, user }: Props) => {
   } = useForm<FormData>();
 
   const onSubmit = async ({ content }: FormData) => {
-    if (issueId === null || !user) return;
+    if (issueId === null || !user || !model) return;
 
-    const newComment = await postComment({ userId: user.id, issueId, content });
-    setComments((prev) => [
-      {
-        ...newComment,
-        ...user,
-      },
-      ...(prev || []),
-    ]);
-    setValue('content', '');
-  };
-
-  useEffect(() => {
-    setComments([]);
-    if (!issueId) return;
-
-    const fetchIssue = async (id: number) => {
-      const comments = await fetchComments(id);
-      setComments(comments);
+    const mutationID = uuidv4();
+    const data = {
+      userId: user.id,
+      issueId,
+      content,
+      mutationID,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      color: user.color,
+      updated_at: new Date().toISOString(),
     };
-    fetchIssue(issueId);
-  }, [issueId]);
+
+    const [confirmation, cancel] = await model.optimistic({
+      mutationID,
+      name: CommentsMergeEvent.POST_COMMENT,
+      data,
+    });
+    setValue('content', '');
+
+    try {
+      await postComment(data);
+      await confirmation;
+    } catch (err) {
+      console.error(err);
+      cancel();
+    }
+  };
 
   return (
     <div className={styles.commentsContainer}>
@@ -59,7 +66,7 @@ export const Comments = ({ issueId, user }: Props) => {
         <Heading mb="4" size="3" weight="medium" as="h4" className={styles.commentsTitle}>
           Comments
         </Heading>
-        {comments?.map((props) => <Comment key={`comment-${props.id}`} {...props} />)}
+        {comments?.map((props: CommentData) => <Comment key={`comment-${props.id}`} {...props} />)}
       </div>
       <form className={styles.newCommentSection} onSubmit={handleSubmit(onSubmit)}>
         <Owner firstName={user?.first_name} lastName={user?.last_name} color={user?.color} variant="large" />

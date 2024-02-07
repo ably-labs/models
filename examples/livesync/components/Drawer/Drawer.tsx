@@ -3,28 +3,31 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import cn from 'classnames';
-import { Badge, Button, Heading, TextArea } from '@radix-ui/themes';
+import { v4 as uuidv4 } from 'uuid';
+import { Badge, Button, Heading } from '@radix-ui/themes';
 import Skeleton from 'react-loading-skeleton';
 import cookies from 'js-cookie';
 import sample from 'lodash.sample';
 import debounce from 'lodash.debounce';
-// @ts-ignore
+// @ts-ignore - shader doesn't have types
 import shader from 'shader';
+
 import { StatusTypeValues, User } from '@/data/types';
+
 import { Owner } from '../Owner';
 import { Status, StatusType } from '../Status';
 import { DatePicker } from '../DatePicker';
 import { CloseIcon } from '../icons';
-import { Issue } from '../Table';
 import { Select, SelectItem } from '../Select';
+import { TextArea } from '../TextArea';
+import { MergeEvent, useIssueModel } from '../modelsClient';
+import { ProjectType } from '../MenuItems';
+import { UpdateIssueData, fetchDrawerData, updateIssueNameOrDescription, updateIssue } from './actions';
 import { Label } from './Label';
 import { FieldWithLoader } from './FieldWithLoader';
 import { Comments } from './Comments';
-import { UpdateIssueData, fetchDrawerData, fetchIssueById, updateInput, updateIssue } from './actions';
 
 import styles from './Drawer.module.css';
-import { ProjectType } from '..';
-import { useInputHeight } from './useInputHeight';
 
 interface Props {
   projectId: number;
@@ -38,26 +41,39 @@ export const Drawer = ({ children, projectId }: Props) => {
 
   const issue = searchParams.get('issue');
   const issueId = issue ? parseInt(issue) : null;
+  const [issueData, model] = useIssueModel(issueId);
 
-  const [issueData, setIssue] = useState<Issue | null>(null);
   const [projects, setProjects] = useState<ProjectType[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | undefined>();
-
-  const setNameInputHeight = useInputHeight('textarea[name="name"]', issueData?.name);
 
   const handleCloseDrawer = () => {
     router.push(pathname);
   };
 
   const debouncedUpdateInput = debounce(async (id: number, name: string, value: string) => {
-    const issue = await updateInput(id, name, value);
-    setIssue(issue);
+    if (!model) return;
+    const mutationID = uuidv4();
+    const [confirmation, cancel] = await model.optimistic({
+      mutationID,
+      name: MergeEvent.UPDATE_INPUT,
+      data: {
+        id,
+        name,
+        value,
+      },
+    });
+
+    try {
+      await updateIssueNameOrDescription(id, { name, value, mutationID });
+      await confirmation;
+    } catch (err) {
+      console.error(err);
+      cancel();
+    }
   }, 500);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setNameInputHeight();
-
     if (!issueId) return;
     debouncedUpdateInput(issueId, e.target.name, e.target.value);
   };
@@ -73,17 +89,30 @@ export const Drawer = ({ children, projectId }: Props) => {
     status?: StatusType;
     due_date?: string | null;
   }) => {
-    if (!issueId || !issueData) return;
+    if (!issueId || !issueData || !model) return;
 
+    const mutationID = uuidv4();
     const newData: UpdateIssueData = {
       project_id: project_id ? parseInt(project_id) : projectId,
       owner_id: owner_id ? parseInt(owner_id) : issueData.owner_id,
       status: status ?? issueData.status,
       due_date: due_date ?? issueData.due_date,
+      mutationID: mutationID,
     };
 
-    const updatedIssueData = await updateIssue(issueId, newData);
-    setIssue(updatedIssueData);
+    const [confirmation, cancel] = await model.optimistic({
+      mutationID,
+      name: MergeEvent.UPDATE_ISSUE,
+      data: newData,
+    });
+
+    try {
+      await updateIssue(issueId, newData);
+      await confirmation;
+    } catch (err) {
+      console.error(err);
+      cancel();
+    }
   };
 
   useEffect(() => {
@@ -96,18 +125,7 @@ export const Drawer = ({ children, projectId }: Props) => {
   }, []);
 
   useEffect(() => {
-    setIssue(null);
-    if (!issueId) return;
-
-    const fetchIssue = async (id: number) => {
-      const issue = await fetchIssueById(id);
-      setIssue(issue);
-    };
-    fetchIssue(issueId);
-  }, [issueId]);
-
-  useEffect(() => {
-    if (!users) return;
+    if (users.length === 0) return;
     const user = cookies.get('livesync_user');
 
     if (user) {
@@ -131,20 +149,14 @@ export const Drawer = ({ children, projectId }: Props) => {
           <CloseIcon />
         </Button>
         <div className={styles.inner}>
-          {issueData?.name ? (
-            <TextArea
-              className={styles.name}
-              rows={1}
-              defaultValue={issueData.name}
-              name="name"
-              onChange={handleInputChange}
-            />
+          {issueData ? (
+            <TextArea className={styles.name} defaultValue={issueData.name} name="name" onChange={handleInputChange} />
           ) : (
             <Skeleton height={58} />
           )}
           <div className={styles.drawerSummary}>
             <Label>Owner</Label>
-            <FieldWithLoader isLoading={!issueData?.owner_id || users.length === 0}>
+            <FieldWithLoader isLoading={!issueData || users.length === 0}>
               <Select defaultValue={`${issueData?.owner_id}`} name="owner_id" onChange={handleIssueUpdate}>
                 {users.map(({ id, first_name, last_name, color, slug }) => (
                   <SelectItem key={slug} value={`${id}`}>
@@ -156,12 +168,12 @@ export const Drawer = ({ children, projectId }: Props) => {
 
             <Label>Due date</Label>
             <FieldWithLoader isLoading={!issueData?.due_date}>
-              <DatePicker value={issueData?.due_date.toString() || ''} name="due_date" onChange={handleIssueUpdate} />
+              <DatePicker value={issueData?.due_date?.toString() || ''} name="due_date" onChange={handleIssueUpdate} />
             </FieldWithLoader>
 
             <Label>Projects</Label>
-            <FieldWithLoader isLoading={projects.length === 0}>
-              <Select defaultValue={`${projectId}`} name="project_id" onChange={handleIssueUpdate}>
+            <FieldWithLoader isLoading={projects.length === 0 || !issueData}>
+              <Select defaultValue={`${issueData?.project_id}`} name="project_id" onChange={handleIssueUpdate}>
                 {projects.map(({ name, color, id, slug }) => (
                   <SelectItem key={`${id}-${slug}`} value={`${id}`}>
                     <Badge
@@ -193,7 +205,7 @@ export const Drawer = ({ children, projectId }: Props) => {
             <Heading mb="3" size="2" weight="bold" as="h4" className={styles.descriptionTitle}>
               Description
             </Heading>
-            {issueData?.description ? (
+            {issueData ? (
               <TextArea
                 variant="soft"
                 placeholder="..."

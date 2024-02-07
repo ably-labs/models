@@ -1,14 +1,14 @@
 'use server';
 
 import { Comment, User, sql } from '@/data';
-import { Issue } from '../Table';
+import { IssueType } from '../Table';
 import { ProjectType, StatusType } from '..';
 import { CommentData } from './Comment';
 
 export const fetchDrawerData = async () => {
   const data = await sql.begin(async (sql) => {
-    const users: User[] = await sql`SELECT id, first_name, last_name, color, slug FROM users`;
-    const projects: ProjectType[] = await sql`SELECT id, name, color FROM projects`;
+    const users = await sql<User[]>`SELECT id, first_name, last_name, color, slug FROM users`;
+    const projects = await sql<ProjectType[]>`SELECT id, name, color FROM projects`;
 
     return { users, projects };
   });
@@ -16,29 +16,37 @@ export const fetchDrawerData = async () => {
 };
 
 export const fetchIssueById = async (id: number) => {
-  const issues: Issue[] = await sql`
-    SELECT
-      i.id,
-      i.name,
-      i.due_date,
-      i.status,
-      i.owner_id,
-      i.story_points,
-      i.description,
-      u.first_name as owner_first_name,
-      u.last_name as owner_last_name,
-      u.color as owner_color
-    FROM issues i
-      LEFT OUTER JOIN users u
-      ON u.id = i.owner_id
-    WHERE i.id = ${id}
-  `;
+  const issue = await sql.begin(async (sql) => {
+    const issues = await sql<IssueType[]>`
+      SELECT
+        i.id,
+        i.name,
+        i.due_date,
+        i.status,
+        i.owner_id,
+        i.story_points,
+        i.description,
+        i.project_id,
+        u.first_name as owner_first_name,
+        u.last_name as owner_last_name,
+        u.color as owner_color
+      FROM issues i
+        LEFT OUTER JOIN users u
+        ON u.id = i.owner_id
+      WHERE i.id = ${id}
+    `;
 
-  return issues[0];
+    const ids = await sql`SELECT COALESCE(MAX(sequence_id), 0) FROM outbox`;
+
+    return { data: issues[0], sequenceID: ids[0].max };
+  });
+
+  return issue;
 };
 
 export const fetchComments = async (id: number) => {
-  const comments: CommentData[] = await sql`
+  const data = await sql.begin(async (sql) => {
+    const comments = await sql<CommentData[]>`
       SELECT 
         c.id, c.content, c.updated_at, u.last_name, u.first_name, u.color
       FROM comments c
@@ -48,24 +56,60 @@ export const fetchComments = async (id: number) => {
       ORDER BY c.updated_at DESC
     `;
 
-  return comments;
+    const ids = await sql`SELECT COALESCE(MAX(sequence_id), 0) FROM outbox`;
+    return { data: comments, sequenceID: ids[0].max };
+  });
+
+  return data;
 };
 
 export const postComment = async ({
   userId,
   issueId,
   content,
+  mutationID,
+  updated_at,
+  first_name,
+  last_name,
+  color,
 }: {
   userId: number;
   issueId: number;
   content: string;
+  mutationID: string;
+  updated_at: string;
+  first_name: string;
+  last_name: string;
+  color: string;
 }) => {
-  const newComment: Comment[] = await sql`
-    INSERT INTO comments (user_id, issue_id, content)
-    VALUES (${userId}, ${issueId}, ${content})
-    RETURNING *
-  `;
-  return newComment[0];
+  const comment = await sql.begin(async (sql) => {
+    const newComment = await sql<Comment[]>`
+      INSERT INTO comments (user_id, issue_id, content, updated_at)
+      VALUES (${userId}, ${issueId}, ${content}, ${updated_at})
+      RETURNING *
+    `;
+
+    const data = {
+      mutation_id: mutationID,
+      channel: `comments:${issueId}`,
+      name: 'postComment',
+      data: {
+        userId,
+        issueId,
+        content,
+        updated_at,
+        first_name,
+        last_name,
+        color,
+      },
+    };
+
+    await sql`INSERT INTO outbox ${sql(data, 'mutation_id', 'channel', 'name', 'data')}`;
+
+    return newComment;
+  });
+
+  return comment;
 };
 
 export interface UpdateIssueData {
@@ -73,36 +117,80 @@ export interface UpdateIssueData {
   owner_id: number;
   status: StatusType;
   due_date: string;
+  mutationID: string;
 }
 
-export const updateIssue = async (id: number, { project_id, owner_id, status, due_date }: UpdateIssueData) => {
-  const issue: Issue[] = await sql`
-    UPDATE issues
-    SET project_id = ${project_id}, owner_id= ${owner_id}, status=${status}, due_date = ${due_date}
-    WHERE id = ${id}
-    RETURNING * 
-  `;
+export const updateIssue = async (
+  id: number,
+  { project_id, owner_id, status, due_date, mutationID }: UpdateIssueData,
+) => {
+  const issue = await sql.begin(async (sql) => {
+    const issue = await sql<IssueType[]>`
+      UPDATE issues
+      SET project_id = ${project_id}, owner_id= ${owner_id}, status=${status}, due_date = ${due_date}
+      WHERE id = ${id}
+      RETURNING * 
+    `;
 
-  return issue[0];
+    const data = {
+      mutation_id: mutationID,
+      channel: `issue:${id}`,
+      name: 'updateIssue',
+      data: {
+        project_id,
+        owner_id,
+        status,
+        due_date,
+      },
+    };
+
+    await sql`INSERT INTO outbox ${sql(data, 'mutation_id', 'channel', 'name', 'data')}`;
+
+    return issue[0];
+  });
+
+  return issue;
 };
 
-export const updateInput = async (id: number, name: string, input: string) => {
-  if (name === 'description') {
-    const issue: Issue[] = await sql`
-      UPDATE issues
-      SET description = ${input}
-      WHERE id = ${id}
-      RETURNING * 
-    `;
+export interface UpdateInputData {
+  name: string;
+  value: string;
+  mutationID: string;
+}
+
+export const updateIssueNameOrDescription = async (id: number, { name, value, mutationID }: UpdateInputData) => {
+  const issue = await sql.begin(async (sql) => {
+    const data = {
+      mutation_id: mutationID,
+      channel: `issue:${id}`,
+      name: 'updateInput',
+      data: {
+        name,
+        value,
+      },
+    };
+
+    await sql`INSERT INTO outbox ${sql(data, 'mutation_id', 'channel', 'name', 'data')}`;
+
+    if (name === 'description') {
+      const issue = await sql<IssueType[]>`
+        UPDATE issues
+        SET description = ${value}
+        WHERE id = ${id}
+        RETURNING * 
+      `;
+      return issue[0];
+    }
+
+    const issue = await sql<IssueType[]>`
+        UPDATE issues
+        SET name = ${value}
+        WHERE id = ${id}
+        RETURNING * 
+      `;
+
     return issue[0];
-  }
+  });
 
-  const issue: Issue[] = await sql`
-      UPDATE issues
-      SET name = ${input}
-      WHERE id = ${id}
-      RETURNING * 
-    `;
-
-  return issue[0];
+  return issue;
 };

@@ -1,10 +1,16 @@
-import { Issue, Project, Tabs } from '@/components';
+import { Project, Tabs } from '@/components';
 
 import styles from './page.module.css';
 import { fetchProjectBySlug } from '@/app/utils';
+import { redirect } from 'next/navigation';
 
 export default async function ProjectSlug({ params: { slug } }: { params: { slug: string } }) {
-  const { id, name, description, issues } = await fetchProjectBySlug(slug);
+  const project = await fetchProjectBySlug(slug);
+  if (!project) {
+    redirect(`/`);
+  }
+
+  const { id, name, description, issues } = project;
   const tabs = [
     {
       tab: 'list',
