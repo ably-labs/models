@@ -6,17 +6,18 @@
   "module": "dist/mjs/index.js",
   "types": "dist/mjs/index.d.ts",
   "scripts": {
-    "lint": "npx eslint .",
-    "lint:fix": "npx eslint --fix .",
-    "format": "npx prettier --write --ignore-path .gitignore src",
-    "format:check": "npx prettier --check --ignore-path .gitignore src",
-    "test": "npx vitest run",
-    "coverage": "npx vitest run --coverage",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
+    "format": "prettier --write --ignore-path .gitignore src",
+    "format:check": "prettier --check --ignore-path .gitignore src",
+    "test": "vitest run",
+    "test:watch": "vitest run --watch",
+    "coverage": "vitest run --coverage",
     "build": "npm run build:cjs && npm run build:mjs",
-    "build:mjs": "npx tsc --project tsconfig.mjs.json && cp res/package.mjs.json dist/mjs/package.json",
-    "build:cjs": "npx tsc --project tsconfig.cjs.json && cp res/package.cjs.json dist/cjs/package.json",
-    "prepare": "npx husky install",
-    "docs": "npx typedoc"
+    "build:mjs": "tsc --project tsconfig.mjs.json && cp res/package.mjs.json dist/mjs/package.json",
+    "build:cjs": "tsc --project tsconfig.cjs.json && cp res/package.cjs.json dist/cjs/package.json",
+    "prepare": "husky install",
+    "docs": "typedoc"
   },
   "repository": {
     "type": "git",
@@ -54,6 +55,7 @@
     "prettier": "^3.1.0",
     "typedoc": "^0.25.3",
     "typescript": "^5.1.6",
+    "vite": "^5.1.1",
     "vitest": "^0.34.1"
   },
   "dependencies": {
