@@ -58,7 +58,8 @@ export type ModelsOptions = OptionalValues<
  * @interface
  */
 export type ModelSpec<S extends SyncFuncConstraint> = {
-  name: string;
+  // LEGACY: we're phasing out the use of name in favour of channelName
+  name?: string;
   channelName: string;
 } & Registration<S>;
 

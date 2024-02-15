@@ -43,22 +43,20 @@ describe('ModelsClient', () => {
   }) => {
     const modelsClient = new ModelsClient({ ably });
     const model1 = modelsClient.models.get({
-      name: 'test',
       channelName: channelName,
       sync: async (page: number) => {
         return { data: 'initial data', sequenceId: '0', page };
       },
       merge: () => 'merged',
     });
-    expect(model1.name).toEqual('test');
+    expect(model1.name).toEqual(channelName);
 
     const model2 = modelsClient.models.get({
-      name: 'test',
       channelName: channelName,
       sync: async () => ({ data: 'initial data', sequenceId: '0' }),
       merge: () => 'merged',
     });
-    expect(model2.name).toEqual('test');
+    expect(model2.name).toEqual(channelName);
     expect(model1).toEqual(model2);
   });
 });

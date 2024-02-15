@@ -11,6 +11,7 @@
     "format": "npx prettier --write --ignore-path .gitignore src",
     "format:check": "npx prettier --check --ignore-path .gitignore src",
     "test": "npx vitest run",
+    "test:watch": "npx vitest",
     "coverage": "npx vitest run --coverage",
     "build": "npm run build:cjs && npm run build:mjs",
     "build:mjs": "npx tsc --project tsconfig.mjs.json && cp res/package.mjs.json dist/mjs/package.json",

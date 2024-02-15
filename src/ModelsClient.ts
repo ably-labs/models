@@ -89,19 +89,18 @@ export default class ModelsClient {
           throw new InvalidArgumentError('expected spec to be a ModelSpec');
         }
 
-        const name = spec.name;
         const channelName = spec.channelName;
 
-        if (!name) {
+        if (!channelName) {
           throw new InvalidArgumentError('Model must have a non-empty name');
         }
 
-        if (this.modelInstances[name]) {
-          return this.modelInstances[name] as Model<S>;
+        if (this.modelInstances[channelName]) {
+          return this.modelInstances[channelName] as Model<S>;
         }
 
-        const model = new Model<S>(name, spec, { ...this.opts, channelName });
-        this.modelInstances[name] = model;
+        const model = new Model<S>(channelName, spec, { ...this.opts, channelName });
+        this.modelInstances[channelName] = model;
 
         return model as Model<S>;
       },
@@ -115,8 +114,6 @@ export default class ModelsClient {
   private isModelSpec<S extends SyncFuncConstraint>(spec: any): spec is ModelSpec<S> {
     return (
       spec &&
-      spec.name &&
-      typeof spec.name === 'string' &&
       spec.channelName &&
       typeof spec.channelName === 'string' &&
       spec.sync &&
