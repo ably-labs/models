@@ -5,7 +5,7 @@ node_modules/
 .vscode
 coverage
 .env/
-.env.test
+**.env*
 docs/typedoc/generated/
 **/*.swp
 
