@@ -4,7 +4,7 @@ import { Subject, Subscription } from 'rxjs';
 
 import { StreamDiscontinuityError, InvalidArgumentError, toError } from './Errors.js';
 import EventQueue from './EventQueue.js';
-import MutationsRegistry, { mutationIDComparator } from './MutationsRegistry.js';
+import MutationsRegistry, { mutationIdComparator } from './MutationsRegistry.js';
 import PendingConfirmationRegistry from './PendingConfirmationRegistry.js';
 import { IStream } from './stream/Stream.js';
 import StreamFactory, { IStreamFactory as IStreamFactory } from './stream/StreamFactory.js';
@@ -73,7 +73,7 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
 
   private optimisticEvents: OptimisticEventWithParams[] = [];
   private pendingConfirmationRegistry: PendingConfirmationRegistry = new PendingConfirmationRegistry(
-    mutationIDComparator,
+    mutationIdComparator,
   );
 
   private readonly subscriptions = new Subject<{ confirmed: boolean; data: ExtractData<S> }>();
@@ -187,7 +187,7 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
 
   private isEvent(event: any): event is Event {
     return (
-      event && event.name && typeof event.name === 'string' && event.mutationID && typeof event.mutationID === 'string'
+      event && event.name && typeof event.name === 'string' && event.mutationId && typeof event.mutationId === 'string'
     );
   }
 
@@ -257,10 +257,10 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
     try {
       await this.stream.replay(this.lastSeenSequenceID);
     } catch (err) {
-      this.logger.warn('unable to replay from last seen sequenceID, will resync', {
+      this.logger.warn('unable to replay from last seen sequenceId, will resync', {
         ...this.baseLogContext,
         action: 'resume()',
-        sequenceID: this.lastSeenSequenceID,
+        sequenceId: this.lastSeenSequenceID,
       });
       await this.resync();
     }
@@ -458,10 +458,10 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
         lastSyncParams: this.lastSyncParams,
       });
       this.removeStream();
-      const { data, sequenceID } = await this.syncFunc(...(this.lastSyncParams || ([] as unknown as Parameters<S>)));
+      const { data, sequenceId } = await this.syncFunc(...(this.lastSyncParams || ([] as unknown as Parameters<S>)));
       this.setConfirmedData(data);
       await this.computeState(this.confirmedData, this.optimisticData, this.optimisticEvents);
-      await this.addStream(sequenceID);
+      await this.addStream(sequenceId);
       this.setState('ready');
     };
 
@@ -489,12 +489,12 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
     this.streamSubscriptionsMap.delete(this.stream);
   }
 
-  private async addStream(sequenceID: string) {
-    this.logger.trace({ ...this.baseLogContext, action: 'addStream()', sequenceID });
+  private async addStream(sequenceId: string) {
+    this.logger.trace({ ...this.baseLogContext, action: 'addStream()', sequenceId });
     const callback = this.onStreamMessage.bind(this);
     this.stream.subscribe(callback);
     this.streamSubscriptionsMap.set(this.stream, callback);
-    await this.stream.replay(sequenceID);
+    await this.stream.replay(sequenceId);
   }
 
   private async onStreamMessage(err: Error | null, event?: AblyTypes.Message) {
@@ -508,8 +508,8 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
       rejected = true;
     }
 
-    const mutationID = event?.extras?.headers[MODELS_EVENT_UUID_HEADER];
-    if (!mutationID) {
+    const mutationId = event?.extras?.headers[MODELS_EVENT_UUID_HEADER];
+    if (!mutationId) {
       this.logger.warn(
         { ...this.baseLogContext, action: 'streamEventCallback' },
         `message does not have "${MODELS_EVENT_UUID_HEADER}" header, skipping message id`,
@@ -522,8 +522,8 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
       ...event!,
       confirmed: true,
       rejected,
-      mutationID: mutationID,
-      sequenceID: event.id,
+      mutationId: mutationId,
+      sequenceId: event.id,
     };
 
     this.eventQueue.enqueue(modelsEvent);
@@ -694,7 +694,7 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
       return;
     }
 
-    this.lastSeenSequenceID = event.sequenceID;
+    this.lastSeenSequenceID = event.sequenceId;
 
     await this.confirmPendingEvents(event);
 
@@ -704,7 +704,7 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
     // additional data on the confirmed event in the updated data.
     for (let i = 0; i < this.optimisticEvents.length; i++) {
       let e = this.optimisticEvents[i];
-      if (mutationIDComparator(e, event)) {
+      if (mutationIdComparator(e, event)) {
         this.logger.trace('removing optimistic event', { ...this.baseLogContext, action: 'onStreamEvent()', event });
         this.optimisticEvents.splice(i, 1);
         await this.computeState(this.confirmedData, this.optimisticData, this.optimisticEvents, event);
@@ -739,7 +739,7 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
     // remove any matching events from the optimisticEvents and re-apply the remaining events
     // on top of the latest confirmed state
     for (let event of events) {
-      this.optimisticEvents = this.optimisticEvents.filter((e) => !mutationIDComparator(e, event));
+      this.optimisticEvents = this.optimisticEvents.filter((e) => !mutationIdComparator(e, event));
     }
     await this.computeState(this.confirmedData, this.optimisticData, this.optimisticEvents);
     await this.pendingConfirmationRegistry.rejectEvents(err, events);

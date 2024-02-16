@@ -99,7 +99,7 @@ describe('Model', () => {
     const synchronised = new Promise((resolve) => (completeSync = resolve));
     const sync = vi.fn(async () => {
       await synchronised;
-      return { data: simpleTestData, sequenceID: '0' };
+      return { data: simpleTestData, sequenceId: '0' };
     });
     const model = new Model(
       'test',
@@ -134,7 +134,7 @@ describe('Model', () => {
     let counter = 0;
     const sync = vi.fn(async (arg1: number, arg2: string) => {
       await synchronised;
-      return { data: `confirmed_${counter++}`, sequenceID: '0', arg1, arg2 };
+      return { data: `confirmed_${counter++}`, sequenceId: '0', arg1, arg2 };
     });
 
     const merge = vi.fn((_, event) => event.data);
@@ -164,7 +164,7 @@ describe('Model', () => {
     expect(model.data.optimistic).toEqual('confirmed_0');
     expect(model.data.confirmed).toEqual('confirmed_0');
 
-    await model.optimistic({ mutationID: 'mutation-id-1', name: 'testEvent', data: 'optimistic' }); // should be rebased after sync
+    await model.optimistic({ mutationId: 'mutation-id-1', name: 'testEvent', data: 'optimistic' }); // should be rebased after sync
 
     completeSync = () => {
       throw new Error('completeSync should have been replaced again');
@@ -202,11 +202,11 @@ describe('Model', () => {
       if (i === 1)
         return {
           data: 'data_0',
-          sequenceID: '123',
+          sequenceId: '123',
         };
       return {
         data: 'data_1',
-        sequenceID: '456',
+        sequenceId: '456',
       };
     });
 
@@ -248,7 +248,7 @@ describe('Model', () => {
     s1.replay = vi.fn();
     const sync = vi.fn(async () => ({
       data: 'data_0',
-      sequenceID: '0',
+      sequenceId: '0',
     }));
     const merge = vi.fn((_, event) => event.data);
 
@@ -322,7 +322,7 @@ describe('Model', () => {
     });
     const sync = vi.fn(async () => ({
       data: 'data_0',
-      sequenceID: '0',
+      sequenceId: '0',
     }));
     const merge = vi.fn((_, event) => event.data);
 
@@ -386,7 +386,7 @@ describe('Model', () => {
     s1.replay = vi.fn();
     const sync = vi.fn(async () => ({
       data: 'data_0',
-      sequenceID: '0',
+      sequenceId: '0',
     }));
     const merge = vi.fn((_, event) => event.data);
 
@@ -441,7 +441,7 @@ describe('Model', () => {
     s1.dispose = vi.fn();
     const sync = vi.fn(async () => ({
       data: simpleTestData,
-      sequenceID: '0',
+      sequenceId: '0',
     }));
 
     const model = new Model(
@@ -482,7 +482,7 @@ describe('Model', () => {
 
     const sync = vi.fn(async () => ({
       data: 'data_0',
-      sequenceID: '0',
+      sequenceId: '0',
     }));
 
     const mergeFn = vi.fn((_, event) => event.data);
@@ -560,7 +560,7 @@ describe('Model', () => {
 
     const sync = vi.fn(async () => ({
       data: ['0'],
-      sequenceID: '0',
+      sequenceId: '0',
     }));
 
     const merge = vi.fn((state, event) => {
@@ -614,7 +614,7 @@ describe('Model', () => {
   it<ModelTestContext>('subscribes after initialisation', async ({ channelName, ably, logger }) => {
     const sync = vi.fn(async () => ({
       data: 'data_0',
-      sequenceID: '0',
+      sequenceId: '0',
     })); // defines initial version of model
     const model = new Model(
       'test',
@@ -662,7 +662,7 @@ describe('Model', () => {
 
     const sync = vi.fn(async () => ({
       data: 'data_0',
-      sequenceID: '0',
+      sequenceId: '0',
     }));
 
     const mergeFn = vi.fn((_, event) => event.data);
@@ -713,7 +713,7 @@ describe('Model', () => {
       {
         sync: async () => ({
           data: 'data_0',
-          sequenceID: '0',
+          sequenceId: '0',
         }),
         merge: mergeFn,
       },
@@ -748,7 +748,7 @@ describe('Model', () => {
     expect(model.data.optimistic).toEqual('data_0');
     expect(model.data.confirmed).toEqual('data_0');
 
-    await model.optimistic({ mutationID: 'mutation-id-1', name: 'testEvent', data: 'data_1' });
+    await model.optimistic({ mutationId: 'mutation-id-1', name: 'testEvent', data: 'data_1' });
 
     await optimisticSubscriptionCalls[1];
     expect(model.data.optimistic).toEqual('data_1');
@@ -773,7 +773,7 @@ describe('Model', () => {
       {
         sync: async () => ({
           data: 'data_0',
-          sequenceID: '0',
+          sequenceId: '0',
         }),
         merge: mergeFn,
       },
@@ -823,7 +823,7 @@ describe('Model', () => {
       {
         sync: async () => ({
           data: 'data_0',
-          sequenceID: '0',
+          sequenceId: '0',
         }),
         merge: mergeFn,
       },
@@ -859,7 +859,7 @@ describe('Model', () => {
     expect(model.data.confirmed).toEqual('data_0');
 
     const [confirmation] = await model.optimistic({
-      mutationID: 'some-custom-id',
+      mutationId: 'some-custom-id',
       name: 'testEvent',
       data: 'data_1',
     });
@@ -895,7 +895,7 @@ describe('Model', () => {
       {
         sync: async () => ({
           data: 'data_0',
-          sequenceID: '0',
+          sequenceId: '0',
         }),
         merge: mergeFn,
       },
@@ -931,7 +931,7 @@ describe('Model', () => {
     expect(model.data.confirmed).toEqual('data_0');
 
     const [confirmation] = await model.optimistic({
-      mutationID: 'id_1',
+      mutationId: 'id_1',
       name: 'testEvent',
       data: 'data_1',
     });
@@ -968,7 +968,7 @@ describe('Model', () => {
       {
         sync: async () => ({
           data: '0',
-          sequenceID: '0',
+          sequenceId: '0',
         }),
         merge: mergeFn,
       },
@@ -1003,8 +1003,8 @@ describe('Model', () => {
     expect(model.data.optimistic).toEqual('0');
     expect(model.data.confirmed).toEqual('0');
 
-    await model.optimistic({ mutationID: 'id_1', name: 'testEvent', data: '1' });
-    await model.optimistic({ mutationID: 'id_2', name: 'testEvent', data: '2' });
+    await model.optimistic({ mutationId: 'id_1', name: 'testEvent', data: '1' });
+    await model.optimistic({ mutationId: 'id_2', name: 'testEvent', data: '2' });
 
     // optimistic updates are applied in the order the mutations were called
     await optimisticSubscriptionCalls[1];
@@ -1063,7 +1063,7 @@ describe('Model', () => {
       {
         sync: async () => ({
           data: '0',
-          sequenceID: '0',
+          sequenceId: '0',
         }),
         merge: mergeFn,
       },
@@ -1098,8 +1098,8 @@ describe('Model', () => {
     expect(model.data.optimistic).toEqual('0');
     expect(model.data.confirmed).toEqual('0');
 
-    await model.optimistic({ mutationID: 'id_1', name: 'testEvent', data: '1' });
-    await model.optimistic({ mutationID: 'id_2', name: 'testEvent', data: '2' });
+    await model.optimistic({ mutationId: 'id_1', name: 'testEvent', data: '1' });
+    await model.optimistic({ mutationId: 'id_2', name: 'testEvent', data: '2' });
 
     // optimistic updates are applied in the order the mutations were called
     await optimisticSubscriptionCalls[1];
@@ -1156,7 +1156,7 @@ describe('Model', () => {
       {
         sync: async () => ({
           data: '0',
-          sequenceID: '0',
+          sequenceId: '0',
         }),
         merge: mergeFn,
       },
@@ -1173,17 +1173,17 @@ describe('Model', () => {
     await model.sync();
 
     const [confirmation, cancel] = await model.optimistic({
-      mutationID: 'id_1',
+      mutationId: 'id_1',
       name: 'testEvent',
       data: '1',
     });
     const [confirmation2, cancel2] = await model.optimistic({
-      mutationID: 'id_2',
+      mutationId: 'id_2',
       name: 'testEvent',
       data: '2',
     });
     const [confirmation3, cancel3] = await model.optimistic({
-      mutationID: 'id_3',
+      mutationId: 'id_3',
       name: 'testEvent',
       data: '3',
     });
@@ -1221,7 +1221,7 @@ describe('Model', () => {
 
     const sync = vi.fn(async () => ({
       data: `${counter}`,
-      sequenceID: '0',
+      sequenceId: '0',
     }));
 
     const mergeFn = vi.fn((_, event) => {
@@ -1301,7 +1301,7 @@ describe('Model', () => {
       {
         sync: async () => ({
           data: '0',
-          sequenceID: '0',
+          sequenceId: '0',
         }),
         merge: mergeFn,
       },
@@ -1317,9 +1317,9 @@ describe('Model', () => {
 
     await model.sync();
 
-    await model.optimistic({ mutationID: 'id_1', name: 'testEvent', data: '123' });
+    await model.optimistic({ mutationId: 'id_1', name: 'testEvent', data: '123' });
 
-    await expect(model.optimistic({ mutationID: 'id_2', name: 'testEvent', data: '4' })).rejects.toThrow(
+    await expect(model.optimistic({ mutationId: 'id_2', name: 'testEvent', data: '4' })).rejects.toThrow(
       'update error',
     );
 
@@ -1347,7 +1347,7 @@ describe('Model', () => {
       {
         sync: async () => ({
           data: '0',
-          sequenceID: '0',
+          sequenceId: '0',
         }),
         merge: mergeFn,
       },
@@ -1364,7 +1364,7 @@ describe('Model', () => {
     await model.sync();
 
     const [confirmation] = await model.optimistic({
-      mutationID: 'id_1',
+      mutationId: 'id_1',
       name: 'testEvent',
       data: '1',
     });
@@ -1391,7 +1391,7 @@ describe('Model', () => {
       {
         sync: async () => ({
           data: '0',
-          sequenceID: '0',
+          sequenceId: '0',
         }),
         merge: mergeFn,
       },
@@ -1408,7 +1408,7 @@ describe('Model', () => {
     await model.sync();
 
     // Mutate and check the returned promise is rejected with a timeout.
-    const [confirmation] = await model.optimistic({ mutationID: 'id_1', name: 'testEvent', data: '1' }, { timeout: 1 });
+    const [confirmation] = await model.optimistic({ mutationId: 'id_1', name: 'testEvent', data: '1' }, { timeout: 1 });
     expect(model.data.optimistic).toEqual('01');
 
     await expect(confirmation).rejects.toThrow('timed out waiting for event confirmation');
@@ -1467,7 +1467,7 @@ describe('Model', () => {
         throw new Error('failed to load from backend');
       }
 
-      return { sequenceID: '0', data: '0' };
+      return { sequenceId: '0', data: '0' };
     });
 
     const model = new Model(
@@ -1510,7 +1510,7 @@ describe('Model', () => {
     });
 
     const syncFn = vi.fn(async () => {
-      return { data: '0', sequenceID: '0' };
+      return { data: '0', sequenceId: '0' };
     });
 
     const model = new Model(
@@ -1537,7 +1537,7 @@ describe('Model', () => {
 
     expect(syncFn).toHaveBeenCalledOnce();
     await statePromise(model, 'ready');
-    const result = model.optimistic({ mutationID: 'id_1', name: 'testEvent', data: '1' });
+    const result = model.optimistic({ mutationId: 'id_1', name: 'testEvent', data: '1' });
     expect(result).rejects.toThrow();
     expect(syncFn).toHaveBeenCalledTimes(1);
     expect(lis).toHaveBeenCalledTimes(0);
@@ -1568,7 +1568,7 @@ describe('Model', () => {
     });
 
     const syncFn = vi.fn(async () => {
-      return { data: '0', sequenceID: '0' };
+      return { data: '0', sequenceId: '0' };
     });
 
     const model = new Model(

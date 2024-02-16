@@ -92,7 +92,7 @@ export class SlidingWindow extends MiddlewareBase {
 }
 
 /**
- * Middleware which emits messages from a position in the stream determined by a sequenceID.
+ * Middleware which emits messages from a position in the stream determined by a sequenceId.
  * The caller paginates back through history and passes in each page which the middleware
  * uses to seek for the specified position. Concurrently, incoming live messages can be buffered.
  * Messages are re-ordered according to the sequence ID. For historical messages, the entire history
@@ -108,7 +108,7 @@ export class OrderedHistoryResumer extends MiddlewareBase {
   private slidingWindow: SlidingWindow;
 
   constructor(
-    private sequenceID: string,
+    private sequenceId: string,
     private readonly windowSizeMs: number,
     private readonly eventOrderer: EventOrderer = numericOtherwiseLexicographicOrderer,
   ) {
@@ -155,24 +155,24 @@ export class OrderedHistoryResumer extends MiddlewareBase {
     }
     this.historicalMessages = this.historicalMessages.concat(messages);
 
-    // We sort the historical messages to handle any out-of-orderiness by sequenceID
+    // We sort the historical messages to handle any out-of-orderiness by sequenceId
     // due to possible CGO order.
     // It is not optimal to sort the entire thing with each page as out-of-orderiness
     // is localised within a two minute window, but being more clever about this requires
     // tracking message timestamps and complicates the logic.
     // Given the number of messages is likely to be reasonably small, this approach is fine.
     //
-    // Note that because of potential out-of-orderiness by sequenceID due to possible CGO order,
+    // Note that because of potential out-of-orderiness by sequenceId due to possible CGO order,
     // it's possible this function discovers the boundary in the stream but a more recent message appears
     // further back in the stream outside of the given page. A larger page size reduces this likelihood but
     // doesn't solve it. The solution would require paging back 2 mins further to check for any such messages.
     // This is sufficiently low likelihood that this can be ignored for now.
     this.historicalMessages.sort((a, b) => this.reverseOrderer(a.id, b.id));
 
-    // Seek backwards through history until we reach a message id <= the specified sequenceID.
-    // Discard anything older (>= sequenceID) and flush out the remaining messages.
+    // Seek backwards through history until we reach a message id <= the specified sequenceId.
+    // Discard anything older (>= sequenceId) and flush out the remaining messages.
     for (let i = 0; i < this.historicalMessages.length; i++) {
-      if (this.messageBeforeInclusive(this.historicalMessages[i].id, this.sequenceID)) {
+      if (this.messageBeforeInclusive(this.historicalMessages[i].id, this.sequenceId)) {
         this.historicalMessages.splice(i);
         this.flush();
         this.currentState = 'success';
@@ -185,7 +185,7 @@ export class OrderedHistoryResumer extends MiddlewareBase {
   public flush() {
     for (let i = this.historicalMessages.length - 1; i >= 0; i--) {
       // we send historical messages through the sliding window too to catch
-      // any potential out-of-orderiness by sequenceID at the attach boundary
+      // any potential out-of-orderiness by sequenceId at the attach boundary
       this.slidingWindow.next(this.historicalMessages[i]);
     }
     for (const message of this.realtimeMessages) {

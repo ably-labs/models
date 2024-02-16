@@ -14,10 +14,10 @@ flowchart LR
 
 The ID of the confirmation event message describes its position in the stream. In this context, this is referred to as the sequence ID of the change event.
 
-Your sync function must return a `sequenceID` (along with the model state) which describes the position in the stream of change events at which this model state was loaded.
+Your sync function must return a `sequenceId` (along with the model state) which describes the position in the stream of change events at which this model state was loaded.
 
 ```ts
-export type SyncFunc<T, P extends any[] | [] = []> = (...args: P) => Promise<{ data: T; sequenceID: string }>;
+export type SyncFunc<T, P extends any[] | [] = []> = (...args: P) => Promise<{ data: T; sequenceId: string }>;
 ```
 
 > Note that if you are using [`adbc`](https://github.com/ably-labs/adbc/), this is the `sequence_id` of the corresponding outbox record, which is a serial integer. The sequence ID to return from your sync function endpoint can therefore be obtained by selecting the largest `sequence_id` in the outbox table. This should be done in the same transaction in which the model state is read from the database.
@@ -31,9 +31,9 @@ export type SyncFunc<T, P extends any[] | [] = []> = (...args: P) => Promise<{ d
 
 ## History
 
-Internally, the SDK uses this sequence ID to replay messages from the correct point in the stream. To do this, the SDK attaches to the channel and subscribes to live messages. Live messages are buffered and not yet processed. It then paginates backwards through history from the point of attachment using [`untilAttach`](https://ably.com/docs/storage-history/history?lang=javascript#until-attach). When a message with the target `sequenceID` is reached, all of the messages from that point forward are flushed to the model to be processed, maintaining continuity with incoming live messages.
+Internally, the SDK uses this sequence ID to replay messages from the correct point in the stream. To do this, the SDK attaches to the channel and subscribes to live messages. Live messages are buffered and not yet processed. It then paginates backwards through history from the point of attachment using [`untilAttach`](https://ably.com/docs/storage-history/history?lang=javascript#until-attach). When a message with the target `sequenceId` is reached, all of the messages from that point forward are flushed to the model to be processed, maintaining continuity with incoming live messages.
 
-If the target `sequenceID` cannot be reached, there is insufficient message history to resume from the correct point and bring the model up to date. The SDK will then try to sync again with a fresher version of the model state by calling your sync function again.
+If the target `sequenceId` cannot be reached, there is insufficient message history to resume from the correct point and bring the model up to date. The SDK will then try to sync again with a fresher version of the model state by calling your sync function again.
 
 
 ```mermaid
@@ -43,17 +43,17 @@ sequenceDiagram
     participant Channel
 
     SDK->>+Backend: Call sync function
-    Backend-->>-SDK: Return {data: modelState, sequenceID}
+    Backend-->>-SDK: Return {data: modelState, sequenceId}
     SDK->>+Channel: Attach to channel and buffer live messages
     Channel-->>-SDK: Live messages buffered
     SDK->>+Channel: Paginate backwards from point of attachment using untilAttach
-    Note over SDK,Channel: Looking for target sequenceID
-    Channel-->>-SDK: Message with target sequenceID found
-    SDK->>SDK: Flush messages from sequenceID forward to the model
+    Note over SDK,Channel: Looking for target sequenceId
+    Channel-->>-SDK: Message with target sequenceId found
+    SDK->>SDK: Flush messages from sequenceId forward to the model
     Note over SDK: Process buffered live messages
-    alt If sequenceID is not found
+    alt If sequenceId is not found
         SDK->>+Backend: Sync again for fresher model state
-        Backend-->>-SDK: Return {data: newModelState, sequenceID: newSequenceID}
+        Backend-->>-SDK: Return {data: newModelState, sequenceId: newSequenceID}
     end
 ```
 

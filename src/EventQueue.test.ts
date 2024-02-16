@@ -19,8 +19,8 @@ describe('EventQueue', () => {
   });
 
   it('should enqueue and process events', async () => {
-    const event1: ConfirmedEvent = { sequenceID: '1', mutationID: '1', name: 'foo', confirmed: true, rejected: false };
-    const event2: ConfirmedEvent = { sequenceID: '2', mutationID: '2', name: 'bar', confirmed: true, rejected: true };
+    const event1: ConfirmedEvent = { sequenceId: '1', mutationId: '1', name: 'foo', confirmed: true, rejected: false };
+    const event2: ConfirmedEvent = { sequenceId: '2', mutationId: '2', name: 'bar', confirmed: true, rejected: true };
 
     eventQueue.enqueue(event1);
     eventQueue.enqueue(event2);
@@ -35,7 +35,7 @@ describe('EventQueue', () => {
     const error = new Error('Test Error');
     eventHandlerMock.mockRejectedValueOnce(error);
 
-    const event: ConfirmedEvent = { sequenceID: '1', mutationID: '1', name: 'foo', confirmed: true, rejected: false };
+    const event: ConfirmedEvent = { sequenceId: '1', mutationId: '1', name: 'foo', confirmed: true, rejected: false };
     eventQueue.enqueue(event);
 
     await new Promise(process.nextTick);
@@ -44,8 +44,8 @@ describe('EventQueue', () => {
   });
 
   it('should not process new events while already processing', async () => {
-    const event1: ConfirmedEvent = { sequenceID: '1', mutationID: '1', name: 'foo', confirmed: true, rejected: false };
-    const event2: ConfirmedEvent = { sequenceID: '2', mutationID: '2', name: 'bar', confirmed: true, rejected: true };
+    const event1: ConfirmedEvent = { sequenceId: '1', mutationId: '1', name: 'foo', confirmed: true, rejected: false };
+    const event2: ConfirmedEvent = { sequenceId: '2', mutationId: '2', name: 'bar', confirmed: true, rejected: true };
     let complete: ResolveFn<void> | undefined;
     eventHandlerMock.mockImplementationOnce(() => new Promise((resolve) => (complete = resolve)));
 
@@ -61,8 +61,8 @@ describe('EventQueue', () => {
   });
 
   it('should reset the queue', async () => {
-    const event1: ConfirmedEvent = { sequenceID: '1', mutationID: '1', name: 'foo', confirmed: true, rejected: false };
-    const event2: ConfirmedEvent = { sequenceID: '2', mutationID: '2', name: 'bar', confirmed: true, rejected: true };
+    const event1: ConfirmedEvent = { sequenceId: '1', mutationId: '1', name: 'foo', confirmed: true, rejected: false };
+    const event2: ConfirmedEvent = { sequenceId: '2', mutationId: '2', name: 'bar', confirmed: true, rejected: true };
     let complete: ResolveFn<void> | undefined;
     eventHandlerMock.mockImplementationOnce(() => new Promise((resolve) => (complete = resolve)));
 

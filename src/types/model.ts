@@ -99,7 +99,7 @@ export type Event = {
   /**
    * The ID of the mutation that caused the event.
    */
-  mutationID: string;
+  mutationId: string;
   /**
    * The name of the event.
    */
@@ -141,7 +141,7 @@ export type ConfirmedEvent = Event & {
   /**
    * The sequence ID of the event.
    */
-  sequenceID: string;
+  sequenceId: string;
   /**
    * If true, indicates that the backend is (asynchronously) explicitly rejecting this optimistic change.
    * This is useful if the server cannot reject the change synchronously with the mutation request
@@ -172,10 +172,10 @@ export type SyncFunc<F extends SyncFuncConstraint> = F;
 /**
  * Captures the return type of the sync function.
  * @template T - The data type returned by the sync function from the backend.
- * @returns {Promise<{data: T, sequenceID: string}>} A promise containing the data from the backend and a sequenceID.
+ * @returns {Promise<{data: T, sequenceId: string}>} A promise containing the data from the backend and a sequenceId.
  * @interface
  */
-export type SyncReturnType<T> = Promise<{ data: T; sequenceID: string }>;
+export type SyncReturnType<T> = Promise<{ data: T; sequenceId: string }>;
 
 /**
  * Type constraint for a sync function.

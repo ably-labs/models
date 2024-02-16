@@ -10,8 +10,8 @@ describe('PendingConfirmation', () => {
   const params: EventParams = { timeout: defaultTimeout };
 
   const events: Event[] = [
-    { mutationID: 'id_1', name: 'foo', data: { bar: 123 } },
-    { mutationID: 'id_2', name: 'baz', data: { qux: 456 } },
+    { mutationId: 'id_1', name: 'foo', data: { bar: 123 } },
+    { mutationId: 'id_2', name: 'baz', data: { qux: 456 } },
   ];
 
   const expectedEvents = events.map((elem) => toOptimisticEventWithParams(elem, params));

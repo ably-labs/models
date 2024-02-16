@@ -14,7 +14,7 @@ export interface IStream {
   get channelName(): string;
 
   reset(): Promise<void>;
-  replay(sequenceID: string): Promise<void>;
+  replay(sequenceId: string): Promise<void>;
   subscribe(callback: StandardCallback<AblyTypes.Message>): void;
   unsubscribe(callback: StandardCallback<AblyTypes.Message>): void;
   dispose(reason?: AblyTypes.ErrorInfo | string): Promise<void>;
@@ -106,13 +106,13 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     this.subscriptionMap = new WeakMap();
   }
 
-  public async replay(sequenceID: string) {
-    this.logger.trace({ ...this.baseLogContext, action: 'replay()', sequenceID });
+  public async replay(sequenceId: string) {
+    this.logger.trace({ ...this.baseLogContext, action: 'replay()', sequenceId });
     try {
       if (this.currentState !== 'reset') {
         await this.reset();
       }
-      await this.seek(sequenceID);
+      await this.seek(sequenceId);
       this.setState('ready');
     } catch (err) {
       this.logger.error('sync failed', { ...this.baseLogContext, action: 'replay()', err });
@@ -133,17 +133,17 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
   }
 
   /**
-   * Resubscribe to the channel and emit messages from the position in the stream specified by the sequenceID.
+   * Resubscribe to the channel and emit messages from the position in the stream specified by the sequenceId.
    * This is achieved by attaching to the channel and paginating back through history until the boundary determined by
-   * the specified sequenceID is reached.
-   * @param sequenceID The identifier that specifies the position in the message stream (by message ID) from which to resume.
+   * the specified sequenceId is reached.
+   * @param sequenceId The identifier that specifies the position in the message stream (by message ID) from which to resume.
    */
-  private async seek(sequenceID: string) {
-    this.logger.trace({ ...this.baseLogContext, action: 'seek()', sequenceID });
+  private async seek(sequenceId: string) {
+    this.logger.trace({ ...this.baseLogContext, action: 'seek()', sequenceId });
     this.setState('seeking');
 
     this.middleware = new OrderedHistoryResumer(
-      sequenceID,
+      sequenceId,
       this.options.eventBufferOptions.bufferMs,
       this.options.eventBufferOptions.eventOrderer,
     );
@@ -166,7 +166,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
       throw new Error('the channel was already attached when calling subscribe()');
     }
 
-    // Paginate back until we reach the sequenceID or we run out of messages.
+    // Paginate back until we reach the sequenceId or we run out of messages.
     //
     // Note that the state returned by the sync function may be loaded from a cache.
     // When the cached state is older than the message retention period configured on the channel (i.e. 2mins/24hours/72hours), we have two situations:
@@ -184,7 +184,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
       this.logger.trace('fetched history page', {
         ...this.baseLogContext,
         action: 'seek()',
-        sequenceID,
+        sequenceId,
         limit,
         n,
         count: page?.items?.length,
@@ -193,10 +193,10 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
       n++;
     } while (page && page.items && page.items.length > 0 && page.hasNext() && !done);
 
-    // If the middleware is not in the success state it means there were some history messages and we never reached the target sequenceID.
-    // This means the target sequenceID was too old and a re-sync from a newer state snapshot is required.
+    // If the middleware is not in the success state it means there were some history messages and we never reached the target sequenceId.
+    // This means the target sequenceId was too old and a re-sync from a newer state snapshot is required.
     if (this.middleware.state !== 'success') {
-      throw new Error(`insufficient history to seek to sequenceID ${sequenceID} in stream`);
+      throw new Error(`insufficient history to seek to sequenceId ${sequenceId} in stream`);
     }
   }
 

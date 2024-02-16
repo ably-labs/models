@@ -28,8 +28,8 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
       text: 'initial state',
       comments: [],
     };
-    const sequenceID = '10000';
-    return { data, sequenceID };
+    const sequenceId = '10000';
+    return { data, sequenceId };
   }
 
   let sequentialID = 1;
@@ -42,7 +42,7 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
         data: event.data,
         extras: {
           headers: {
-            'x-ably-models-event-uuid': event.mutationID,
+            'x-ably-models-event-uuid': event.mutationId,
           },
         },
       };
@@ -95,7 +95,7 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   );
 
   const event1: Event = {
-    mutationID: uuidv4(),
+    mutationId: uuidv4(),
     name: 'updatePost',
     data: 'my updated post',
   };
@@ -109,7 +109,7 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   logger.info('mutation: updatePost: confirmed');
 
   const event2 = {
-    mutationID: uuidv4(),
+    mutationId: uuidv4(),
     name: 'addComment',
     data: 'my new comment',
   };

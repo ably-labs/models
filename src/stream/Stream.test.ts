@@ -117,7 +117,7 @@ describe('Stream', () => {
     expect(channel.history).toHaveBeenCalledTimes(0);
   });
 
-  it<StreamTestContext>('fails to sync if sequenceID boundary not found in history', async ({
+  it<StreamTestContext>('fails to sync if sequenceId boundary not found in history', async ({
     ably,
     logger,
     channelName,
@@ -157,7 +157,7 @@ describe('Stream', () => {
     let replayPromise = stream.replay('1');
 
     await statePromise(stream, 'seeking');
-    await expect(replayPromise).rejects.toThrow(/insufficient history to seek to sequenceID 1 in stream/);
+    await expect(replayPromise).rejects.toThrow(/insufficient history to seek to sequenceId 1 in stream/);
     expect(stream.state).toBe('errored');
 
     expect(channel.subscribe).toHaveBeenCalledOnce();
@@ -191,7 +191,7 @@ describe('Stream', () => {
     });
   });
 
-  it<StreamTestContext>('fails to sync if sequenceID boundary not found in history with final empty page', async ({
+  it<StreamTestContext>('fails to sync if sequenceId boundary not found in history with final empty page', async ({
     ably,
     logger,
     channelName,
@@ -236,7 +236,7 @@ describe('Stream', () => {
     let replayPromise = stream.replay('1');
 
     await statePromise(stream, 'seeking');
-    await expect(replayPromise).rejects.toThrow(/insufficient history to seek to sequenceID 1 in stream/);
+    await expect(replayPromise).rejects.toThrow(/insufficient history to seek to sequenceId 1 in stream/);
     expect(stream.state).toBe('errored');
 
     expect(channel.subscribe).toHaveBeenCalledOnce();

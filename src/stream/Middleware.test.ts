@@ -156,8 +156,8 @@ describe('SlidingWindow', () => {
 
 describe('OrderedHistoryResumer', () => {
   it('emits messages after the boundary from shuffled page', () => {
-    const sequenceID = 3;
-    const middleware = new OrderedHistoryResumer(`${sequenceID}`, 0);
+    const sequenceId = 3;
+    const middleware = new OrderedHistoryResumer(`${sequenceId}`, 0);
     const subscription = vi.fn();
     middleware.subscribe(subscription);
 
@@ -169,7 +169,7 @@ describe('OrderedHistoryResumer', () => {
       createMessage(2),
       createMessage(1),
     ];
-    // shuffle as the middleware should be resilient to some out-of-orderiness by sequenceID due to CGO
+    // shuffle as the middleware should be resilient to some out-of-orderiness by sequenceId due to CGO
     expect(middleware.addHistoricalMessages(shuffle(history))).toBe(true);
     expect(() => middleware.addHistoricalMessages(history)).toThrowError(
       'can only add historical messages while in seeking state',
@@ -181,14 +181,14 @@ describe('OrderedHistoryResumer', () => {
   });
 
   it('orders numerically', () => {
-    const sequenceID = 0;
-    const middleware = new OrderedHistoryResumer(`${sequenceID}`, 0);
+    const sequenceId = 0;
+    const middleware = new OrderedHistoryResumer(`${sequenceId}`, 0);
     const subscription = vi.fn();
     middleware.subscribe(subscription);
 
     // construct history page newest to oldest
     let history: Types.Message[] = [createMessage(10), createMessage(2), createMessage(1), createMessage(0)];
-    // shuffle as the middleware should be resilient to some out-of-orderiness by sequenceID due to CGO
+    // shuffle as the middleware should be resilient to some out-of-orderiness by sequenceId due to CGO
     expect(middleware.addHistoricalMessages(shuffle(history))).toBe(true);
     expect(() => middleware.addHistoricalMessages(history)).toThrowError(
       'can only add historical messages while in seeking state',
@@ -201,14 +201,14 @@ describe('OrderedHistoryResumer', () => {
   });
 
   it('orders lexicographically', () => {
-    const sequenceID = 0;
-    const middleware = new OrderedHistoryResumer(`${sequenceID}`, 0, lexicographicOrderer);
+    const sequenceId = 0;
+    const middleware = new OrderedHistoryResumer(`${sequenceId}`, 0, lexicographicOrderer);
     const subscription = vi.fn();
     middleware.subscribe(subscription);
 
     // construct history page newest to oldest
     let history: Types.Message[] = [createMessage(10), createMessage(2), createMessage(1), createMessage(0)];
-    // shuffle as the middleware should be resilient to some out-of-orderiness by sequenceID due to CGO
+    // shuffle as the middleware should be resilient to some out-of-orderiness by sequenceId due to CGO
     expect(middleware.addHistoricalMessages(shuffle(history))).toBe(true);
     expect(() => middleware.addHistoricalMessages(history)).toThrowError(
       'can only add historical messages while in seeking state',
@@ -221,8 +221,8 @@ describe('OrderedHistoryResumer', () => {
   });
 
   it('emits messages after the boundary with sparse sequence', () => {
-    const sequenceID = 3;
-    const middleware = new OrderedHistoryResumer(`${sequenceID}`, 0);
+    const sequenceId = 3;
+    const middleware = new OrderedHistoryResumer(`${sequenceId}`, 0);
     const subscription = vi.fn();
     middleware.subscribe(subscription);
 
@@ -243,8 +243,8 @@ describe('OrderedHistoryResumer', () => {
   });
 
   it('emits messages after the boundary from multiple pages', () => {
-    const sequenceID = 3;
-    const middleware = new OrderedHistoryResumer(`${sequenceID}`, 0);
+    const sequenceId = 3;
+    const middleware = new OrderedHistoryResumer(`${sequenceId}`, 0);
     const subscription = vi.fn();
     middleware.subscribe(subscription);
 
@@ -267,8 +267,8 @@ describe('OrderedHistoryResumer', () => {
   });
 
   it('flushes when empty history page reached', () => {
-    const sequenceID = 0; // out of reach
-    const middleware = new OrderedHistoryResumer(`${sequenceID}`, 0);
+    const sequenceId = 0; // out of reach
+    const middleware = new OrderedHistoryResumer(`${sequenceId}`, 0);
     const subscription = vi.fn();
     middleware.subscribe(subscription);
 
@@ -294,8 +294,8 @@ describe('OrderedHistoryResumer', () => {
   });
 
   it('merges historical messages with live messages', () => {
-    const sequenceID = 3;
-    const middleware = new OrderedHistoryResumer(`${sequenceID}`, 0);
+    const sequenceId = 3;
+    const middleware = new OrderedHistoryResumer(`${sequenceId}`, 0);
     const subscription = vi.fn();
     middleware.subscribe(subscription);
 
@@ -320,8 +320,8 @@ describe('OrderedHistoryResumer', () => {
   });
 
   it('merges multiple pages of historical messages with live messages', () => {
-    const sequenceID = 3;
-    const middleware = new OrderedHistoryResumer(`${sequenceID}`, 0);
+    const sequenceId = 3;
+    const middleware = new OrderedHistoryResumer(`${sequenceId}`, 0);
     const subscription = vi.fn();
     middleware.subscribe(subscription);
 
