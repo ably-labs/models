@@ -62,7 +62,7 @@ describe('Model', () => {
 
     const sync = vi.fn(async () => ({
       data: `${counter++}`,
-      sequenceID: '0',
+      sequenceId: '0',
     }));
     const mergeFn = vi.fn((_, event) => {
       return event.data;
@@ -138,7 +138,7 @@ describe('Model', () => {
 
     const sync = vi.fn(async () => ({
       data: `${counter++}`,
-      sequenceID: '0',
+      sequenceId: '0',
     }));
     const mergeFn = vi.fn((_, event) => {
       return event.data;

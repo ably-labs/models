@@ -46,7 +46,7 @@ describe('ModelsClient', () => {
       name: 'test',
       channelName: channelName,
       sync: async (page: number) => {
-        return { data: 'initial data', sequenceID: '0', page };
+        return { data: 'initial data', sequenceId: '0', page };
       },
       merge: () => 'merged',
     });
@@ -55,7 +55,7 @@ describe('ModelsClient', () => {
     const model2 = modelsClient.models.get({
       name: 'test',
       channelName: channelName,
-      sync: async () => ({ data: 'initial data', sequenceID: '0' }),
+      sync: async () => ({ data: 'initial data', sequenceId: '0' }),
       merge: () => 'merged',
     });
     expect(model2.name).toEqual('test');

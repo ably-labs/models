@@ -42,7 +42,7 @@ type Post = {
 
 async function sync() {
   return {
-    sequenceID: '1',
+    sequenceId: '1',
     data: {
       id: 1,
       text: 'My Post',
@@ -63,7 +63,7 @@ The params allow the model to be parameterised, or paginated. For example, we mi
 ```ts
 async function sync(id: number, page: number) {
   const result = await fetch(`/api/post/${id}?page=${page}`);
-  return result.json(); // e.g. { sequenceID: '1', data: { id: 1, text: "Hello World", comments: [] } }
+  return result.json(); // e.g. { sequenceId: '1', data: { id: 1, text: "Hello World", comments: [] } }
 }
 
 const model = modelsClient.models.get({
@@ -107,32 +107,32 @@ The Models SDK supports *optimistic updates* which allows you to render the late
 
 To apply optimistic changes to your model, you can call with `.optimistic(...)` method on your model passing the optimistic event. This optimistic event will be passed to your merge function to be optimistically included in the local model state.
 
-The optimistic event should include a `mutationID` that can be used to correlate the optimistic events with its confirmation emitted by your backend.
+The optimistic event should include a `mutationId` that can be used to correlate the optimistic events with its confirmation emitted by your backend.
 
-You are also responsible for applying the change to your backend directly. You should pass the `mutationID` that you included on your event to yor backend so that you can emit a confirmation event with that mutation ID from your backend.
+You are also responsible for applying the change to your backend directly. You should pass the `mutationId` that you included on your event to yor backend so that you can emit a confirmation event with that mutation ID from your backend.
 
 > For more information, see [Event Correlation](./event-correlation.md).
 
 ```ts
 // your method for applying the change to your backed
-async function updatePost(mutationID: string, content: string) {
+async function updatePost(mutationId: string, content: string) {
   const result = await fetch(`/api/post`, {
     method: 'PUT',
-    body: JSON.stringify({ mutationID, content }),
+    body: JSON.stringify({ mutationId, content }),
   });
   return result.json();
 }
 
 // optimistically apply the changes to the model
-const mutationID = uuid();
+const mutationId = uuid();
 const [confirmation, cancel] = await model.optimistic({
-    mutationID,
+    mutationId,
     name: 'updatePost',
     data: 'new post text',
 })
 
 // apply the changes in your backend
-updatePost(mutationID, 'new post text')
+updatePost(mutationId, 'new post text')
 ```
 
 The model returns a promise that resolves to two values from the `.optimsitic(...)` function.

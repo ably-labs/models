@@ -15,14 +15,14 @@ describe('MutationsRegistry', () => {
 
     const mutations = new MutationsRegistry({ apply: onEvents, rollback: onError });
 
-    const event = { mutationID: 'id_1', name: 'foo', data: { bar: 123 } };
+    const event = { mutationId: 'id_1', name: 'foo', data: { bar: 123 } };
 
     await mutations.handleOptimistic(toOptimisticEvent(event));
     expect(onEvents).toHaveBeenCalledTimes(1);
     expect(onEvents).toHaveBeenNthCalledWith(1, [toOptimisticEventWithParams(event)]);
     expect(onError).not.toHaveBeenCalled();
 
-    const event2 = { ...event, mutationID: 'id_2' };
+    const event2 = { ...event, mutationId: 'id_2' };
     await mutations.handleOptimistic(toOptimisticEvent(event2), { timeout: 1000 });
     expect(onEvents).toHaveBeenCalledTimes(2);
     expect(onEvents).toHaveBeenNthCalledWith(2, [toOptimisticEventWithParams(event2, { timeout: 1000 })]);
@@ -35,14 +35,14 @@ describe('MutationsRegistry', () => {
     let onError = vi.fn();
     const mutations = new MutationsRegistry({ apply: onEvents, rollback: onError });
 
-    const event = { mutationID: 'id_1', name: 'foo', data: { bar: 123 } };
+    const event = { mutationId: 'id_1', name: 'foo', data: { bar: 123 } };
     await expect(mutations.handleOptimistic(toOptimisticEvent(event))).rejects.toThrow(expectedErr);
     expect(onEvents).toHaveBeenCalledTimes(1);
     expect(onEvents).toHaveBeenNthCalledWith(1, [toOptimisticEventWithParams(event)]);
     expect(onError).toHaveBeenCalledTimes(1);
     expect(onError).toHaveBeenNthCalledWith(1, expectedErr, [toOptimisticEventWithParams(event)]);
 
-    const event2 = { ...event, mutationID: 'id_2' };
+    const event2 = { ...event, mutationId: 'id_2' };
     await expect(mutations.handleOptimistic(toOptimisticEvent(event2))).rejects.toThrow(expectedErr);
     expect(onEvents).toHaveBeenCalledTimes(2);
     expect(onEvents).toHaveBeenNthCalledWith(2, [toOptimisticEventWithParams(event2)]);
@@ -55,14 +55,14 @@ describe('MutationsRegistry', () => {
     let onError = vi.fn(async () => {});
     const mutations = new MutationsRegistry({ apply: onEvents, rollback: onError });
 
-    const event = { mutationID: 'id_1', name: 'foo', data: { bar: 123 } };
+    const event = { mutationId: 'id_1', name: 'foo', data: { bar: 123 } };
     await mutations.handleOptimistic(toOptimisticEvent(event));
     expect(onEvents).toHaveBeenCalledTimes(1);
     expect(onEvents).toHaveBeenNthCalledWith(1, [toOptimisticEventWithParams(event)]);
     expect(onError).toHaveBeenCalledTimes(1);
     expect(onError).toHaveBeenNthCalledWith(1, expectedErr, [toOptimisticEventWithParams(event)]);
 
-    const event2 = { ...event, mutationID: 'id_2' };
+    const event2 = { ...event, mutationId: 'id_2' };
     await mutations.handleOptimistic(toOptimisticEvent(event2));
     expect(onEvents).toHaveBeenCalledTimes(2);
     expect(onEvents).toHaveBeenNthCalledWith(2, [toOptimisticEventWithParams(event2)]);
@@ -76,7 +76,7 @@ describe('MutationsRegistry', () => {
     let onError = vi.fn(async () => {});
     const mutations = new MutationsRegistry({ apply: onEvents, rollback: onError });
 
-    const event = { mutationID: 'id_1', name: 'foo', data: { bar: 123 } };
+    const event = { mutationId: 'id_1', name: 'foo', data: { bar: 123 } };
     await mutations.handleOptimistic(toOptimisticEvent(event));
     expect(onEvents).toHaveBeenCalledTimes(1);
     expect(onEvents).toHaveBeenNthCalledWith(1, [toOptimisticEventWithParams(event)]);
@@ -93,14 +93,14 @@ describe('MutationsRegistry', () => {
 
     const mutations = new MutationsRegistry({ apply: onEvents, rollback: onError });
 
-    const event = { mutationID: 'id_1', name: 'foo', data: { bar: 123 } };
+    const event = { mutationId: 'id_1', name: 'foo', data: { bar: 123 } };
     const [conf1] = await mutations.handleOptimistic(toOptimisticEvent(event));
     await expect(conf1).resolves.toBeUndefined();
     expect(onEvents).toHaveBeenCalledTimes(1);
     expect(onEvents).toHaveBeenNthCalledWith(1, [toOptimisticEventWithParams(event)]);
     expect(onError).not.toHaveBeenCalled();
 
-    const event2 = { ...event, mutationID: 'id_2' };
+    const event2 = { ...event, mutationId: 'id_2' };
     const [conf2] = await mutations.handleOptimistic(toOptimisticEvent(event2));
     await expect(conf2).resolves.toBeUndefined();
     expect(onEvents).toHaveBeenCalledTimes(2);

@@ -4,7 +4,7 @@ import type { ConfirmedEvent, Event, EventParams, OptimisticEvent, OptimisticEve
 export function toEventsWithoutUUID(events: Event[]) {
   // we only destructure to remove the uuid field, it's okay that it's unused
   // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
-  return events.map(({ mutationID: uuid, ...rest }) => rest);
+  return events.map(({ mutationId: uuid, ...rest }) => rest);
 }
 
 export function toOptimisticEventWithParams(
@@ -33,7 +33,7 @@ export function toOptimisticEvents(events: Event[]): OptimisticEvent[] {
 
 export function toConfirmedEvents(events: Event[]): ConfirmedEvent[] {
   return events.map((event, i) => ({
-    ...{ sequenceID: `${i}` },
+    ...{ sequenceId: `${i}` },
     ...event,
     confirmed: true,
     rejected: false,

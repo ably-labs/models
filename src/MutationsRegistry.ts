@@ -3,14 +3,14 @@ import type { Event, OptimisticEvent, OptimisticEventWithParams } from './types/
 import type { EventComparator, OptimisticEventOptions } from './types/optimistic.js';
 
 /**
- * This comparator compares events by their `mutationID` property.
+ * This comparator compares events by their `mutationId` property.
  *
  * @param optimistic - The optimistic event to compare.
  * @param confirmed - The confirmed event to compare.
  * @returns {boolean} Whether the two events are equal.
  */
-export const mutationIDComparator: EventComparator = (optimistic: Event, confirmed: Event) => {
-  return !!optimistic.mutationID && !!confirmed.mutationID && optimistic.mutationID === confirmed.mutationID;
+export const mutationIdComparator: EventComparator = (optimistic: Event, confirmed: Event) => {
+  return !!optimistic.mutationId && !!confirmed.mutationId && optimistic.mutationId === confirmed.mutationId;
 };
 
 /**
