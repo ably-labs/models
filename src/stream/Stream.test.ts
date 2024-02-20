@@ -8,7 +8,6 @@ import { defaultSyncOptions, defaultEventBufferOptions } from '../Options.js';
 import type { StreamOptions } from '../types/stream.js';
 import { statePromise } from '../utilities/promises.js';
 import { createMessage } from '../utilities/test/messages.js';
-import { VERSION } from '../version.js';
 
 vi.mock('ably/promises');
 
