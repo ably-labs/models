@@ -149,7 +149,11 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     );
     this.middleware.subscribe(this.onMiddlewareMessage.bind(this));
 
-    this.ablyChannel = this.ably.channels.get(this.options.channelName, { params: { agent: `models/${VERSION}` } });
+    this.ablyChannel = this.ably.channels.get(this.options.channelName);
+
+    if (this.ablyChannel.state !== 'attached' && this.ablyChannel.state !== 'attaching') {
+      this.ablyChannel.setOptions({ params: { agent: `models/${VERSION}` } });
+    }
     this.ablyChannel.on('failed', (change) => {
       this.dispose(change.reason);
       this.subscriptions.error(new Error('Stream failed: ' + change.reason));

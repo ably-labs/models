@@ -61,6 +61,7 @@ describe('Stream', () => {
         hasNext: () => false,
       }),
     );
+    channel.setOptions = vi.fn();
 
     const stream = new Stream({
       ably,
@@ -77,11 +78,7 @@ describe('Stream', () => {
 
     expect(ably.channels.get).toHaveBeenCalledTimes(2);
     expect(ably.channels.get).toHaveBeenNthCalledWith(1, channelName); // initial call from test
-    expect(ably.channels.get).toHaveBeenNthCalledWith(2, channelName, {
-      params: {
-        agent: `models/${VERSION}`,
-      },
-    }); // internal call with agent channel param
+    expect(ably.channels.get).toHaveBeenNthCalledWith(2, channelName); // the state in ably is undefined, so the internal call with agent channel param is not triggered
     expect(channel.subscribe).toHaveBeenCalledOnce();
     expect(channel.history).toHaveBeenCalledOnce();
     expect(channel.history).toHaveBeenNthCalledWith(1, {
@@ -99,6 +96,7 @@ describe('Stream', () => {
         hasNext: () => false,
       }),
     );
+    channel.setOptions = vi.fn();
 
     const stream = new Stream({
       ably,
@@ -146,6 +144,7 @@ describe('Stream', () => {
         hasNext: () => false,
       };
     });
+    channel.setOptions = vi.fn();
 
     const stream = new Stream({
       ably,
@@ -225,6 +224,7 @@ describe('Stream', () => {
         hasNext: () => false,
       };
     });
+    channel.setOptions = vi.fn();
 
     const stream = new Stream({
       ably,
@@ -292,6 +292,7 @@ describe('Stream', () => {
         hasBacklog: false,
       };
     });
+    channel.setOptions = vi.fn();
 
     const stream = new Stream({
       ably,
@@ -337,6 +338,7 @@ describe('Stream', () => {
         hasBacklog: false,
       };
     });
+    channel.setOptions = vi.fn();
 
     const stream = new Stream({
       ably,
@@ -382,6 +384,7 @@ describe('Stream', () => {
         hasNext: () => false,
       };
     });
+    channel.setOptions = vi.fn();
     let messages = new Subject<Types.Message>();
     channel.subscribe = vi.fn<any, any>((callback) => {
       messages.subscribe((message) => callback(message));
@@ -439,6 +442,7 @@ describe('Stream', () => {
         hasNext: () => false,
       }),
     );
+    channel.setOptions = vi.fn();
 
     const stream = new Stream({
       ably,
@@ -488,6 +492,7 @@ describe('Stream', () => {
         hasNext: () => false,
       }),
     );
+    channel.setOptions = vi.fn();
 
     const stream = new Stream({
       ably,
@@ -535,6 +540,7 @@ describe('Stream', () => {
         hasNext: () => false,
       }),
     );
+    channel.setOptions = vi.fn();
 
     const stream = new Stream({
       ably,
@@ -586,6 +592,7 @@ describe('Stream', () => {
         hasNext: () => false,
       }),
     );
+    channel.setOptions = vi.fn();
 
     const stream = new Stream({
       ably,
@@ -623,6 +630,7 @@ describe('Stream', () => {
         hasNext: () => false,
       }),
     );
+    channel.setOptions = vi.fn();
     ably.channels.release = vi.fn();
 
     const stream = new Stream({
@@ -656,6 +664,7 @@ describe('Stream', () => {
         hasNext: () => false,
       }),
     );
+    channel.setOptions = vi.fn();
     ably.channels.release = vi.fn();
 
     let fail: (...args: any[]) => void = () => {
