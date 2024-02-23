@@ -57,6 +57,7 @@ describe('Model', () => {
     );
     channel.detach = vi.fn<any, any>();
     ably.channels.release = vi.fn<any, any>();
+    channel.setOptions = vi.fn();
 
     let counter = 0;
 
@@ -133,6 +134,7 @@ describe('Model', () => {
     );
     channel.detach = vi.fn<any, any>();
     ably.channels.release = vi.fn<any, any>();
+    channel.setOptions = vi.fn();
 
     let counter = 0;
 
