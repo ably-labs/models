@@ -171,7 +171,7 @@ For more information, see [usage docs](./docs/usage.md).
  For more information, see:
 
 * Read the [docs](/docs/)
-* Browse the [API docs](/docs/typedoc/generated/index.html)
+* Browse the [API docs](https://sdk.ably.com/builds/ably-labs/models/main/typedoc/)
 * Explore the [examples](/examples)
 
 ## Feedback
