@@ -79,8 +79,8 @@ export default class ModelsClient {
       /**
        * Gets an existing or creates a new model instance with the given name.
        * @template S - The sync function type.
-       * @param {ModelSpec} spec - The name, channelName, sync and merge functions for this model.
-       * The names and funcitons will be automatically setup on the model returned.
+       * @param {ModelSpec} spec - The channelName, sync and merge functions for this model.
+       * The name and funcitons will be automatically setup on the model returned.
        * The model will not start until you call model.sync() or model.subscribe()
        * @returns {Model} The model instance.
        */
@@ -92,7 +92,7 @@ export default class ModelsClient {
         const channelName = spec.channelName;
 
         if (!channelName) {
-          throw new InvalidArgumentError('Model must have a non-empty name');
+          throw new InvalidArgumentError('Model must have a non-empty channel name');
         }
 
         if (this.modelInstances[channelName]) {
