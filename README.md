@@ -48,7 +48,7 @@ The Realtime Data Models SDK uses Ably’s fast, global message distribution net
 
 The Realtime Data Models SDK simplifies syncing application state from the database to the client in realtime. It constantly displays changes made simultaneously by others, creating a reactive, realtime, multiplayer application experience.
 
-The Realtime Data Models SDK is a JavaScript (TypeScript) library that enables you to create live and observable data models in your frontend application. These models remain synchronized with the realtime state of your database model. You can easily integrate this SDK into your project regardless of your frontend framework preference. To learn how to use the SDK in a React/Next.js application, see [examples](./examples/posts).
+The Realtime Data Models SDK is a JavaScript (TypeScript) library that enables you to create live and observable data models in your frontend application. These models remain synchronized with the realtime state of your database model. You can easily integrate this SDK into your project regardless of your frontend framework preference. To learn how to use the SDK in a React/Next.js application, see [examples](./examples/livecomments).
 
 Your backend publishes mutation events to Ably. The Realtime Data Models SDK updates your frontend app's local state. You can also pair the SDK with Ably's [Database Connector](https://github.com/ably-labs/adbc) to transmit transactional change events with your database mutations.
 
