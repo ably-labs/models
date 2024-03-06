@@ -32,6 +32,7 @@ describe('Stream', () => {
       attach: vi.fn<any, any>(),
       detach: vi.fn<any, any>(),
       subscribe: vi.fn<any, any>(),
+      setOptions: vi.fn(),
     };
     ably.channels.get = vi.fn<any, any>(() => mockChannel);
 
@@ -60,7 +61,6 @@ describe('Stream', () => {
         hasNext: () => false,
       }),
     );
-    channel.setOptions = vi.fn();
 
     const stream = new Stream({
       ably,
@@ -95,7 +95,6 @@ describe('Stream', () => {
         hasNext: () => false,
       }),
     );
-    channel.setOptions = vi.fn();
 
     const stream = new Stream({
       ably,
@@ -143,7 +142,6 @@ describe('Stream', () => {
         hasNext: () => false,
       };
     });
-    channel.setOptions = vi.fn();
 
     const stream = new Stream({
       ably,
@@ -223,7 +221,6 @@ describe('Stream', () => {
         hasNext: () => false,
       };
     });
-    channel.setOptions = vi.fn();
 
     const stream = new Stream({
       ably,
@@ -291,7 +288,6 @@ describe('Stream', () => {
         hasBacklog: false,
       };
     });
-    channel.setOptions = vi.fn();
 
     const stream = new Stream({
       ably,
@@ -337,7 +333,6 @@ describe('Stream', () => {
         hasBacklog: false,
       };
     });
-    channel.setOptions = vi.fn();
 
     const stream = new Stream({
       ably,
@@ -383,7 +378,7 @@ describe('Stream', () => {
         hasNext: () => false,
       };
     });
-    channel.setOptions = vi.fn();
+
     let messages = new Subject<Types.Message>();
     channel.subscribe = vi.fn<any, any>((callback) => {
       messages.subscribe((message) => callback(message));
@@ -441,7 +436,6 @@ describe('Stream', () => {
         hasNext: () => false,
       }),
     );
-    channel.setOptions = vi.fn();
 
     const stream = new Stream({
       ably,
@@ -491,7 +485,6 @@ describe('Stream', () => {
         hasNext: () => false,
       }),
     );
-    channel.setOptions = vi.fn();
 
     const stream = new Stream({
       ably,
@@ -539,7 +532,6 @@ describe('Stream', () => {
         hasNext: () => false,
       }),
     );
-    channel.setOptions = vi.fn();
 
     const stream = new Stream({
       ably,
@@ -591,7 +583,6 @@ describe('Stream', () => {
         hasNext: () => false,
       }),
     );
-    channel.setOptions = vi.fn();
 
     const stream = new Stream({
       ably,
@@ -629,7 +620,6 @@ describe('Stream', () => {
         hasNext: () => false,
       }),
     );
-    channel.setOptions = vi.fn();
     ably.channels.release = vi.fn();
 
     const stream = new Stream({
@@ -663,7 +653,7 @@ describe('Stream', () => {
         hasNext: () => false,
       }),
     );
-    channel.setOptions = vi.fn();
+
     ably.channels.release = vi.fn();
 
     let fail: (...args: any[]) => void = () => {
