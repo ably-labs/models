@@ -1,16 +1,13 @@
-import ky from 'ky';
-
 export const createAblyApp = async (json: Options): Promise<Data> => {
-  const response = await ky
-    .post('https://sandbox-rest.ably.io/apps', {
-      json,
-      headers: {
-        'content-type': 'application/json',
-        Accept: 'application/json',
-      },
-    })
-    .json<Data>();
-  return response;
+  const response = await fetch('https://sandbox-rest.ably.io/apps', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify(json),
+  });
+  return response.json();
 };
 
 interface Key {

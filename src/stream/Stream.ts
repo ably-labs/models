@@ -152,7 +152,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     this.ablyChannel = this.ably.channels.get(this.options.channelName);
 
     if (this.ablyChannel.state !== 'attached' && this.ablyChannel.state !== 'attaching') {
-      this.ablyChannel.setOptions({ params: { agent: `models/${VERSION}` } });
+      await this.ablyChannel.setOptions({ params: { agent: `models/${VERSION}` } });
     }
     this.ablyChannel.on('failed', (change) => {
       this.dispose(change.reason);
