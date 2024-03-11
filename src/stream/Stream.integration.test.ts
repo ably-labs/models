@@ -17,14 +17,11 @@ describe('Stream integration', () => {
     const name = 'test';
     const data = await createAblyApp({
       keys: [{}],
-      namespaces: [{ id: name, persisted: true }],
+      namespaces: [],
       channels: [
         {
           name,
-          presence: [
-            { clientId: 'John', data: 'john@test.com' },
-            { clientId: 'Dave', data: 'dave@test.com' },
-          ],
+          presence: [],
         },
       ],
     });
