@@ -126,6 +126,65 @@ describe('Model', () => {
     expect([undefined, { current: 'ready', previous: 'syncing', reason: undefined }]).toContain(syncResult);
   });
 
+  it<ModelTestContext>('it fails sync when sequenceId is undefined and does not retry', async ({
+    channelName,
+    ably,
+    logger,
+  }) => {
+    const retryConfig = 5;
+    const sync = vi.fn(async () => ({ data: simpleTestData, sequenceId: undefined }));
+    const merge = vi.fn();
+    const erroredListener = vi.fn();
+
+    const model = new Model(
+      'test',
+      { sync, merge },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: { ...defaultSyncOptions, retryStrategy: fixedRetryStrategy(10, retryConfig) },
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
+    );
+    model.on('errored', erroredListener);
+
+    await model.sync().catch((err) => expect(err.message).toEqual('sync function response: sequenceId is undefined'));
+    expect(sync).toHaveBeenCalledOnce(); // sync is not retried
+    expect(merge).not.toHaveBeenCalled();
+    expect(erroredListener).toHaveBeenCalledOnce();
+  });
+
+  it<ModelTestContext>('it fails sync when sequenceId is undefined with no retryable', async ({
+    channelName,
+    ably,
+    logger,
+  }) => {
+    const sync = vi.fn(async () => ({ data: simpleTestData, sequenceId: undefined }));
+    const merge = vi.fn();
+    const erroredListener = vi.fn();
+
+    const model = new Model(
+      'test',
+      { sync, merge },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: { ...defaultSyncOptions, retryStrategy: () => -1 },
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
+    );
+    model.on('errored', erroredListener);
+
+    await model.sync().catch((err) => expect(err.message).toEqual('sync function response: sequenceId is undefined'));
+    expect(sync).toHaveBeenCalledOnce(); // sync is not retried
+    expect(merge).not.toHaveBeenCalled();
+    expect(erroredListener).toHaveBeenCalledOnce();
+  });
+
   it<ModelTestContext>('allows sync to be called manually, with params', async ({ channelName, ably, logger }) => {
     let completeSync: (...args: any[]) => void = () => {
       throw new Error('completeSync not defined');
