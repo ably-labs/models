@@ -1550,7 +1550,6 @@ describe('Model', () => {
     streams,
   }) => {
     const s1 = streams.newStream({ channelName: channelName });
-    s1.subscribe = vi.fn();
 
     const events = new Subject<Types.Message>();
     s1.subscribe = vi.fn(async (callback) => {

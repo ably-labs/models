@@ -420,15 +420,27 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
     let delay = retries(1);
 
     if (delay < 0) {
+      if (this.state === 'errored') {
+        return;
+      }
+
       await fn();
       return;
     }
 
     while (delay > 0) {
       try {
+        if (this.state === 'errored') {
+          return;
+        }
+
         await fn();
         return;
       } catch (err) {
+        if (this.state === 'errored') {
+          throw err;
+        }
+
         delay = retries(++i);
         if (delay < 0) {
           throw err;
@@ -458,7 +470,14 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
         lastSyncParams: this.lastSyncParams,
       });
       this.removeStream();
+
       const { data, sequenceId } = await this.syncFunc(...(this.lastSyncParams || ([] as unknown as Parameters<S>)));
+      if (sequenceId === undefined) {
+        const err = Error('sync function response: sequenceId is undefined');
+        this.setState('errored', err);
+        throw err;
+      }
+
       this.setConfirmedData(data);
       await this.computeState(this.confirmedData, this.optimisticData, this.optimisticEvents);
       await this.addStream(sequenceId);
@@ -469,7 +488,10 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
       await this.retryable(this.syncRetryStrategy, fn);
     } catch (err) {
       this.logger.error('retries exhausted', { ...this.baseLogContext, action: 'resync()', err });
-      this.setState('errored', toError(err));
+      if (this.state !== 'errored') {
+        this.setState('errored', toError(err));
+      }
+
       throw err;
     }
   }
