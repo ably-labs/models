@@ -180,7 +180,7 @@ describe('Model', () => {
     model.on('errored', erroredListener);
 
     await model.sync().catch((err) => expect(err.message).toEqual('sync function response: sequenceId is undefined'));
-    expect(sync).toHaveBeenCalledOnce(); // sync is not retried
+    expect(sync).toHaveBeenCalledOnce();
     expect(merge).not.toHaveBeenCalled();
     expect(erroredListener).toHaveBeenCalledOnce();
   });
