@@ -1646,7 +1646,7 @@ describe('Model', () => {
         eventBufferOptions: defaultEventBufferOptions,
       },
     );
-    model.sync();
+    await model.sync();
     expect(syncFn).toHaveReturnedTimes(1);
 
     const lis: EventListener<ModelStateChange> = vi.fn<any, any>();
