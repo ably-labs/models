@@ -131,7 +131,7 @@ describe('Model', () => {
     ably,
     logger,
   }) => {
-    const retryConfig = 5;
+    const configNumRetries = 5;
     const sync = vi.fn(async () => ({ data: simpleTestData, sequenceId: undefined }));
     const merge = vi.fn();
     const erroredListener = vi.fn();
@@ -143,7 +143,7 @@ describe('Model', () => {
         ably,
         channelName,
         logger,
-        syncOptions: { ...defaultSyncOptions, retryStrategy: fixedRetryStrategy(10, retryConfig) },
+        syncOptions: { ...defaultSyncOptions, retryStrategy: fixedRetryStrategy(10, configNumRetries) },
         optimisticEventOptions: defaultOptimisticEventOptions,
         eventBufferOptions: defaultEventBufferOptions,
       },

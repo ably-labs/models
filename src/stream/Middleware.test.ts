@@ -181,13 +181,13 @@ describe('OrderedHistoryResumer', () => {
   });
 
   it('orders numerically', () => {
-    const sequenceId = 0;
+    const sequenceId = 1;
     const middleware = new OrderedHistoryResumer(`${sequenceId}`, 0);
     const subscription = vi.fn();
     middleware.subscribe(subscription);
 
     // construct history page newest to oldest
-    let history: Types.Message[] = [createMessage(10), createMessage(2), createMessage(1), createMessage(0)];
+    let history: Types.Message[] = [createMessage(10), createMessage(3), createMessage(2), createMessage(1)];
     // shuffle as the middleware should be resilient to some out-of-orderiness by sequenceId due to CGO
     expect(middleware.addHistoricalMessages(shuffle(history))).toBe(true);
     expect(() => middleware.addHistoricalMessages(history)).toThrowError(
@@ -201,13 +201,13 @@ describe('OrderedHistoryResumer', () => {
   });
 
   it('orders lexicographically', () => {
-    const sequenceId = 0;
+    const sequenceId = 1;
     const middleware = new OrderedHistoryResumer(`${sequenceId}`, 0, lexicographicOrderer);
     const subscription = vi.fn();
     middleware.subscribe(subscription);
 
     // construct history page newest to oldest
-    let history: Types.Message[] = [createMessage(10), createMessage(2), createMessage(1), createMessage(0)];
+    let history: Types.Message[] = [createMessage(10), createMessage(3), createMessage(2), createMessage(1)];
     // shuffle as the middleware should be resilient to some out-of-orderiness by sequenceId due to CGO
     expect(middleware.addHistoricalMessages(shuffle(history))).toBe(true);
     expect(() => middleware.addHistoricalMessages(history)).toThrowError(
@@ -215,9 +215,9 @@ describe('OrderedHistoryResumer', () => {
     );
 
     expect(subscription).toHaveBeenCalledTimes(3);
-    expect(subscription).toHaveBeenNthCalledWith(1, null, history[2]);
-    expect(subscription).toHaveBeenNthCalledWith(2, null, history[0]);
-    expect(subscription).toHaveBeenNthCalledWith(3, null, history[1]);
+    expect(subscription).toHaveBeenNthCalledWith(1, null, history[0]); // id: 10
+    expect(subscription).toHaveBeenNthCalledWith(2, null, history[2]); // id: 2
+    expect(subscription).toHaveBeenNthCalledWith(3, null, history[1]); // id: 3
   });
 
   it('emits messages after the boundary with sparse sequence', () => {
@@ -266,31 +266,63 @@ describe('OrderedHistoryResumer', () => {
     expect(subscription).toHaveBeenNthCalledWith(2, null, history[0]);
   });
 
-  it('flushes when empty history page reached', () => {
-    const sequenceId = 0; // out of reach
+  it('flushes but still in seeking state when empty history page reached', () => {
+    const sequenceId = 1; // out of reach
     const middleware = new OrderedHistoryResumer(`${sequenceId}`, 0);
     const subscription = vi.fn();
     middleware.subscribe(subscription);
 
     let history: Types.Message[] = [
+      createMessage(6),
       createMessage(5),
       createMessage(4),
       createMessage(3),
       createMessage(2),
-      createMessage(1),
     ];
     const page1 = history;
     const page2 = [];
 
     expect(middleware.addHistoricalMessages(shuffle(page1))).toBe(false);
-    expect(middleware.addHistoricalMessages(shuffle(page2))).toBe(true);
+    expect(middleware.addHistoricalMessages(page2)).toBe(true);
 
+    expect(middleware.state).toBe('seeking');
     expect(subscription).toHaveBeenCalledTimes(5);
     expect(subscription).toHaveBeenNthCalledWith(1, null, history[4]);
     expect(subscription).toHaveBeenNthCalledWith(2, null, history[3]);
     expect(subscription).toHaveBeenNthCalledWith(3, null, history[2]);
     expect(subscription).toHaveBeenNthCalledWith(4, null, history[1]);
     expect(subscription).toHaveBeenNthCalledWith(5, null, history[0]);
+  });
+
+  it('successfully applies history when messages is empty but sequenceId is 0', () => {
+    const sequenceId = 0;
+    const middleware = new OrderedHistoryResumer(`${sequenceId}`, 0);
+    const subscription = vi.fn();
+    middleware.subscribe(subscription);
+
+    let history: Types.Message[] = [createMessage(3), createMessage(2), createMessage(1)];
+    const page1 = history;
+    const page2 = [];
+
+    expect(middleware.addHistoricalMessages(shuffle(page1))).toBe(false);
+    expect(middleware.addHistoricalMessages(page2)).toBe(true);
+
+    expect(middleware.state).toEqual('success');
+    expect(subscription).toHaveBeenCalledTimes(3);
+    expect(subscription).toHaveBeenNthCalledWith(1, null, history[2]);
+    expect(subscription).toHaveBeenNthCalledWith(2, null, history[1]);
+    expect(subscription).toHaveBeenNthCalledWith(3, null, history[0]);
+  });
+
+  it('state is successful with empty page and no history', () => {
+    const sequenceId = 1;
+    const middleware = new OrderedHistoryResumer(`${sequenceId}`, 0);
+    const subscription = vi.fn();
+    middleware.subscribe(subscription);
+
+    expect(middleware.addHistoricalMessages([])).toBe(true);
+    expect(middleware.state).toEqual('success');
+    expect(subscription).not.toHaveBeenCalled();
   });
 
   it('merges historical messages with live messages', () => {
@@ -353,5 +385,16 @@ describe('OrderedHistoryResumer', () => {
     expect(subscription).toHaveBeenNthCalledWith(4, null, live[1]);
     expect(subscription).toHaveBeenNthCalledWith(5, null, live[2]);
     expect(subscription).toHaveBeenNthCalledWith(6, null, live[3]);
+  });
+
+  it('no seeking preformed if sequenceId is 0', () => {
+    const sequenceId = 0;
+    const middleware = new OrderedHistoryResumer(`${sequenceId}`, 0);
+    const subscription = vi.fn();
+    middleware.subscribe(subscription);
+
+    let history: Types.Message[] = [createMessage(1), createMessage(0)];
+    expect(middleware.addHistoricalMessages(shuffle(history))).toBe(false);
+    expect(subscription).not.toHaveBeenCalled();
   });
 });

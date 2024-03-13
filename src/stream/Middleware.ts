@@ -117,6 +117,15 @@ export class OrderedHistoryResumer extends MiddlewareBase {
     this.slidingWindow.subscribe(this.onMessage.bind(this));
   }
 
+  applyHistory() {
+    if (this.historicalMessages.length === 0 || this.currentState === 'success') {
+      return;
+    }
+
+    this.flush();
+    this.currentState = 'success';
+  }
+
   private onMessage(err: Error | null, message: AblyTypes.Message | null) {
     if (err) {
       super.error(err);
@@ -145,10 +154,12 @@ export class OrderedHistoryResumer extends MiddlewareBase {
     // the messages expired before the next page was requested.
     if (messages.length === 0) {
       // If there were some messages in history then there have definitely been changes to the state
-      // and we can't reach back far enough to resume from the correct point.
+      // and we can't reach back far enough to resume from the correct point. If the sequenceId is
+      // '0' then we assume this due to SQL coalesc and no actual message will ever be found so
+      // flush() will reply what history is there/
       const noHistory = this.historicalMessages.length === 0;
       this.flush();
-      if (noHistory) {
+      if (noHistory || this.sequenceId == '0') {
         this.currentState = 'success';
       }
       return true;
@@ -168,6 +179,11 @@ export class OrderedHistoryResumer extends MiddlewareBase {
     // doesn't solve it. The solution would require paging back 2 mins further to check for any such messages.
     // This is sufficiently low likelihood that this can be ignored for now.
     this.historicalMessages.sort((a, b) => this.reverseOrderer(a.id, b.id));
+
+    // A sequenceId of 0 means there is no historical message to seek to. All history should be applied after paging complete
+    if (this.sequenceId === '0') {
+      return false;
+    }
 
     // Seek backwards through history until we reach a message id <= the specified sequenceId.
     // Discard anything older (>= sequenceId) and flush out the remaining messages.
