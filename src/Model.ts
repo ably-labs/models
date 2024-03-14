@@ -405,6 +405,12 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
   }
 
   protected setState(state: ModelState, reason?: Error) {
+    if (state === this.currentState) {
+      //todo: remove this
+      console.log('MK: set state the same', state);
+      return;
+    }
+
     this.logger.trace({ ...this.baseLogContext, action: 'setState()', state, reason });
     const previous = this.currentState;
     this.currentState = state;
@@ -472,8 +478,8 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
       this.removeStream();
 
       const { data, sequenceId } = await this.syncFunc(...(this.lastSyncParams || ([] as unknown as Parameters<S>)));
-      if (sequenceId === undefined) {
-        const err = Error('sync function response: sequenceId is undefined');
+      if (!sequenceId) {
+        const err = Error('The sync function returned an undefined sequenceId');
         this.setState('errored', err);
         throw err;
       }
@@ -488,9 +494,7 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
       await this.retryable(this.syncRetryStrategy, fn);
     } catch (err) {
       this.logger.error('retries exhausted', { ...this.baseLogContext, action: 'resync()', err });
-      if (this.state !== 'errored') {
-        this.setState('errored', toError(err));
-      }
+      this.setState('errored', toError(err));
 
       throw err;
     }

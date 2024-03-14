@@ -150,7 +150,7 @@ describe('Model', () => {
     );
     model.on('errored', erroredListener);
 
-    await model.sync().catch((err) => expect(err.message).toEqual('sync function response: sequenceId is undefined'));
+    await model.sync().catch((err) => expect(err.message).toEqual('The sync function returned an undefined sequenceId'));
     expect(sync).toHaveBeenCalledOnce(); // sync is not retried
     expect(merge).not.toHaveBeenCalled();
     expect(erroredListener).toHaveBeenCalledOnce();
@@ -179,7 +179,7 @@ describe('Model', () => {
     );
     model.on('errored', erroredListener);
 
-    await model.sync().catch((err) => expect(err.message).toEqual('sync function response: sequenceId is undefined'));
+    await model.sync().catch((err) => expect(err.message).toEqual('The sync function returned an undefined sequenceId'));
     expect(sync).toHaveBeenCalledOnce();
     expect(merge).not.toHaveBeenCalled();
     expect(erroredListener).toHaveBeenCalledOnce();

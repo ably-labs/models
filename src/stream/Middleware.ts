@@ -117,15 +117,6 @@ export class OrderedHistoryResumer extends MiddlewareBase {
     this.slidingWindow.subscribe(this.onMessage.bind(this));
   }
 
-  applyHistory() {
-    if (this.historicalMessages.length === 0 || this.currentState === 'success') {
-      return;
-    }
-
-    this.flush();
-    this.currentState = 'success';
-  }
-
   private onMessage(err: Error | null, message: AblyTypes.Message | null) {
     if (err) {
       super.error(err);
@@ -142,6 +133,15 @@ export class OrderedHistoryResumer extends MiddlewareBase {
     return this.eventOrderer(a, b) <= 0;
   }
 
+  public applyHistory() {
+    if (this.historicalMessages.length === 0 || this.currentState === 'success') {
+      return;
+    }
+
+    this.flush();
+    this.currentState = 'success';
+  }
+
   public get state() {
     return this.currentState;
   }
@@ -155,11 +155,11 @@ export class OrderedHistoryResumer extends MiddlewareBase {
     if (messages.length === 0) {
       // If there were some messages in history then there have definitely been changes to the state
       // and we can't reach back far enough to resume from the correct point. If the sequenceId is
-      // '0' then we assume this due to SQL coalesc and no actual message will ever be found so
-      // flush() will reply what history is there/
+      // '0' then we assume this due to SQL coalesce and no actual message will ever be found so
+      // flush() will reply what history is there.
       const noHistory = this.historicalMessages.length === 0;
       this.flush();
-      if (noHistory || this.sequenceId == '0') {
+      if (noHistory || this.sequenceId === '0') {
         this.currentState = 'success';
       }
       return true;
@@ -180,7 +180,9 @@ export class OrderedHistoryResumer extends MiddlewareBase {
     // This is sufficiently low likelihood that this can be ignored for now.
     this.historicalMessages.sort((a, b) => this.reverseOrderer(a.id, b.id));
 
-    // A sequenceId of 0 means there is no historical message to seek to. All history should be applied after paging complete
+    // A sequenceId of 0 is a cursor that represents the position before the start of the stream.
+    // There is no such historical message to seek to, instead we should paginate through all the
+    // of history to obtain all messages that were published since the sequenceId was obtained.
     if (this.sequenceId === '0') {
       return false;
     }
