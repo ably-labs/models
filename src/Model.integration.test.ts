@@ -164,19 +164,21 @@ describe('Model integration', () => {
   }) => {
     await model.sync(1);
     let subscription = new Subject<void>();
-    const subscriptionCalls = getEventPromises(subscription, 3);
+    const subscriptionCalls = getEventPromises(subscription, 2);
     const subscriptionSpy = vi.fn(() => subscription.next());
     const finalData = { ...syncData[1].data, ...eventData.data };
 
     model.subscribe(subscriptionSpy);
     await model.optimistic(eventData);
     expect(model.data.optimistic).toEqual(finalData);
+
     const channel = ably.channels.get(channelName);
     await channel.publish({
       data: eventData.data,
       name: 'update',
       extras: {
         headers: {
+          'x-ably-models-event-uuid': eventData.mutationId,
           'x-ably-models-reject': true,
         },
       },
