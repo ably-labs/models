@@ -196,6 +196,7 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
    * @template S - The type of the sync function that is used to synchronise the model state with your backend.
    * @param {Parameters<S>} params - The parameters to pass to the sync function.
    * @returns A promise that resolves when the model has successfully re-synchronised its state and is ready to start emitting updates.
+   * @throws {Error} If there is an error during the resync operation.
    */
   public async sync(...params: Parameters<S>) {
     this.logger.trace({ ...this.baseLogContext, action: 'sync()', params });
@@ -299,6 +300,8 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
    * @param {SubscriptionCallback<S>} callback - The callback to invoke when the model data changes.
    * @param {SubscriptionOptions} options - Optional subscription options that can be used to specify whether to subscribe to
    * optimistic or only confirmed updates. Defaults to optimistic.
+   * @return A promise that resolves when the subscription has been set up and if in an initialized state successfully synchronised
+   * @throws {Error} If there is an error during the sync operation.
    */
   public async subscribe(callback: SubscriptionCallback<S>, options: SubscriptionOptions = { optimistic: true }) {
     if (typeof callback !== 'function') {
@@ -367,6 +370,7 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
    * Unsubscribes the given callback to changes to the data.
    * @template S - The type of the sync function that is used to synchronise the model state with your backend.
    * @param {SubscriptionCallback<S>} callback - The callback to unsubscribe.
+   * @throws {Error} If callback is not a function
    */
   public unsubscribe(callback: SubscriptionCallback<S>) {
     if (typeof callback !== 'function') {
@@ -405,6 +409,10 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
   }
 
   protected setState(state: ModelState, reason?: Error) {
+    if (state === this.currentState) {
+      return;
+    }
+
     this.logger.trace({ ...this.baseLogContext, action: 'setState()', state, reason });
     const previous = this.currentState;
     this.currentState = state;
@@ -420,15 +428,27 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
     let delay = retries(1);
 
     if (delay < 0) {
+      if (this.state === 'errored') {
+        return;
+      }
+
       await fn();
       return;
     }
 
     while (delay > 0) {
       try {
+        if (this.state === 'errored') {
+          return;
+        }
+
         await fn();
         return;
       } catch (err) {
+        if (this.state === 'errored') {
+          throw err;
+        }
+
         delay = retries(++i);
         if (delay < 0) {
           throw err;
@@ -458,7 +478,16 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
         lastSyncParams: this.lastSyncParams,
       });
       this.removeStream();
+
       const { data, sequenceId } = await this.syncFunc(...(this.lastSyncParams || ([] as unknown as Parameters<S>)));
+      if (!sequenceId) {
+        const err = Error('The sync function returned an undefined sequenceId');
+        // we set the state to errored here to ensure that this function is not retried by the Model.retryable()
+        // this avoids a sync function that returns the wrong response structure from being retried.
+        this.setState('errored', err);
+        throw err;
+      }
+
       this.setConfirmedData(data);
       await this.computeState(this.confirmedData, this.optimisticData, this.optimisticEvents);
       await this.addStream(sequenceId);
@@ -470,6 +499,7 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
     } catch (err) {
       this.logger.error('retries exhausted', { ...this.baseLogContext, action: 'resync()', err });
       this.setState('errored', toError(err));
+
       throw err;
     }
   }
@@ -573,7 +603,12 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
         throw err;
       }
     };
-    await this.retryable(fixedRetryStrategy(delay), fn);
+
+    try {
+      await this.retryable(fixedRetryStrategy(delay), fn);
+    } catch (err) {
+      this.logger.warn('failed to resume after error', { ...this.baseLogContext, action: 'handleErrorResume', err });
+    }
   }
 
   private setOptimisticData(data: ExtractData<S>) {
