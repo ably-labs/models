@@ -1607,7 +1607,7 @@ describe('Model', () => {
     expect(lis).toHaveBeenCalledTimes(0);
   });
 
-  it<ModelTestContext>('stream message error can handle the a the StreamDiscontinuityError', async ({
+  it<ModelTestContext>('stream message error can handle the StreamDiscontinuityError', async ({
     channelName,
     ably,
     logger,

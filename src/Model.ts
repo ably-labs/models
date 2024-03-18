@@ -607,7 +607,7 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
     try {
       await this.retryable(fixedRetryStrategy(delay), fn);
     } catch (err) {
-      this.logger.warn('failed to resume after error', { ...this.baseLogContext, action: 'handleErrorResume', err });
+      this.logger.error('failed to resume after error', { ...this.baseLogContext, action: 'handleErrorResume', err });
     }
   }
 
