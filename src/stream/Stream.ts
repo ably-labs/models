@@ -197,6 +197,14 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
       n++;
     } while (page && page.items && page.items.length > 0 && page.hasNext() && !done);
 
+    if (sequenceId === '0' && this.middleware.state !== 'success') {
+      // The sequenceId is 0 there will be no message in the history to match it.
+      // The middleware is not in success which means there is some history so we apply it
+      // The situation occurs when history has been added in the time between the sync function resolving the stream
+      // getting to this point
+      this.middleware.applyHistory();
+    }
+
     // If the middleware is not in the success state it means there were some history messages and we never reached the target sequenceId.
     // This means the target sequenceId was too old and a re-sync from a newer state snapshot is required.
     if (this.middleware.state !== 'success') {

@@ -270,6 +270,120 @@ describe('Stream', () => {
     });
   });
 
+  it<StreamTestContext>('successfully to syncs if sequenceId is 0 with multiple pages of history', async ({
+    ably,
+    logger,
+    channelName,
+  }) => {
+    const subscribeListener = vi.fn();
+    const channel = ably.channels.get(channelName);
+    ably.channels.release = vi.fn();
+    channel.subscribe = vi.fn<any, any>(
+      async (): Promise<Types.ChannelStateChange | null> => ({
+        current: 'attached',
+        previous: 'attaching',
+        resumed: false,
+        hasBacklog: false,
+      }),
+    );
+    let i = 0;
+    channel.history = vi.fn<any, any>(async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => {
+      i++;
+      if (i === 1) {
+        return {
+          items: [createMessage(7), createMessage(6), createMessage(5)],
+          hasNext: () => true,
+        };
+      }
+      return {
+        items: [createMessage(4), createMessage(3), createMessage(2)],
+        hasNext: () => false,
+      };
+    });
+
+    const stream = new Stream({
+      ably,
+      logger,
+      channelName: 'foobar',
+      syncOptions: defaultSyncOptions,
+      eventBufferOptions: defaultEventBufferOptions,
+    });
+    stream.subscribe(subscribeListener);
+    let replayPromise = stream.replay('0');
+
+    await statePromise(stream, 'seeking');
+    await expect(replayPromise).resolves.toBeUndefined();
+
+    expect(channel.subscribe).toHaveBeenCalledOnce();
+    expect(channel.history).toHaveBeenCalledTimes(2);
+    expect(channel.history).toHaveBeenNthCalledWith(1, {
+      untilAttach: true,
+      limit: defaultSyncOptions.historyPageSize,
+    });
+    expect(channel.history).toHaveBeenNthCalledWith(2, {
+      untilAttach: true,
+      limit: defaultSyncOptions.historyPageSize,
+    });
+    expect(subscribeListener).toHaveBeenCalledTimes(6);
+  });
+
+  it<StreamTestContext>('successfully to syncs if sequenceId is 0 with 2 pages of history, second one empty', async ({
+    ably,
+    logger,
+    channelName,
+  }) => {
+    const subscribeListener = vi.fn();
+    const channel = ably.channels.get(channelName);
+    ably.channels.release = vi.fn();
+    channel.subscribe = vi.fn<any, any>(
+      async (): Promise<Types.ChannelStateChange | null> => ({
+        current: 'attached',
+        previous: 'attaching',
+        resumed: false,
+        hasBacklog: false,
+      }),
+    );
+    let i = 0;
+    channel.history = vi.fn<any, any>(async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => {
+      i++;
+      if (i === 1) {
+        return {
+          items: [createMessage(7), createMessage(6), createMessage(5)],
+          hasNext: () => true,
+        };
+      }
+      return {
+        items: [],
+        hasNext: () => false,
+      };
+    });
+
+    const stream = new Stream({
+      ably,
+      logger,
+      channelName: 'foobar',
+      syncOptions: defaultSyncOptions,
+      eventBufferOptions: defaultEventBufferOptions,
+    });
+    stream.subscribe(subscribeListener);
+    let replayPromise = stream.replay('0');
+
+    await statePromise(stream, 'seeking');
+    await expect(replayPromise).resolves.toBeUndefined();
+
+    expect(channel.subscribe).toHaveBeenCalledOnce();
+    expect(channel.history).toHaveBeenCalledTimes(2);
+    expect(channel.history).toHaveBeenNthCalledWith(1, {
+      untilAttach: true,
+      limit: defaultSyncOptions.historyPageSize,
+    });
+    expect(channel.history).toHaveBeenNthCalledWith(2, {
+      untilAttach: true,
+      limit: defaultSyncOptions.historyPageSize,
+    });
+    expect(subscribeListener).toHaveBeenCalledTimes(3);
+  });
+
   it<StreamTestContext>('subscribes to messages', async ({ ably, logger, channelName }) => {
     const channel = ably.channels.get(channelName);
     channel.history = vi.fn<any, any>(
