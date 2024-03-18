@@ -3,6 +3,7 @@ import pino from 'pino';
 import { Subject } from 'rxjs';
 import { it, describe, expect, afterEach, vi, beforeEach } from 'vitest';
 
+import { StreamDiscontinuityError } from './Errors.js';
 import Model from './Model.js';
 import { defaultSyncOptions, defaultEventBufferOptions, defaultOptimisticEventOptions } from './Options.js';
 import { IStream } from './stream/Stream.js';
@@ -124,6 +125,69 @@ describe('Model', () => {
     expect(model.data.confirmed).toEqual(simpleTestData);
     const syncResult = await modelSynced;
     expect([undefined, { current: 'ready', previous: 'syncing', reason: undefined }]).toContain(syncResult);
+  });
+
+  it<ModelTestContext>('it fails sync when sequenceId is undefined and does not retry', async ({
+    channelName,
+    ably,
+    logger,
+  }) => {
+    const configNumRetries = 5;
+    const sync = vi.fn(async () => ({ data: simpleTestData, sequenceId: undefined }));
+    const merge = vi.fn();
+    const erroredListener = vi.fn();
+
+    const model = new Model(
+      'test',
+      { sync, merge },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: { ...defaultSyncOptions, retryStrategy: fixedRetryStrategy(10, configNumRetries) },
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
+    );
+    model.on('errored', erroredListener);
+
+    await model
+      .sync()
+      .catch((err) => expect(err.message).toEqual('The sync function returned an undefined sequenceId'));
+    expect(sync).toHaveBeenCalledOnce(); // sync is not retried
+    expect(merge).not.toHaveBeenCalled();
+    expect(erroredListener).toHaveBeenCalledOnce();
+  });
+
+  it<ModelTestContext>('it fails sync when sequenceId is undefined with no retryable', async ({
+    channelName,
+    ably,
+    logger,
+  }) => {
+    const sync = vi.fn(async () => ({ data: simpleTestData, sequenceId: undefined }));
+    const merge = vi.fn();
+    const erroredListener = vi.fn();
+
+    const model = new Model(
+      'test',
+      { sync, merge },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: { ...defaultSyncOptions, retryStrategy: () => -1 },
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
+    );
+    model.on('errored', erroredListener);
+
+    await model
+      .sync()
+      .catch((err) => expect(err.message).toEqual('The sync function returned an undefined sequenceId'));
+    expect(sync).toHaveBeenCalledOnce();
+    expect(merge).not.toHaveBeenCalled();
+    expect(erroredListener).toHaveBeenCalledOnce();
   });
 
   it<ModelTestContext>('allows sync to be called manually, with params', async ({ channelName, ably, logger }) => {
@@ -1543,6 +1607,68 @@ describe('Model', () => {
     expect(lis).toHaveBeenCalledTimes(0);
   });
 
+  it<ModelTestContext>('stream message error can handle the a the StreamDiscontinuityError', async ({
+    channelName,
+    ably,
+    logger,
+    streams,
+  }) => {
+    const events = { channelEvents: new Subject<Types.Message>() };
+
+    const streamDiscontinuityError = new StreamDiscontinuityError('stream error');
+    streams.newStream({ channelName }).subscribe = vi.fn(async (callback) => {
+      events.channelEvents.subscribe(() => callback(streamDiscontinuityError));
+    });
+
+    let syncCalled = 0;
+    const sync = vi.fn(async () => {
+      if (syncCalled > 0) {
+        syncCalled++;
+        throw new Error('Syncing Error');
+      }
+
+      // first call successful
+      syncCalled++;
+      return { data: 'data_0', sequenceId: '0' };
+    });
+
+    const merge = vi.fn((_, event) => event.data);
+    const model = new Model(
+      'test',
+      { sync, merge },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: { ...defaultSyncOptions, retryStrategy: fixedRetryStrategy(1, 1) },
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
+    );
+    let subscription = new Subject<void>();
+    const subscriptionCall = getEventPromises(subscription, 1)[0];
+
+    const subscriptionListener = vi.fn(() => subscription.next());
+    const erroredListener = vi.fn();
+
+    // initialize and sync
+    model.on('errored', erroredListener);
+    await model.subscribe(subscriptionListener);
+    expect(sync).toHaveBeenCalledOnce();
+
+    await subscriptionCall; // wait for first event to propagate
+    expect(subscriptionListener).toHaveBeenCalledTimes(1);
+    events.channelEvents.next(createMessage(1));
+
+    await statePromise(model, 'paused'); // pause before attempting to recover from error
+    await statePromise(model, 'syncing'); // resume() -> resync() to recover from error
+    await statePromise(model, 'errored'); // resync failed
+
+    expect(merge).toHaveBeenCalledTimes(0); // message fails to process, merge not called
+    expect(sync).toHaveBeenCalledTimes(2);
+    expect(erroredListener).toHaveBeenCalledTimes(1);
+  });
+
   it<ModelTestContext>('if merge function fails on confirmed event, and subsequent replay fails, set model to errored', async ({
     channelName,
     ably,
@@ -1550,7 +1676,6 @@ describe('Model', () => {
     streams,
   }) => {
     const s1 = streams.newStream({ channelName: channelName });
-    s1.subscribe = vi.fn();
 
     const events = new Subject<Types.Message>();
     s1.subscribe = vi.fn(async (callback) => {
@@ -1588,7 +1713,7 @@ describe('Model', () => {
         eventBufferOptions: defaultEventBufferOptions,
       },
     );
-    model.sync();
+    await model.sync();
     expect(syncFn).toHaveReturnedTimes(1);
 
     const lis: EventListener<ModelStateChange> = vi.fn<any, any>();
