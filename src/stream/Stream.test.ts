@@ -270,7 +270,7 @@ describe('Stream', () => {
     });
   });
 
-  it<StreamTestContext>('successfully to syncs if sequenceId is 0 with multiple pages of history', async ({
+  it<StreamTestContext>('successfully syncs if sequenceId is 0 with multiple pages of history', async ({
     ably,
     logger,
     channelName,
@@ -327,7 +327,7 @@ describe('Stream', () => {
     expect(subscribeListener).toHaveBeenCalledTimes(6);
   });
 
-  it<StreamTestContext>('successfully to syncs if sequenceId is 0 with 2 pages of history, second one empty', async ({
+  it<StreamTestContext>('successfully syncs if sequenceId is 0 with 2 pages of history, second one empty', async ({
     ably,
     logger,
     channelName,

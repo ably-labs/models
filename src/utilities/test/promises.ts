@@ -9,3 +9,11 @@ export const getEventPromises = <T>(subject: Subject<T>, n: number) => {
   }
   return promises;
 };
+
+export async function foreachSync(data: any[], callback: Function): Promise<void> {
+  for (let i = 0; i < data.length; i++) {
+    await callback(data[i]);
+  }
+
+  return;
+}

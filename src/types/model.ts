@@ -145,7 +145,7 @@ export type ConfirmedEvent = Event & {
    * If true, indicates that the backend is (asynchronously) explicitly rejecting this optimistic change.
    * This is useful if the server cannot reject the change synchronously with the mutation request
    * (such as if the rejection occurred after the backend sent a response).
-   * This field is set to `true` iff. there is an `x-ably-models-reject: true` header in the message extras.
+   * This field is set to `true` if. there is an `x-ably-models-reject: true` header in the message extras.
    * @see https://ably.com/docs/api/realtime-sdk/messages?lang=nodejs#extras
    */
   rejected: boolean;
