@@ -30,7 +30,7 @@ interface TestStreamContext extends ModelOptions {
 describe('Model integration', () => {
   describe('model state and optimistic events', () => {
     beforeEach<TestContext>(async (context) => {
-      const channelName = 'test-channel';
+      const channelName = 'test-channel-' + uuid();
       const data = await createAblyApp({
         keys: [{}],
         namespaces: [{ id: channelName, persisted: true }],
@@ -168,22 +168,23 @@ describe('Model integration', () => {
       model,
       channelName,
       eventData,
-      syncData,
+      syncData: mockSyncResponses,
     }) => {
       await model.sync(1);
       let subscription = new Subject<void>();
-      const subscriptionCalls = getEventPromises(subscription, 2);
+      const subscriptionCalls = getEventPromises(subscription, 3);
       const subscriptionSpy = vi.fn(() => subscription.next());
-      const finalData = { ...syncData[1].data, ...eventData.data };
+      const syncData = mockSyncResponses[1].data;
+      const optimisticallyUpdatedData = { ...syncData, ...eventData.data };
 
-      model.subscribe(subscriptionSpy);
-      await model.optimistic(eventData);
-      expect(model.data.optimistic).toEqual(finalData);
+      await model.subscribe(subscriptionSpy);
+      const [confirmation] = await model.optimistic(eventData);
+      expect(model.data.optimistic).toEqual(optimisticallyUpdatedData);
 
       const channel = ably.channels.get(channelName);
       await channel.publish({
         data: eventData.data,
-        name: 'update',
+        name: eventData.name,
         extras: {
           headers: {
             'x-ably-models-event-uuid': eventData.mutationId,
@@ -193,13 +194,15 @@ describe('Model integration', () => {
       });
 
       await subscriptionCalls[0];
-      expect(model.data.confirmed).toEqual(syncData[1].data);
+      expect(model.data.confirmed).toEqual(syncData);
 
       await subscriptionCalls[1];
-
-      expect(subscriptionSpy).toHaveBeenCalledTimes(2);
-      expect(subscriptionSpy).toHaveBeenNthCalledWith(2, null, finalData);
-      expect(model.data.confirmed).toEqual(syncData[1].data);
+      await subscriptionCalls[2];
+      expect(subscriptionSpy).toHaveBeenCalledTimes(3);
+      expect(subscriptionSpy).toHaveBeenNthCalledWith(2, null, optimisticallyUpdatedData);
+      expect(subscriptionSpy).toHaveBeenNthCalledWith(3, null, syncData);
+      expect(model.data.confirmed).toEqual(syncData);
+      expect(confirmation).rejects.toThrow('events contain rejections: name:update');
     });
 
     it<TestContext>('rejects the data and rolls back the changes if optimistic() timeouts', async ({
