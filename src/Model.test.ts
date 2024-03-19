@@ -92,7 +92,11 @@ describe('Model', () => {
     vi.restoreAllMocks();
   });
 
-  it<ModelTestContext>('enters ready state after sync', async ({ channelName, ably, logger }) => {
+  it<ModelTestContext>('enters ready state after sync with a string sequenceId ', async ({
+    channelName,
+    ably,
+    logger,
+  }) => {
     // the promise returned by the subscribe method resolves when we have successfully attached to the channel
     let completeSync: (...args: any[]) => void = () => {
       throw new Error('completeSync not defined');
@@ -101,6 +105,45 @@ describe('Model', () => {
     const sync = vi.fn(async () => {
       await synchronised;
       return { data: simpleTestData, sequenceId: '0' };
+    });
+    const model = new Model(
+      'test',
+      { sync: sync, merge: () => simpleTestData },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: defaultSyncOptions,
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
+    );
+    await statePromise(model, 'initialized');
+    const modelSynced = model.sync();
+
+    await statePromise(model, 'syncing');
+    completeSync();
+    await statePromise(model, 'ready');
+    expect(sync).toHaveBeenCalledOnce();
+    expect(model.data.optimistic).toEqual(simpleTestData);
+    expect(model.data.confirmed).toEqual(simpleTestData);
+    const syncResult = await modelSynced;
+    expect([undefined, { current: 'ready', previous: 'syncing', reason: undefined }]).toContain(syncResult);
+  });
+
+  it<ModelTestContext>('eenters ready state after sync with a number sequenceId', async ({
+    channelName,
+    ably,
+    logger,
+  }) => {
+    // the promise returned by the subscribe method resolves when we have successfully attached to the channel
+    let completeSync: (...args: any[]) => void = () => {
+      throw new Error('completeSync not defined');
+    };
+    const synchronised = new Promise((resolve) => (completeSync = resolve));
+    const sync = vi.fn(async () => {
+      await synchronised;
+      return { data: simpleTestData, sequenceId: 0 };
     });
     const model = new Model(
       'test',
@@ -165,6 +208,37 @@ describe('Model', () => {
     logger,
   }) => {
     const sync = vi.fn(async () => ({ data: simpleTestData, sequenceId: undefined }));
+    const merge = vi.fn();
+    const erroredListener = vi.fn();
+
+    const model = new Model(
+      'test',
+      { sync, merge },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: { ...defaultSyncOptions, retryStrategy: () => -1 },
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
+    );
+    model.on('errored', erroredListener);
+
+    await model
+      .sync()
+      .catch((err) => expect(err.message).toEqual('The sync function returned an undefined sequenceId'));
+    expect(sync).toHaveBeenCalledOnce();
+    expect(merge).not.toHaveBeenCalled();
+    expect(erroredListener).toHaveBeenCalledOnce();
+  });
+
+  it<ModelTestContext>('it fails sync when sequenceId is null with no retryable', async ({
+    channelName,
+    ably,
+    logger,
+  }) => {
+    const sync = vi.fn(async () => ({ data: simpleTestData, sequenceId: null }));
     const merge = vi.fn();
     const erroredListener = vi.fn();
 

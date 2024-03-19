@@ -5,6 +5,7 @@ import { Subject, Subscription } from 'rxjs';
 import { OrderedHistoryResumer } from './Middleware.js';
 import { StreamDiscontinuityError } from '../Errors.js';
 import type { StandardCallback } from '../types/callbacks';
+import { MessageId } from '../types/model.js';
 import type { StreamStateChange, StreamOptions, StreamState } from '../types/stream.js';
 import EventEmitter from '../utilities/EventEmitter.js';
 import { VERSION } from '../version.js';
@@ -14,7 +15,7 @@ export interface IStream {
   get channelName(): string;
 
   reset(): Promise<void>;
-  replay(sequenceId: string): Promise<void>;
+  replay(sequenceId: MessageId): Promise<void>;
   subscribe(callback: StandardCallback<AblyTypes.Message>): void;
   unsubscribe(callback: StandardCallback<AblyTypes.Message>): void;
   dispose(reason?: AblyTypes.ErrorInfo | string): Promise<void>;
@@ -106,7 +107,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     this.subscriptionMap = new WeakMap();
   }
 
-  public async replay(sequenceId: string) {
+  public async replay(sequenceId: MessageId) {
     this.logger.trace({ ...this.baseLogContext, action: 'replay()', sequenceId });
     try {
       if (this.currentState !== 'reset') {
@@ -138,7 +139,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
    * the specified sequenceId is reached.
    * @param sequenceId The identifier that specifies the position in the message stream (by message ID) from which to resume.
    */
-  private async seek(sequenceId: string) {
+  private async seek(sequenceId: MessageId) {
     this.logger.trace({ ...this.baseLogContext, action: 'seek()', sequenceId });
     this.setState('seeking');
 
@@ -197,7 +198,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
       n++;
     } while (page && page.items && page.items.length > 0 && page.hasNext() && !done);
 
-    if (sequenceId === '0' && this.middleware.state !== 'success') {
+    if ((sequenceId === '0' || sequenceId === 0) && this.middleware.state !== 'success') {
       // The sequenceId is 0 there will be no message in the history to match it.
       // The middleware is not in success which means there is some history so we apply it
       // The situation occurs when history has been added in the time between the sync function resolving the stream

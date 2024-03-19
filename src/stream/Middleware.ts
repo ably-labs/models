@@ -1,5 +1,6 @@
 import { Types as AblyTypes } from 'ably';
 
+import { MessageId } from '../types/model.js';
 import type { EventOrderer } from '../types/optimistic.js';
 
 abstract class MiddlewareBase {
@@ -39,7 +40,7 @@ export function lexicographicOrderer(a: string | number, b: string | number): nu
   return 1;
 }
 
-export function numericOtherwiseLexicographicOrderer(a: string, b: string): number {
+export function numericOtherwiseLexicographicOrderer(a: string | number, b: string | number): number {
   let idA: number | string, idB: number | string;
   try {
     idA = Number(a);
@@ -108,7 +109,7 @@ export class OrderedHistoryResumer extends MiddlewareBase {
   private slidingWindow: SlidingWindow;
 
   constructor(
-    private sequenceId: string,
+    private sequenceId: MessageId,
     private readonly windowSizeMs: number,
     private readonly eventOrderer: EventOrderer = numericOtherwiseLexicographicOrderer,
   ) {
@@ -125,11 +126,11 @@ export class OrderedHistoryResumer extends MiddlewareBase {
     super.next(message!);
   }
 
-  private reverseOrderer(a: string, b: string) {
+  private reverseOrderer(a: MessageId, b: MessageId) {
     return this.eventOrderer(a, b) * -1;
   }
 
-  private messageBeforeInclusive(a: string, b: string) {
+  private messageBeforeInclusive(a: MessageId, b: MessageId) {
     return this.eventOrderer(a, b) <= 0;
   }
 
