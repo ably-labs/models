@@ -130,6 +130,10 @@ export type OptimisticEvent = Event & {
 };
 
 /**
+ * A message ID used to identify an event. Used for message seeking.
+ */
+export type MessageId = string | number;
+/**
  * An event received from the backend over Ably that represents a confirmed change on the underlying state in the database.
  */
 export type ConfirmedEvent = Event & {
@@ -174,7 +178,7 @@ export type SyncFunc<F extends SyncFuncConstraint> = F;
  * @returns {Promise<{data: T, sequenceId: string}>} A promise containing the data from the backend and a sequenceId.
  * @interface
  */
-export type SyncReturnType<T> = Promise<{ data: T; sequenceId: string }>;
+export type SyncReturnType<T> = Promise<{ data: T; sequenceId: MessageId }>;
 
 /**
  * Type constraint for a sync function.

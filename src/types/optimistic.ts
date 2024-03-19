@@ -13,11 +13,11 @@ export type EventComparator = (optimistic: Event, confirmed: Event) => boolean;
  * EventOrderer is used to determine the order of elements in the event buffer. It expects
  * to return a negative value of the first argument is less than the second argument, zero
  * if they are equal, and a positive value otherwise.
- * @param {string} a - The first event ID.
- * @param {string} b - The second event ID.
+ * @param {string | number} a - The first event ID.
+ * @param {string | number} b - The second event ID.
  * @param {number} - A negative value if a < b, zero if a == b, a positive value otherwise.
  */
-export type EventOrderer = (a: string, b: string) => number;
+export type EventOrderer = (a: string | number, b: string | number) => number;
 
 /**
  * OptimisticEventOptions can be used to configure options on individual optimistic events.

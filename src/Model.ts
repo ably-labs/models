@@ -22,6 +22,7 @@ import type {
   ConfirmedEvent,
   ExtractData,
   SyncFuncConstraint,
+  MessageId,
 } from './types/model.js';
 import {
   MODELS_EVENT_REJECT_HEADER,
@@ -480,7 +481,7 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
       this.removeStream();
 
       const { data, sequenceId } = await this.syncFunc(...(this.lastSyncParams || ([] as unknown as Parameters<S>)));
-      if (!sequenceId) {
+      if (sequenceId === null || sequenceId === undefined) {
         const err = Error('The sync function returned an undefined sequenceId');
         // we set the state to errored here to ensure that this function is not retried by the Model.retryable()
         // this avoids a sync function that returns the wrong response structure from being retried.
@@ -519,7 +520,7 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
     this.streamSubscriptionsMap.delete(this.stream);
   }
 
-  private async addStream(sequenceId: string) {
+  private async addStream(sequenceId: MessageId) {
     this.logger.trace({ ...this.baseLogContext, action: 'addStream()', sequenceId });
     const callback = this.onStreamMessage.bind(this);
     this.stream.subscribe(callback);
