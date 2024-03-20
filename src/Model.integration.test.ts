@@ -361,7 +361,7 @@ describe('Model integration', () => {
       );
 
       await model.sync(syncSequenceId);
-      await model.subscribe(subscribeListener);
+      model.subscribe(subscribeListener);
 
       await subscriptionEvents[0];
       await subscriptionEvents[1];
@@ -387,7 +387,7 @@ describe('Model integration', () => {
       );
 
       await model.sync(syncSequenceId);
-      await model.subscribe(subscribeListener);
+      model.subscribe(subscribeListener);
 
       await subscriptionEvents[0];
       await subscriptionEvents[1];

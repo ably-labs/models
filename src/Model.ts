@@ -296,18 +296,20 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
   }
 
   /**
-   * Subscribes to changes to the data. If the model has not been started yet by calling
-   * model.sync(), subscribe will start the model by calling sync().
+   * Subscribes to changes to the data. If the model is in an initialized state, it has not been synchronised, an
+   * error will be thrown.
    * @param {SubscriptionCallback<S>} callback - The callback to invoke when the model data changes.
    * @param {SubscriptionOptions} options - Optional subscription options that can be used to specify whether to subscribe to
    * optimistic or only confirmed updates. Defaults to optimistic.
-   * @return A promise that resolves when the subscription has been set up and if in an initialized state successfully synchronised
-   * @throws {Error} If there is an error during the sync operation.
+   * @throws {Error} If callback is not a function
+   * @throws {Error} If the options provided is not an object or the optimistic property is not a boolean
+   * @throws {Error} If the model is in a 'disposed' or 'initialized' state
    */
-  public async subscribe(callback: SubscriptionCallback<S>, options: SubscriptionOptions = { optimistic: true }) {
+  public subscribe(callback: SubscriptionCallback<S>, options: SubscriptionOptions = { optimistic: true }) {
     if (typeof callback !== 'function') {
       throw new InvalidArgumentError('Expected callback to be a function');
     }
+
     if (options && (typeof options !== 'object' || typeof options.optimistic !== 'boolean')) {
       throw new InvalidArgumentError('Expected options to be a SubscriptionOptions');
     }
@@ -315,7 +317,7 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
     this.logger.trace({ ...this.baseLogContext, action: 'subscribe()', options });
 
     if (this.state === 'initialized') {
-      await this.sync(...(this.lastSyncParams || ([] as unknown as Parameters<S>)));
+      throw new Error('Cannot subscribe to an initialized model');
     }
 
     if (this.state === 'disposed') {
