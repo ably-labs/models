@@ -131,7 +131,7 @@ describe('Model', () => {
     expect([undefined, { current: 'ready', previous: 'syncing', reason: undefined }]).toContain(syncResult);
   });
 
-  it<ModelTestContext>('eenters ready state after sync with a number sequenceId', async ({
+  it<ModelTestContext>('enters ready state after sync with a number sequenceId', async ({
     channelName,
     ably,
     logger,
@@ -787,6 +787,24 @@ describe('Model', () => {
     expect(subscriptionSpy).toHaveBeenNthCalledWith(1, null, 'data_0');
     expect(model.data.optimistic).toEqual('data_0');
     expect(model.data.confirmed).toEqual('data_0');
+  });
+
+  it<ModelTestContext>('subscribe fails if model is in initialized state', async ({ channelName, ably, logger }) => {
+    const sync = vi.fn(async () => ({ data: '', sequenceId: '0' }));
+    const model = new Model(
+      'test',
+      { sync, merge: () => 'merged' },
+      {
+        ably,
+        channelName,
+        logger,
+        syncOptions: defaultSyncOptions,
+        optimisticEventOptions: defaultOptimisticEventOptions,
+        eventBufferOptions: defaultEventBufferOptions,
+      },
+    );
+
+    expect(() => model.subscribe(() => {})).toThrowError('Cannot subscribe to an initialized model');
   });
 
   it<ModelTestContext>('ignores errors in subscribe callbacks', async ({ channelName, ably, logger, streams }) => {
@@ -1726,8 +1744,9 @@ describe('Model', () => {
     const erroredListener = vi.fn();
 
     // initialize and sync
+    await model.sync();
     model.on('errored', erroredListener);
-    await model.subscribe(subscriptionListener);
+    model.subscribe(subscriptionListener);
     expect(sync).toHaveBeenCalledOnce();
 
     await subscriptionCall; // wait for first event to propagate
