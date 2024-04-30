@@ -19,15 +19,15 @@ Store the data displayed in your frontend application in any database you choose
 
 **Collaborative by default**
 
-Concurrently render live updates made by multiple users through your database.
+Render live updates made by multiple users through your database.
 
 **Optimistic events**
 
-Deliver a super-responsive user experience. Show changes instantly, bypassing the wait for a network round trip or your database to confirm mutations. The Realtime Data Models SDK confirms changes behind the scenes, manages rollbacks, and flags any errors or conflicts to your app.
+Deliver a super-responsive user experience. Show changes instantly with optimistic updates, bypassing the wait for a network round trip. The Realtime Data Models SDK confirms changes processed by your backend behind the scenes, manages rollbacks, and flags any errors or conflicts to your app.
 
 **Backed by Ably**
 
-The Realtime Data Models SDK uses Ably’s fast, global message distribution network to update numerous clients across different regions with the freshest database state.
+The Realtime Data Models SDK uses Ably’s fast, global message distribution network to fan-out updates from your backend to numerous clients across different regions with the freshest database state.
 
 ---
 
@@ -48,15 +48,15 @@ The Realtime Data Models SDK uses Ably’s fast, global message distribution net
 
 The Realtime Data Models SDK simplifies syncing application state from the database to the client in realtime. It constantly displays changes made simultaneously by others, creating a reactive, realtime, multiplayer application experience.
 
-The Realtime Data Models SDK is a JavaScript (TypeScript) library that enables you to create live and observable data models in your frontend application. These models remain synchronized with the realtime state of your database model. You can easily integrate this SDK into your project regardless of your frontend framework preference. To learn how to use the SDK in a React/Next.js application, see [examples](./examples/posts).
+The Realtime Data Models SDK is a JavaScript (TypeScript) library that enables you to create live and observable data models in your frontend application. These models remain synchronized with the realtime state of your database model. You can easily integrate this SDK into your project regardless of your frontend framework preference. To learn how to use the SDK in a React/Next.js application, see the [examples](./examples).
 
-Your backend publishes mutation events to Ably. The Realtime Data Models SDK updates your frontend app's local state. You can also pair the SDK with Ably's [Database Connector](https://github.com/ably-labs/adbc) to transmit transactional change events with your database mutations.
+Your backend publishes mutation events to Ably. The Realtime Data Models SDK listens for these events and updates your frontend app's local state. You can pair the SDK with Ably's [Database Connector](https://github.com/ably-labs/adbc) to transactionally emit change events with your database mutations.
 
-> **Note:** Ably's realtime messaging platform integrates with the Realtime Data Models SDK to provide a fast, reliable, scalable global distribution network with seamless recovery.
+> **Note:** Ably's realtime messaging platform integrates with the Realtime Data Models SDK to provide a fast, reliable, scalable global distribution network with seamless connection recovery.
 
 ## Development Status
 
-The Models SDK is in the public alpha stage. It's designed primarily for experimental use and is currently unsuitable for production use. Your valuable feedback will help us focus on enhancements and resolve issues for upcoming versions.
+The Models SDK is in the public alpha stage. It's designed primarily for experimental use and is currently unsuitable for production use. Your valuable [feedback](https://docs.google.com/forms/d/e/1FAIpQLSereeJrUbLRJ5g8EBFY9qglUheyB7-bmfaAq2chFpdAuZJkDA/viewform) will help us prioritise enhancements and issues for upcoming releases.
 
 ## Quickstart
 
@@ -75,6 +75,7 @@ Install the Ably JavaScript SDK and the Realtime Data Models SDK:
 ```sh
 npm install ably @ably-labs/models
 ```
+
 Though you can test your installation and authentication with [basic authentication](https://ably.com/docs/auth/basic), we strongly recommend [token authentication](https://ably.com/docs/auth/token) for in production environments.
 
 ### Instantiation
