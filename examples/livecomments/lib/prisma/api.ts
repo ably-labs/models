@@ -77,7 +77,7 @@ export type TxClient = Omit<PrismaClient, runtime.ITXClientDenyList>;
 
 export async function addComment(
   tx: TxClient,
-  mutationID: string,
+  mutationId: string,
   postId: number,
   authorId: number,
   content: string,
@@ -87,12 +87,12 @@ export async function addComment(
     include: { author: true },
   });
 
-  return { mutation_id: mutationID, channel: `${channelNamespace}post:${comment.postId}`, name: 'addComment', data: comment, headers: {} };
+  return { mutation_id: mutationId, channel: `${channelNamespace}post:${comment.postId}`, name: 'addComment', data: comment, headers: {} };
 }
 
 export async function editComment(
   tx: TxClient,
-  mutationID: string,
+  mutationId: string,
   id: number,
   content: string,
 ): Promise<Prisma.outboxCreateInput> {
@@ -104,7 +104,7 @@ export async function editComment(
   });
 
   return {
-    mutation_id: mutationID,
+    mutation_id: mutationId,
     channel: `${channelNamespace}post:${comment.postId}`,
     name: 'editComment',
     data: comment,
@@ -112,13 +112,13 @@ export async function editComment(
   };
 }
 
-export async function deleteComment(tx: TxClient, mutationID: string, id: number): Promise<Prisma.outboxCreateInput> {
+export async function deleteComment(tx: TxClient, mutationId: string, id: number): Promise<Prisma.outboxCreateInput> {
   const comment = await tx.comment.delete({
     where: { id },
   });
 
   return {
-    mutation_id: mutationID,
+    mutation_id: mutationId,
     channel: `${channelNamespace}post:${comment.postId}`,
     name: 'deleteComment',
     data: comment,

@@ -5,11 +5,11 @@ import type { Post as PostType } from '@/lib/prisma/api';
 import type { Author as AuthorType } from '@/lib/prisma/api';
 import { Comment } from '@/lib/prisma/api';
 
-export async function addComment(mutationID: string, author: AuthorType, postId: number, content: string) {
+export async function addComment(mutationId: string, author: AuthorType, postId: number, content: string) {
   const response = await fetch('/api/comments', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mutationID, authorId: author.id, postId, content }),
+    body: JSON.stringify({ mutationId, authorId: author.id, postId, content }),
   });
   if (!response.ok) {
     throw new Error(`POST /api/comments: ${response.status} ${JSON.stringify(await response.json())}`);
@@ -17,11 +17,11 @@ export async function addComment(mutationID: string, author: AuthorType, postId:
   return response.json();
 }
 
-export async function editComment(mutationID: string, id: number, content: string) {
+export async function editComment(mutationId: string, id: number, content: string) {
   const response = await fetch(`/api/comments/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mutationID, content }),
+    body: JSON.stringify({ mutationId, content }),
   });
   if (!response.ok) {
     throw new Error(`PUT /api/comments/:id: ${response.status} ${JSON.stringify(await response.json())}`);
@@ -29,8 +29,8 @@ export async function editComment(mutationID: string, id: number, content: strin
   return response.json();
 }
 
-export async function deleteComment(mutationID: string, id: number) {
-  const response = await fetch(`/api/comments/${id}`, { method: 'DELETE', headers: { 'x-mutation-id': mutationID } });
+export async function deleteComment(mutationId: string, id: number) {
+  const response = await fetch(`/api/comments/${id}`, { method: 'DELETE', headers: { 'x-mutation-id': mutationId } });
   if (!response.ok) {
     throw new Error(`DELETE /api/comments/:id: ${response.status} ${JSON.stringify(await response.json())}`);
   }

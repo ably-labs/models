@@ -4,7 +4,7 @@ import { withOutboxWrite, addComment } from '@/lib/prisma/api';
 
 export async function POST(request: NextRequest) {
   try {
-    let comment: { mutationID: string; postId: number; authorId: number; content: string };
+    let comment: { mutationId: string; postId: number; authorId: number; content: string };
     try {
       comment = await request.json();
     } catch (error) {
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }
     const data = await withOutboxWrite(
       addComment,
-      comment.mutationID,
+      comment.mutationId,
       comment.postId,
       comment.authorId,
       comment.content,
