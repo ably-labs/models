@@ -21,7 +21,6 @@ export const useIssueModel = (issueId: number | null): [IssueType | undefined, M
     if (!issueId) return;
 
     const model: ModelType = modelsClient.models.get({
-      name: `issue:${issueId}`,
       channelName: `issue:${issueId}`,
       sync: fetchIssueById,
       // @ts-ignore - types to be fixed for merge functions later in COL-651 https://ably.atlassian.net/browse/COL-651

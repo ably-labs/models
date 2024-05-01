@@ -10,12 +10,12 @@
     "seed": "pnpm dlx tsx ./data/seed.ts"
   },
   "dependencies": {
-    "@ably-labs/models": "^0.0.2",
+    "@ably-labs/models": "^0.0.3",
     "@radix-ui/react-accordion": "^1.1.2",
     "@radix-ui/react-tabs": "^1.0.4",
     "@radix-ui/themes": "^2.0.0",
     "@types/lodash.debounce": "^4.0.9",
-    "ably": "^1.2.48",
+    "ably": "^2.0.3",
     "classnames": "^2.3.2",
     "dotenv": "^16.3.1",
     "js-cookie": "^3.0.5",

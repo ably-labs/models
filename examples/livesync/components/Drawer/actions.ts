@@ -38,7 +38,7 @@ export const fetchIssueById = async (id: number) => {
 
     const ids = await sql`SELECT COALESCE(MAX(sequence_id), 0) FROM outbox`;
 
-    return { data: issues[0], sequenceID: ids[0].max };
+    return { data: issues[0], sequenceId: ids[0].coalesce };
   });
 
   return issue;
@@ -47,17 +47,18 @@ export const fetchIssueById = async (id: number) => {
 export const fetchComments = async (id: number) => {
   const data = await sql.begin(async (sql) => {
     const comments = await sql<CommentData[]>`
-      SELECT 
+      SELECT
         c.id, c.content, c.updated_at, u.last_name, u.first_name, u.color
       FROM comments c
         LEFT OUTER JOIN users u
-        ON u.id = c.user_id 
+        ON u.id = c.user_id
       WHERE issue_id = ${id}
       ORDER BY c.updated_at DESC
     `;
 
     const ids = await sql`SELECT COALESCE(MAX(sequence_id), 0) FROM outbox`;
-    return { data: comments, sequenceID: ids[0].max };
+
+    return { data: comments, sequenceId: ids[0].coalesce };
   });
 
   return data;
@@ -67,7 +68,7 @@ export const postComment = async ({
   userId,
   issueId,
   content,
-  mutationID,
+  mutationId,
   updated_at,
   first_name,
   last_name,
@@ -76,7 +77,7 @@ export const postComment = async ({
   userId: number;
   issueId: number;
   content: string;
-  mutationID: string;
+  mutationId: string;
   updated_at: string;
   first_name: string;
   last_name: string;
@@ -90,7 +91,7 @@ export const postComment = async ({
     `;
 
     const data = {
-      mutation_id: mutationID,
+      mutation_id: mutationId,
       channel: `comments:${issueId}`,
       name: 'postComment',
       data: {
@@ -117,23 +118,23 @@ export interface UpdateIssueData {
   owner_id: number;
   status: StatusType;
   due_date: string;
-  mutationID: string;
+  mutationId: string;
 }
 
 export const updateIssue = async (
   id: number,
-  { project_id, owner_id, status, due_date, mutationID }: UpdateIssueData,
+  { project_id, owner_id, status, due_date, mutationId }: UpdateIssueData,
 ) => {
   const issue = await sql.begin(async (sql) => {
     const issue = await sql<IssueType[]>`
       UPDATE issues
       SET project_id = ${project_id}, owner_id= ${owner_id}, status=${status}, due_date = ${due_date}
       WHERE id = ${id}
-      RETURNING * 
+      RETURNING *
     `;
 
     const data = {
-      mutation_id: mutationID,
+      mutation_id: mutationId,
       channel: `issue:${id}`,
       name: 'updateIssue',
       data: {
@@ -155,13 +156,13 @@ export const updateIssue = async (
 export interface UpdateInputData {
   name: string;
   value: string;
-  mutationID: string;
+  mutationId: string;
 }
 
-export const updateIssueNameOrDescription = async (id: number, { name, value, mutationID }: UpdateInputData) => {
+export const updateIssueNameOrDescription = async (id: number, { name, value, mutationId }: UpdateInputData) => {
   const issue = await sql.begin(async (sql) => {
     const data = {
-      mutation_id: mutationID,
+      mutation_id: mutationId,
       channel: `issue:${id}`,
       name: 'updateInput',
       data: {
@@ -177,7 +178,7 @@ export const updateIssueNameOrDescription = async (id: number, { name, value, mu
         UPDATE issues
         SET description = ${value}
         WHERE id = ${id}
-        RETURNING * 
+        RETURNING *
       `;
       return issue[0];
     }
@@ -186,7 +187,7 @@ export const updateIssueNameOrDescription = async (id: number, { name, value, mu
         UPDATE issues
         SET name = ${value}
         WHERE id = ${id}
-        RETURNING * 
+        RETURNING *
       `;
 
     return issue[0];

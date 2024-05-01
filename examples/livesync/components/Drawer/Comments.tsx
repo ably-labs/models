@@ -32,12 +32,12 @@ export const Comments = ({ issueId, user }: Props) => {
   const onSubmit = async ({ content }: FormData) => {
     if (issueId === null || !user || !model) return;
 
-    const mutationID = uuidv4();
+    const mutationId = uuidv4();
     const data = {
       userId: user.id,
       issueId,
       content,
-      mutationID,
+      mutationId,
       first_name: user.first_name,
       last_name: user.last_name,
       color: user.color,
@@ -45,7 +45,7 @@ export const Comments = ({ issueId, user }: Props) => {
     };
 
     const [confirmation, cancel] = await model.optimistic({
-      mutationID,
+      mutationId,
       name: CommentsMergeEvent.POST_COMMENT,
       data,
     });
