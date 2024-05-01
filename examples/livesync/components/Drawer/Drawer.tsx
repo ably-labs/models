@@ -53,9 +53,9 @@ export const Drawer = ({ children, projectId }: Props) => {
 
   const debouncedUpdateInput = debounce(async (id: number, name: string, value: string) => {
     if (!model) return;
-    const mutationID = uuidv4();
+    const mutationId = uuidv4();
     const [confirmation, cancel] = await model.optimistic({
-      mutationID,
+      mutationId,
       name: MergeEvent.UPDATE_INPUT,
       data: {
         id,
@@ -65,7 +65,7 @@ export const Drawer = ({ children, projectId }: Props) => {
     });
 
     try {
-      await updateIssueNameOrDescription(id, { name, value, mutationID });
+      await updateIssueNameOrDescription(id, { name, value, mutationId });
       await confirmation;
     } catch (err) {
       console.error(err);
@@ -91,17 +91,17 @@ export const Drawer = ({ children, projectId }: Props) => {
   }) => {
     if (!issueId || !issueData || !model) return;
 
-    const mutationID = uuidv4();
+    const mutationId = uuidv4();
     const newData: UpdateIssueData = {
       project_id: project_id ? parseInt(project_id) : projectId,
       owner_id: owner_id ? parseInt(owner_id) : issueData.owner_id,
       status: status ?? issueData.status,
       due_date: due_date ?? issueData.due_date,
-      mutationID: mutationID,
+      mutationId,
     };
 
     const [confirmation, cancel] = await model.optimistic({
-      mutationID,
+      mutationId,
       name: MergeEvent.UPDATE_ISSUE,
       data: newData,
     });
