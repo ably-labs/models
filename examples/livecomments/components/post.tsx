@@ -11,6 +11,17 @@ import { AuthorProvider } from '@/context/author';
 import { useModel, ModelType } from '@/lib/models/hook';
 import { addComment, deleteComment, editComment } from '@/lib/models/mutations';
 import type { Post as PostType, Author as AuthorType } from '@/lib/prisma/api';
+import Ably from 'ably';
+import { AblyProvider } from 'ably/react';
+
+function AblyPost({ post: initialPost }: { post: PostType }) {
+  const model = useModel(initialPost.id);
+  if (!model) {
+    return <PostPlaceholder />;
+  }
+
+  return <Post model={model} />;
+}
 
 
 function Post({ model }: { model: ModelType }) {
@@ -38,16 +49,16 @@ function Post({ model }: { model: ModelType }) {
   }, [model]);
 
   async function onAdd(author: AuthorType, postId: number, content: string) {
-    const mutationID = uuidv4();
+    const mutationId = uuidv4();
     const [confirmed, cancel] = await model.optimistic({
-      mutationID: mutationID,
+      mutationId: mutationId,
       name: 'addComment',
       data: { id: uuidv4(), postId, author, content, optimistic: true, createdAt: Date.now() },
     });
     setAlert('Optimistically added comment', 'info');
 
     try {
-      await addComment(mutationID, author, postId, content);
+      await addComment(mutationId, author, postId, content);
       await confirmed;
       setAlert('Add comment confirmed!', 'success');
     } catch (err) {
@@ -57,17 +68,17 @@ function Post({ model }: { model: ModelType }) {
   }
 
   async function onEdit(commentId: number, content: string) {
-    const mutationID = uuidv4();
+    const mutationId = uuidv4();
     const editedComment = { ...post.comments.findLast((c) => c.id === commentId)!, content: content, optimistic: true };
     const [confirmed, cancel] = await model.optimistic({
-      mutationID: mutationID,
+      mutationId: mutationId,
       name: 'editComment',
       data: editedComment,
     });
     setAlert('Optimistically edited comment', 'info');
 
     try {
-      await editComment(mutationID, commentId, content);
+      await editComment(mutationId, commentId, content);
       await confirmed;
       setAlert('Edit comment confirmed!', 'success');
     } catch (err) {
@@ -77,16 +88,16 @@ function Post({ model }: { model: ModelType }) {
   }
 
   async function onDelete(commentId: number) {
-    const mutationID = uuidv4();
+    const mutationId = uuidv4();
     const [confirmed, cancel] = await model.optimistic({
-      mutationID: mutationID,
+      mutationId: mutationId,
       name: 'deleteComment',
       data: { id: commentId },
     });
     setAlert('Optimistically deleted comment', 'info');
 
     try {
-      await deleteComment(mutationID, commentId);
+      await deleteComment(mutationId, commentId);
       await confirmed;
       setAlert('Delete comment confirmed!', 'success');
     } catch (err) {
@@ -115,16 +126,16 @@ function Post({ model }: { model: ModelType }) {
 }
 
 export default function PostWrapper({ user, post: initialPost }: { user: AuthorType; post: PostType }) {
-  const model = useModel(initialPost.id);
-  if (!model) {
-    return <PostPlaceholder />;
-  }
+  const client = new Ably.Realtime({key: process.env.NEXT_PUBLIC_ABLY_API_KEY})
+
   return (
-    <AuthorProvider author={user}>
-      <AlertProvider>
-        <AlertContainer />
-        <Post model={model} />
-      </AlertProvider>
-    </AuthorProvider>
+    <AblyProvider client={client}>
+      <AuthorProvider author={user}>
+        <AlertProvider>
+          <AlertContainer />
+          <AblyPost post={initialPost}/>
+        </AlertProvider>
+      </AuthorProvider>
+    </AblyProvider>
   );
 }

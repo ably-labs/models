@@ -1,13 +1,9 @@
 import ModelsClient, { Model, SyncReturnType } from '@ably-labs/models';
 import { backoffRetryStrategy } from '@ably-labs/models';
-import { assertConfiguration } from '@ably-labs/react-hooks';
-import { configureAbly } from '@ably-labs/react-hooks';
+import {useAbly} from "ably/react"
 import { useState, useEffect } from 'react';
-
 import { merge } from '@/lib/models/mutations';
 import type { Post as PostType } from '@/lib/prisma/api';
-
-configureAbly({ key: process.env.NEXT_PUBLIC_ABLY_API_KEY });
 
 const channelNamespace = process.env.NEXT_PUBLIC_ABLY_CHANNEL_NAMESPACE ? `${process.env.NEXT_PUBLIC_ABLY_CHANNEL_NAMESPACE}:` : '';
 
@@ -21,16 +17,16 @@ export async function getPost(id: number) {
   if (!response.ok) {
     throw new Error(`GET /api/posts/:id: ${response.status} ${JSON.stringify(await response.json())}`);
   }
-  const { sequenceID, data } = (await response.json()) as { sequenceID: string; data: PostType };
+  const { sequenceId, data } = (await response.json()) as { sequenceId: string; data: PostType };
 
-  return { sequenceID, data };
+  return { sequenceId, data };
 }
 
 export const useModel = (id: number) => {
+  const ably = useAbly()
   const [model, setModel] = useState<ModelType>();
 
   useEffect(() => {
-    const ably = assertConfiguration();
     const modelsClient = new ModelsClient({
       ably,
       logLevel: 'trace',
@@ -39,7 +35,6 @@ export const useModel = (id: number) => {
     });
     const init = async () => {
       const model = modelsClient.models.get({
-        name: `post:${id}`,
         channelName: `${channelNamespace}post:${id}`,
         sync: async () => getPost(id),
         merge,

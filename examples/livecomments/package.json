@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@ably-labs/models": "file:../..",
-    "@ably-labs/react-hooks": "^2.1.1",
+    "ably": "^2.0.3",
     "@heroicons/react": "^2.0.18",
     "@prisma/client": "5.0.0",
     "@types/node": "18.15.11",
