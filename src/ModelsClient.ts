@@ -1,4 +1,4 @@
-import { Types as AblyTypes } from 'ably';
+import { Realtime } from 'ably';
 import pino from 'pino';
 
 import { InvalidArgumentError } from './Errors.js';
@@ -9,7 +9,7 @@ import type { OptimisticEventOptions, SyncOptions } from './types/optimistic.js'
 import type { EventBufferOptions } from './types/stream.js';
 import { VERSION } from './version.js';
 
-interface AblyClientWithOptions extends AblyTypes.RealtimePromise {
+interface AblyClientWithOptions extends Realtime {
   options?: {
     agents?: Record<string, string | boolean>;
   };

@@ -1,4 +1,4 @@
-import { Realtime, Types } from 'ably/promises';
+import { Realtime, RealtimeChannel, ConnectionState, ConnectionStateChange } from 'ably';
 import pino from 'pino';
 import { it, describe, expect, beforeEach, afterEach, vi } from 'vitest';
 
@@ -7,16 +7,16 @@ import StreamFactory from './StreamFactory.js';
 import { defaultEventBufferOptions, defaultSyncOptions } from '../Options.js';
 import type { StreamOptions } from '../types/stream.js';
 
-vi.mock('ably/promises');
+vi.mock('ably');
 
 interface StreamTestContext extends StreamOptions {
-  ablyChannel: Types.RealtimeChannelPromise;
+  ablyChannel: RealtimeChannel;
 }
 
 describe('StreamFactory', () => {
   beforeEach<StreamTestContext>((context) => {
     const ably = new Realtime({});
-    ably.connection.whenState = vi.fn<[Types.ConnectionState], Promise<Types.ConnectionStateChange>>(async () => {
+    ably.connection.whenState = vi.fn<[ConnectionState], Promise<ConnectionStateChange>>(async () => {
       return {
         current: 'connected',
         previous: 'initialized',

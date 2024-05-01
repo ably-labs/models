@@ -1,4 +1,4 @@
-import type { Types } from 'ably';
+import type { Realtime, ErrorInfo } from 'ably';
 import type { Logger } from 'pino';
 
 import type { EventOrderer, SyncOptions } from '../types/optimistic.js';
@@ -14,7 +14,7 @@ export type StreamOptions = {
   /**
    * The Ably Realtime client.
    */
-  ably: Types.RealtimePromise;
+  ably: Realtime;
   /**
    * The logger to use for the stream.
    */
@@ -62,7 +62,7 @@ export type StreamStateChange = {
   /**
    * The reason for the state change, if any
    */
-  reason?: Types.ErrorInfo | string;
+  reason?: ErrorInfo | string;
 };
 
 /**

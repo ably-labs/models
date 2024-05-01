@@ -1,12 +1,12 @@
-import { Types as AblyTypes } from 'ably';
+import { Message } from 'ably';
 
 import { MessageId } from '../types/model.js';
 import type { EventOrderer } from '../types/optimistic.js';
 
 abstract class MiddlewareBase {
-  private outputCallbacks: ((error: Error | null, message: AblyTypes.Message | null) => void)[] = [];
+  private outputCallbacks: ((error: Error | null, message: Message | null) => void)[] = [];
 
-  protected next(message: AblyTypes.Message): void {
+  protected next(message: Message): void {
     this.outputCallbacks.forEach((cb) => cb(null, message));
   }
 
@@ -14,11 +14,11 @@ abstract class MiddlewareBase {
     this.outputCallbacks.forEach((cb) => cb(error, null));
   }
 
-  public subscribe(callback: (error: Error | null, message: AblyTypes.Message | null) => void): void {
+  public subscribe(callback: (error: Error | null, message: Message | null) => void): void {
     this.outputCallbacks.push(callback);
   }
 
-  public unsubscribe(callback: (error: Error | null, message: AblyTypes.Message | null) => void): void {
+  public unsubscribe(callback: (error: Error | null, message: Message | null) => void): void {
     const index = this.outputCallbacks.indexOf(callback);
     if (index !== -1) {
       this.outputCallbacks.splice(index, 1);
@@ -53,7 +53,7 @@ export function numericOtherwiseLexicographicOrderer(a: string | number, b: stri
 }
 
 export class SlidingWindow extends MiddlewareBase {
-  private messages: AblyTypes.Message[] = [];
+  private messages: Message[] = [];
 
   constructor(
     private readonly windowSizeMs: number,
@@ -62,7 +62,7 @@ export class SlidingWindow extends MiddlewareBase {
     super();
   }
 
-  public next(message: AblyTypes.Message): void {
+  public next(message: Message): void {
     if (this.windowSizeMs === 0) {
       super.next(message);
       return;
@@ -73,14 +73,14 @@ export class SlidingWindow extends MiddlewareBase {
     }
 
     this.messages.push(message);
-    this.messages.sort((a, b) => this.eventOrderer(a.id, b.id));
+    this.messages.sort((a, b) => this.eventOrderer(a.id || '', b.id || ''));
 
     setTimeout(() => {
       this.expire(message);
     }, this.windowSizeMs);
   }
 
-  private expire(message: AblyTypes.Message): void {
+  private expire(message: Message): void {
     const idx = this.messages.indexOf(message);
 
     if (idx === -1) {
@@ -104,8 +104,8 @@ export class SlidingWindow extends MiddlewareBase {
  */
 export class OrderedHistoryResumer extends MiddlewareBase {
   private currentState: 'seeking' | 'success' = 'seeking';
-  private historicalMessages: AblyTypes.Message[] = [];
-  private realtimeMessages: AblyTypes.Message[] = [];
+  private historicalMessages: Message[] = [];
+  private realtimeMessages: Message[] = [];
   private slidingWindow: SlidingWindow;
 
   constructor(
@@ -118,7 +118,7 @@ export class OrderedHistoryResumer extends MiddlewareBase {
     this.slidingWindow.subscribe(this.onMessage.bind(this));
   }
 
-  private onMessage(err: Error | null, message: AblyTypes.Message | null) {
+  private onMessage(err: Error | null, message: Message | null) {
     if (err) {
       super.error(err);
       return;
@@ -147,7 +147,7 @@ export class OrderedHistoryResumer extends MiddlewareBase {
     return this.currentState;
   }
 
-  public addHistoricalMessages(messages: AblyTypes.Message[]): boolean {
+  public addHistoricalMessages(messages: Message[]): boolean {
     if (this.currentState !== 'seeking') {
       throw new Error('can only add historical messages while in seeking state');
     }
@@ -179,7 +179,7 @@ export class OrderedHistoryResumer extends MiddlewareBase {
     // further back in the stream outside of the given page. A larger page size reduces this likelihood but
     // doesn't solve it. The solution would require paging back 2 mins further to check for any such messages.
     // This is sufficiently low likelihood that this can be ignored for now.
-    this.historicalMessages.sort((a, b) => this.reverseOrderer(a.id, b.id));
+    this.historicalMessages.sort((a, b) => this.reverseOrderer(a.id || '', b.id || ''));
 
     // A sequenceId of 0 is a cursor that represents the position before the start of the stream.
     // There is no such historical message to seek to, instead we should paginate through all the
@@ -191,7 +191,7 @@ export class OrderedHistoryResumer extends MiddlewareBase {
     // Seek backwards through history until we reach a message id <= the specified sequenceId.
     // Discard anything older (>= sequenceId) and flush out the remaining messages.
     for (let i = 0; i < this.historicalMessages.length; i++) {
-      if (this.messageBeforeInclusive(this.historicalMessages[i].id, this.sequenceId)) {
+      if (this.messageBeforeInclusive(this.historicalMessages[i].id || '', this.sequenceId)) {
         this.historicalMessages.splice(i);
         this.flush();
         this.currentState = 'success';
@@ -213,7 +213,7 @@ export class OrderedHistoryResumer extends MiddlewareBase {
     this.historicalMessages = [];
   }
 
-  public addLiveMessages(message: AblyTypes.Message) {
+  public addLiveMessages(message: Message) {
     if (this.currentState === 'seeking') {
       this.realtimeMessages.push(message);
       return;

@@ -1,4 +1,4 @@
-import type { Types as AblyTypes } from 'ably/promises.js';
+import type { Message } from 'ably';
 import type { Logger } from 'pino';
 import { Subject, Subscription } from 'rxjs';
 
@@ -79,7 +79,7 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
 
   private readonly subscriptions = new Subject<{ confirmed: boolean; data: ExtractData<S> }>();
   private subscriptionMap: WeakMap<StandardCallback<ExtractData<S>>, Subscription> = new WeakMap();
-  private streamSubscriptionsMap: WeakMap<IStream, StandardCallback<AblyTypes.Message>> = new WeakMap();
+  private streamSubscriptionsMap: WeakMap<IStream, StandardCallback<Message>> = new WeakMap();
 
   private eventQueue: EventQueue;
 
@@ -530,7 +530,7 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
     await this.stream.replay(sequenceId);
   }
 
-  private async onStreamMessage(err: Error | null, event?: AblyTypes.Message) {
+  private async onStreamMessage(err: Error | null, event?: Message) {
     if (err) {
       await this.handleOnStreamMessageError(toError(err));
       return;
@@ -553,10 +553,11 @@ export default class Model<S extends SyncFuncConstraint> extends EventEmitter<Re
 
     const modelsEvent: ConfirmedEvent = {
       ...event!,
+      name: event?.name || '',
       confirmed: true,
       rejected,
       mutationId: mutationId,
-      sequenceId: event.id,
+      sequenceId: event?.id || '',
     };
 
     this.eventQueue.enqueue(modelsEvent);

@@ -1,4 +1,4 @@
-import { Types as AblyTypes } from 'ably';
+import { Message, ErrorInfo, Realtime, RealtimeChannel, PaginatedResult } from 'ably';
 import { Logger } from 'pino';
 import { Subject, Subscription } from 'rxjs';
 
@@ -16,20 +16,20 @@ export interface IStream {
 
   reset(): Promise<void>;
   replay(sequenceId: MessageId): Promise<void>;
-  subscribe(callback: StandardCallback<AblyTypes.Message>): void;
-  unsubscribe(callback: StandardCallback<AblyTypes.Message>): void;
-  dispose(reason?: AblyTypes.ErrorInfo | string): Promise<void>;
+  subscribe(callback: StandardCallback<Message>): void;
+  unsubscribe(callback: StandardCallback<Message>): void;
+  dispose(reason?: ErrorInfo | string): Promise<void>;
 }
 
 /**
  * A Stream is an abstraction over an Ably channel which handles the channel lifecycle.
  */
 export default class Stream extends EventEmitter<Record<StreamState, StreamStateChange>> implements IStream {
-  private readonly ably: AblyTypes.RealtimePromise;
+  private readonly ably: Realtime;
   private currentState: StreamState = 'initialized';
-  private subscriptions = new Subject<AblyTypes.Message>();
-  private subscriptionMap: WeakMap<StandardCallback<AblyTypes.Message>, Subscription> = new WeakMap();
-  private ablyChannel?: AblyTypes.RealtimeChannelPromise;
+  private subscriptions = new Subject<Message>();
+  private subscriptionMap: WeakMap<StandardCallback<Message>, Subscription> = new WeakMap();
+  private ablyChannel?: RealtimeChannel;
   private middleware?: OrderedHistoryResumer;
 
   private readonly baseLogContext: Partial<{ scope: string; action: string }>;
@@ -50,7 +50,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     return this.options.channelName;
   }
 
-  public subscribe(callback: StandardCallback<AblyTypes.Message>) {
+  public subscribe(callback: StandardCallback<Message>) {
     this.logger.trace({ ...this.baseLogContext, action: 'subscribe()' });
     const subscription = this.subscriptions.subscribe({
       next: (message) => {
@@ -69,7 +69,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     this.subscriptionMap.set(callback, subscription);
   }
 
-  public unsubscribe(callback: StandardCallback<AblyTypes.Message>) {
+  public unsubscribe(callback: StandardCallback<Message>) {
     this.logger.trace({ ...this.baseLogContext, action: 'unsubscribe()' });
     const subscription = this.subscriptionMap.get(callback);
     if (subscription) {
@@ -93,7 +93,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     }
   }
 
-  public async dispose(reason?: AblyTypes.ErrorInfo | string) {
+  public async dispose(reason?: ErrorInfo | string) {
     if (this.currentState === 'disposed') {
       return;
     }
@@ -103,7 +103,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     }
     this.setState('disposed', reason);
     this.subscriptions.unsubscribe();
-    this.subscriptions = new Subject<AblyTypes.Message>();
+    this.subscriptions = new Subject<Message>();
     this.subscriptionMap = new WeakMap();
   }
 
@@ -122,7 +122,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     }
   }
 
-  private setState(state: StreamState, reason?: AblyTypes.ErrorInfo | string) {
+  private setState(state: StreamState, reason?: ErrorInfo | string) {
     this.logger.trace({ ...this.baseLogContext, action: 'setState()', state, reason });
     const previous = this.currentState;
     this.currentState = state;
@@ -180,7 +180,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     // In both cases, the message history will be empty. We cannot distinguish between these two cases.
     // So the onus is on the user to return state that isn't too stale relative to subsequent changes to that state when bootstrapping.
     let done = false;
-    let page: AblyTypes.PaginatedResult<AblyTypes.Message>;
+    let page: PaginatedResult<Message>;
     let limit = this.options.syncOptions.historyPageSize;
     let n = 0;
     do {
@@ -213,7 +213,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     }
   }
 
-  private onChannelMessage(message: AblyTypes.Message) {
+  private onChannelMessage(message: Message) {
     this.logger.trace({ ...this.baseLogContext, action: 'onChannelMessage()', message });
     if (!this.middleware) {
       throw new Error('received channel message before middleware was registered');
@@ -221,7 +221,7 @@ export default class Stream extends EventEmitter<Record<StreamState, StreamState
     this.middleware.addLiveMessages(message);
   }
 
-  private onMiddlewareMessage(err: Error | null, message: AblyTypes.Message | null) {
+  private onMiddlewareMessage(err: Error | null, message: Message | null) {
     if (err) {
       this.logger.error({ ...this.baseLogContext, action: 'onMiddlewareMessage()', message, err });
       this.subscriptions.error(err);
