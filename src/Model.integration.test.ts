@@ -1,4 +1,4 @@
-import { Realtime } from 'ably/promises';
+import { Realtime } from 'ably';
 import pino from 'pino';
 import { Subject } from 'rxjs';
 import { v4 as uuid } from 'uuid';

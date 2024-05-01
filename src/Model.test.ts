@@ -1,4 +1,4 @@
-import { Realtime, Types } from 'ably/promises';
+import { Message, Realtime } from 'ably';
 import pino from 'pino';
 import { Subject } from 'rxjs';
 import { it, describe, expect, afterEach, vi, beforeEach } from 'vitest';
@@ -16,7 +16,7 @@ import { fixedRetryStrategy } from './utilities/retries.js';
 import { createMessage, customMessage } from './utilities/test/messages.js';
 import { getNthEventPromise, getEventPromises } from './utilities/test/promises.js';
 
-vi.mock('ably/promises');
+vi.mock('ably');
 
 // Mocks the StreamFactory import so that we can modify the Stream instances
 // used by the model to spy on their methods.
@@ -376,7 +376,7 @@ describe('Model', () => {
   it<ModelTestContext>('pauses and resumes the model with replay', async ({ channelName, ably, logger, streams }) => {
     const s1 = streams.newStream({ channelName });
     const events = {
-      channelEvents: new Subject<Types.Message>(),
+      channelEvents: new Subject<Message>(),
     };
 
     s1.subscribe = vi.fn(async (callback) => {
@@ -446,7 +446,7 @@ describe('Model', () => {
   }) => {
     const s1 = streams.newStream({ channelName });
     const events = {
-      channelEvents: new Subject<Types.Message>(),
+      channelEvents: new Subject<Message>(),
     };
 
     s1.subscribe = vi.fn(async (callback) => {
@@ -516,7 +516,7 @@ describe('Model', () => {
   it<ModelTestContext>('pauses and resumes the model with resync', async ({ channelName, ably, logger, streams }) => {
     const s1 = streams.newStream({ channelName });
     const events = {
-      channelEvents: new Subject<Types.Message>(),
+      channelEvents: new Subject<Message>(),
     };
 
     s1.subscribe = vi.fn();
@@ -611,7 +611,7 @@ describe('Model', () => {
 
   it<ModelTestContext>('subscribes to updates', async ({ channelName, ably, logger, streams }) => {
     const events = {
-      channelEvents: new Subject<Types.Message>(),
+      channelEvents: new Subject<Message>(),
     };
 
     streams.newStream({ channelName }).subscribe = vi.fn(async (callback) => {
@@ -689,7 +689,7 @@ describe('Model', () => {
 
   it<ModelTestContext>('subscribes to queued updates', async ({ channelName, ably, logger, streams }) => {
     const events = {
-      channelEvents: new Subject<Types.Message>(),
+      channelEvents: new Subject<Message>(),
     };
 
     streams.newStream({ channelName }).subscribe = vi.fn(async (callback) => {
@@ -809,7 +809,7 @@ describe('Model', () => {
 
   it<ModelTestContext>('ignores errors in subscribe callbacks', async ({ channelName, ably, logger, streams }) => {
     const events = {
-      channelEvents: new Subject<Types.Message>(),
+      channelEvents: new Subject<Message>(),
     };
 
     streams.newStream({ channelName }).subscribe = vi.fn(async (callback) => {
@@ -918,7 +918,7 @@ describe('Model', () => {
     const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
 
-    const events = { e1: new Subject<Types.Message>() };
+    const events = { e1: new Subject<Message>() };
     s1.subscribe = vi.fn(async (callback) => {
       events.e1.subscribe((message) => callback(null, message));
     });
@@ -968,7 +968,7 @@ describe('Model', () => {
     const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
 
-    const events = { e1: new Subject<Types.Message>() };
+    const events = { e1: new Subject<Message>() };
     s1.subscribe = vi.fn(async (callback) => {
       events.e1.subscribe((message) => callback(null, message));
     });
@@ -1040,7 +1040,7 @@ describe('Model', () => {
   it<ModelTestContext>('explicitly rejects an optimistic event', async ({ channelName, ably, logger, streams }) => {
     const s1 = streams.newStream({ channelName });
 
-    const events = new Subject<Types.Message>();
+    const events = new Subject<Message>();
     s1.subscribe = vi.fn<any, any>((callback) => {
       events.subscribe((message) => callback(null, message));
     });
@@ -1113,7 +1113,7 @@ describe('Model', () => {
     const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
 
-    const events = { e1: new Subject<Types.Message>() };
+    const events = { e1: new Subject<Message>() };
     s1.subscribe = vi.fn(async (callback) => {
       events.e1.subscribe((message) => callback(null, message));
     });
@@ -1208,7 +1208,7 @@ describe('Model', () => {
     const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
 
-    const events = { e1: new Subject<Types.Message>() };
+    const events = { e1: new Subject<Message>() };
     s1.subscribe = vi.fn(async (callback) => {
       events.e1.subscribe((message) => callback(null, message));
     });
@@ -1366,7 +1366,7 @@ describe('Model', () => {
     // event subjects used to invoke the stream subscription callbacks
     // registered by the model, to simulate stream data
     const events = {
-      channelEvents: new Subject<Types.Message>(),
+      channelEvents: new Subject<Message>(),
     };
     s1.subscribe = vi.fn(async (callback) => {
       events.channelEvents.subscribe((message) => callback(null, message));
@@ -1492,7 +1492,7 @@ describe('Model', () => {
     const s1 = streams.newStream({ channelName });
     s1.subscribe = vi.fn();
 
-    const events = { e1: new Subject<Types.Message>() };
+    const events = { e1: new Subject<Message>() };
     s1.subscribe = vi.fn(async (callback) => {
       events.e1.subscribe((message) => callback(null, message));
     });
@@ -1536,7 +1536,7 @@ describe('Model', () => {
     const s1 = streams.newStream({ channelName: 's1' });
     s1.subscribe = vi.fn();
 
-    const events = new Subject<Types.Message>();
+    const events = new Subject<Message>();
     s1.subscribe = vi.fn(async (callback) => {
       events.subscribe((message) => callback(null, message));
     });
@@ -1660,7 +1660,7 @@ describe('Model', () => {
     const s1 = streams.newStream({ channelName: 's1' });
     s1.subscribe = vi.fn();
 
-    const events = new Subject<Types.Message>();
+    const events = new Subject<Message>();
     s1.subscribe = vi.fn(async (callback) => {
       events.subscribe((message) => callback(null, message));
     });
@@ -1705,7 +1705,7 @@ describe('Model', () => {
     logger,
     streams,
   }) => {
-    const events = { channelEvents: new Subject<Types.Message>() };
+    const events = { channelEvents: new Subject<Message>() };
 
     const streamDiscontinuityError = new StreamDiscontinuityError('stream error');
     streams.newStream({ channelName }).subscribe = vi.fn(async (callback) => {
@@ -1770,7 +1770,7 @@ describe('Model', () => {
   }) => {
     const s1 = streams.newStream({ channelName: channelName });
 
-    const events = new Subject<Types.Message>();
+    const events = new Subject<Message>();
     s1.subscribe = vi.fn(async (callback) => {
       events.subscribe((message) => callback(null, message));
     });

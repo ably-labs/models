@@ -1,4 +1,4 @@
-import type { Types as AblyTypes } from 'ably/promises';
+import type { Realtime } from 'ably';
 import type { Logger } from 'pino';
 import type { LevelWithSilent } from 'pino';
 
@@ -14,7 +14,7 @@ export type ModelOptions = {
   /**
    * The Ably Realtime client.
    */
-  ably: AblyTypes.RealtimePromise;
+  ably: Realtime;
   /**
    * The name of the channel to use for the model.
    */

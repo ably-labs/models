@@ -1,15 +1,15 @@
-import { Types } from 'ably/promises';
+import { Channels, ConnectionStateChange, Connection, RealtimeChannel } from 'ably';
 
 const mockPromiseErrorNotImplemented = <T>(name: string): Promise<T> => new Promise((_, reject) => reject(new Error(`mock '${name}' not implemented`)));
 const mockNotImplemented = <T>(name: string): T => { throw new Error(`mock ${name} not implemented`) };
 
-type MockChannel = Partial<Types.RealtimeChannelPromise>;
+type MockChannel = Partial<RealtimeChannel>;
 
 const mockChannel: MockChannel = {
 	on: () => mockNotImplemented<void>('on'),
 }
 
-type MockChannels = Partial<Types.Channels<MockChannel>>;
+type MockChannels = Partial<Channels<MockChannel>>;
 
 const mockChannels: MockChannels = {
 	get: () => mockChannel,
@@ -17,13 +17,13 @@ const mockChannels: MockChannels = {
 	release: () => mockNotImplemented<void>('release'),
 }
 
-type MockConnection = Partial<Types.ConnectionPromise>;
+type MockConnection = Partial<Connection>;
 
 const mockConnection: MockConnection = {
-	whenState: () => mockPromiseErrorNotImplemented<Types.ConnectionStateChange>('whenState')
+	whenState: () => mockPromiseErrorNotImplemented<ConnectionStateChange>('whenState')
 }
 
-class MockRealtime {	
+class MockRealtime {
 	public channels = mockChannels;
 	public connection = mockConnection;
 	public time = () => Promise.resolve(Date.now());

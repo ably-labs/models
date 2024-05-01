@@ -1,8 +1,8 @@
-import { Types } from 'ably/promises';
+import { Message } from 'ably';
 
 import { MODELS_EVENT_UUID_HEADER } from '../../types/optimistic.js';
 
-export const baseMessage: Types.Message = {
+export const baseMessage: Message = {
   id: '1',
   data: null,
   name: 'foo',
@@ -15,7 +15,7 @@ export const baseMessage: Types.Message = {
   timestamp: 1,
 };
 
-export function createMessage(i: number): Types.Message {
+export function createMessage(i: number): Message {
   const headers: { [key: string]: string } = {};
   headers[MODELS_EVENT_UUID_HEADER] = `id_${i}`;
 
@@ -28,7 +28,7 @@ export function createMessage(i: number): Types.Message {
   };
 }
 
-export function customMessage(id: string, name: string, data: string, headers?: Record<string, string>): Types.Message {
+export function customMessage(id: string, name: string, data: string, headers?: Record<string, string>): Message {
   const baseHeaders: { [key: string]: string } = {};
   baseHeaders[MODELS_EVENT_UUID_HEADER] = id;
 

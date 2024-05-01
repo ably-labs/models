@@ -1,4 +1,4 @@
-import { Realtime, Types } from 'ably/promises';
+import { Realtime, RealtimeChannel } from 'ably';
 import pino from 'pino';
 import { it, describe, expect, beforeEach, afterEach } from 'vitest';
 
@@ -9,7 +9,7 @@ import { createAblyApp } from '../utilities/test/createAblyApp.js';
 
 interface StreamTestContext extends StreamOptions {
   stream: Stream;
-  channel: Types.RealtimeChannelPromise;
+  channel: RealtimeChannel;
 }
 
 describe('Stream integration', () => {

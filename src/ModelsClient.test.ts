@@ -1,15 +1,15 @@
-import { Realtime, Types } from 'ably/promises';
+import { Realtime } from 'ably';
 import { vi, it, describe, expect, expectTypeOf, beforeEach } from 'vitest';
 
 import ModelsClient from './ModelsClient.js';
 import { VERSION } from './version.js';
 
 interface ModelsTestContext {
-  ably: Types.RealtimePromise;
+  ably: Realtime;
   channelName: string;
 }
 
-vi.mock('ably/promises');
+vi.mock('ably');
 
 describe('ModelsClient', () => {
   beforeEach<ModelsTestContext>((context) => {
@@ -26,14 +26,14 @@ describe('ModelsClient', () => {
 
   it<ModelsTestContext>('correctly instantiates the models client', ({ ably }) => {
     const modelsClient = new ModelsClient({ ably });
-    expectTypeOf(modelsClient.ably).toMatchTypeOf<Types.RealtimePromise>();
+    expectTypeOf(modelsClient.ably).toMatchTypeOf<Realtime>();
     expect(modelsClient.ably['options']).toEqual({ agents: { models: VERSION } });
   });
 
   it<ModelsTestContext>('preserves existing agent', ({ ably }) => {
     ably['options'] = { agents: { foo: 'bar' } };
     const modelsClient = new ModelsClient({ ably });
-    expectTypeOf(modelsClient.ably).toMatchTypeOf<Types.RealtimePromise>();
+    expectTypeOf(modelsClient.ably).toMatchTypeOf<Realtime>();
     expect(modelsClient.ably['options']).toEqual({ agents: { models: VERSION, foo: 'bar' } });
   });
 

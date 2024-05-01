@@ -1,4 +1,4 @@
-import { Realtime, Types } from 'ably/promises';
+import { Realtime, ConnectionState, ChannelStateChange, ConnectionStateChange, PaginatedResult, Message } from 'ably';
 import pino, { type Logger } from 'pino';
 import { Subject } from 'rxjs';
 import { it, describe, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -9,18 +9,18 @@ import type { StreamOptions } from '../types/stream.js';
 import { statePromise } from '../utilities/promises.js';
 import { createMessage } from '../utilities/test/messages.js';
 
-vi.mock('ably/promises');
+vi.mock('ably');
 
 interface StreamTestContext extends StreamOptions {
   channelName: string;
-  ably: Types.RealtimePromise;
+  ably: Realtime;
   logger: Logger;
 }
 
 describe('Stream', () => {
   beforeEach<StreamTestContext>((context) => {
     const ably = new Realtime({});
-    ably.connection.whenState = vi.fn<[Types.ConnectionState], Promise<Types.ConnectionStateChange>>(async () => {
+    ably.connection.whenState = vi.fn<[ConnectionState], Promise<ConnectionStateChange>>(async () => {
       return {
         current: 'connected',
         previous: 'initialized',
@@ -48,7 +48,7 @@ describe('Stream', () => {
   it<StreamTestContext>('successfully syncs with no history', async ({ ably, logger, channelName }) => {
     const channel = ably.channels.get(channelName);
     channel.subscribe = vi.fn<any, any>(
-      async (): Promise<Types.ChannelStateChange | null> => ({
+      async (): Promise<ChannelStateChange | null> => ({
         current: 'attached',
         previous: 'attaching',
         resumed: false,
@@ -56,7 +56,7 @@ describe('Stream', () => {
       }),
     );
     channel.history = vi.fn<any, any>(
-      async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => ({
+      async (): Promise<Partial<PaginatedResult<Message>>> => ({
         items: [],
         hasNext: () => false,
       }),
@@ -88,9 +88,9 @@ describe('Stream', () => {
 
   it<StreamTestContext>('fails to sync if channel is already attached', async ({ ably, logger, channelName }) => {
     const channel = ably.channels.get(channelName);
-    channel.subscribe = vi.fn<any, any>(async (): Promise<Types.ChannelStateChange | null> => null);
+    channel.subscribe = vi.fn<any, any>(async (): Promise<ChannelStateChange | null> => null);
     channel.history = vi.fn<any, any>(
-      async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => ({
+      async (): Promise<Partial<PaginatedResult<Message>>> => ({
         items: [],
         hasNext: () => false,
       }),
@@ -121,7 +121,7 @@ describe('Stream', () => {
     const channel = ably.channels.get(channelName);
     ably.channels.release = vi.fn();
     channel.subscribe = vi.fn<any, any>(
-      async (): Promise<Types.ChannelStateChange | null> => ({
+      async (): Promise<ChannelStateChange | null> => ({
         current: 'attached',
         previous: 'attaching',
         resumed: false,
@@ -129,7 +129,7 @@ describe('Stream', () => {
       }),
     );
     let i = 0;
-    channel.history = vi.fn<any, any>(async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => {
+    channel.history = vi.fn<any, any>(async (): Promise<Partial<PaginatedResult<Message>>> => {
       i++;
       if (i === 1) {
         return {
@@ -195,7 +195,7 @@ describe('Stream', () => {
     const channel = ably.channels.get(channelName);
     ably.channels.release = vi.fn();
     channel.subscribe = vi.fn<any, any>(
-      async (): Promise<Types.ChannelStateChange | null> => ({
+      async (): Promise<ChannelStateChange | null> => ({
         current: 'attached',
         previous: 'attaching',
         resumed: false,
@@ -203,7 +203,7 @@ describe('Stream', () => {
       }),
     );
     let i = 0;
-    channel.history = vi.fn<any, any>(async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => {
+    channel.history = vi.fn<any, any>(async (): Promise<Partial<PaginatedResult<Message>>> => {
       i++;
       if (i === 1) {
         return {
@@ -279,7 +279,7 @@ describe('Stream', () => {
     const channel = ably.channels.get(channelName);
     ably.channels.release = vi.fn();
     channel.subscribe = vi.fn<any, any>(
-      async (): Promise<Types.ChannelStateChange | null> => ({
+      async (): Promise<ChannelStateChange | null> => ({
         current: 'attached',
         previous: 'attaching',
         resumed: false,
@@ -287,7 +287,7 @@ describe('Stream', () => {
       }),
     );
     let i = 0;
-    channel.history = vi.fn<any, any>(async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => {
+    channel.history = vi.fn<any, any>(async (): Promise<Partial<PaginatedResult<Message>>> => {
       i++;
       if (i === 1) {
         return {
@@ -336,7 +336,7 @@ describe('Stream', () => {
     const channel = ably.channels.get(channelName);
     ably.channels.release = vi.fn();
     channel.subscribe = vi.fn<any, any>(
-      async (): Promise<Types.ChannelStateChange | null> => ({
+      async (): Promise<ChannelStateChange | null> => ({
         current: 'attached',
         previous: 'attaching',
         resumed: false,
@@ -344,7 +344,7 @@ describe('Stream', () => {
       }),
     );
     let i = 0;
-    channel.history = vi.fn<any, any>(async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => {
+    channel.history = vi.fn<any, any>(async (): Promise<Partial<PaginatedResult<Message>>> => {
       i++;
       if (i === 1) {
         return {
@@ -393,7 +393,7 @@ describe('Stream', () => {
     const channel = ably.channels.get(channelName);
     ably.channels.release = vi.fn();
     channel.subscribe = vi.fn<any, any>(
-      async (): Promise<Types.ChannelStateChange | null> => ({
+      async (): Promise<ChannelStateChange | null> => ({
         current: 'attached',
         previous: 'attaching',
         resumed: false,
@@ -401,7 +401,7 @@ describe('Stream', () => {
       }),
     );
     let i = 0;
-    channel.history = vi.fn<any, any>(async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => {
+    channel.history = vi.fn<any, any>(async (): Promise<Partial<PaginatedResult<Message>>> => {
       i++;
       if (i === 1) {
         return {
@@ -444,12 +444,12 @@ describe('Stream', () => {
   it<StreamTestContext>('subscribes to messages', async ({ ably, logger, channelName }) => {
     const channel = ably.channels.get(channelName);
     channel.history = vi.fn<any, any>(
-      async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => ({
+      async (): Promise<Partial<PaginatedResult<Message>>> => ({
         items: [],
         hasNext: () => false,
       }),
     );
-    let messages = new Subject<Types.Message>();
+    let messages = new Subject<Message>();
     channel.subscribe = vi.fn<any, any>((callback) => {
       messages.subscribe((message) => callback(message));
       return {
@@ -489,12 +489,12 @@ describe('Stream', () => {
   it<StreamTestContext>('subscribes to messages with history page', async ({ ably, logger, channelName }) => {
     const channel = ably.channels.get(channelName);
     channel.history = vi.fn<any, any>(
-      async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => ({
+      async (): Promise<Partial<PaginatedResult<Message>>> => ({
         items: [createMessage(5), createMessage(4), createMessage(3), createMessage(2), createMessage(1)],
         hasNext: () => false,
       }),
     );
-    let messages = new Subject<Types.Message>();
+    let messages = new Subject<Message>();
     channel.subscribe = vi.fn<any, any>((callback) => {
       messages.subscribe((message) => callback(message));
       return {
@@ -536,7 +536,7 @@ describe('Stream', () => {
   it<StreamTestContext>('subscribes to messages with multiple history pages', async ({ ably, logger, channelName }) => {
     const channel = ably.channels.get(channelName);
     let i = 0;
-    channel.history = vi.fn<any, any>(async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => {
+    channel.history = vi.fn<any, any>(async (): Promise<Partial<PaginatedResult<Message>>> => {
       i++;
       if (i === 1) {
         return {
@@ -550,7 +550,7 @@ describe('Stream', () => {
       };
     });
 
-    let messages = new Subject<Types.Message>();
+    let messages = new Subject<Message>();
     channel.subscribe = vi.fn<any, any>((callback) => {
       messages.subscribe((message) => callback(message));
       return {
@@ -590,7 +590,7 @@ describe('Stream', () => {
   });
 
   it<StreamTestContext>('subscribes with multiple listeners', async ({ ably, logger, channelName }) => {
-    let messages = new Subject<Types.Message>();
+    let messages = new Subject<Message>();
     const channel = ably.channels.get(channelName);
     channel.subscribe = vi.fn<any, any>((callback) => {
       messages.subscribe((message) => callback(message));
@@ -602,7 +602,7 @@ describe('Stream', () => {
       };
     });
     channel.history = vi.fn<any, any>(
-      async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => ({
+      async (): Promise<Partial<PaginatedResult<Message>>> => ({
         items: [],
         hasNext: () => false,
       }),
@@ -639,7 +639,7 @@ describe('Stream', () => {
   });
 
   it<StreamTestContext>('unsubscribes to messages', async ({ ably, logger, channelName }) => {
-    let messages = new Subject<Types.Message>();
+    let messages = new Subject<Message>();
     const channel = ably.channels.get(channelName);
     channel.subscribe = vi.fn<any, any>((callback) => {
       messages.subscribe((message) => callback(message));
@@ -651,7 +651,7 @@ describe('Stream', () => {
       };
     });
     channel.history = vi.fn<any, any>(
-      async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => ({
+      async (): Promise<Partial<PaginatedResult<Message>>> => ({
         items: [],
         hasNext: () => false,
       }),
@@ -686,7 +686,7 @@ describe('Stream', () => {
   });
 
   it<StreamTestContext>('unsubscribes one of two listeners', async ({ ably, logger, channelName }) => {
-    let messages = new Subject<Types.Message>();
+    let messages = new Subject<Message>();
     const channel = ably.channels.get(channelName);
     channel.subscribe = vi.fn<any, any>((callback) => {
       messages.subscribe((message) => callback(message));
@@ -698,7 +698,7 @@ describe('Stream', () => {
       };
     });
     channel.history = vi.fn<any, any>(
-      async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => ({
+      async (): Promise<Partial<PaginatedResult<Message>>> => ({
         items: [],
         hasNext: () => false,
       }),
@@ -749,7 +749,7 @@ describe('Stream', () => {
       hasBacklog: false,
     }));
     channel.history = vi.fn<any, any>(
-      async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => ({
+      async (): Promise<Partial<PaginatedResult<Message>>> => ({
         items: [],
         hasNext: () => false,
       }),
@@ -786,7 +786,7 @@ describe('Stream', () => {
       hasBacklog: false,
     }));
     channel.history = vi.fn<any, any>(
-      async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => ({
+      async (): Promise<Partial<PaginatedResult<Message>>> => ({
         items: [],
         hasNext: () => false,
       }),
@@ -819,7 +819,7 @@ describe('Stream', () => {
       hasBacklog: false,
     }));
     channel.history = vi.fn<any, any>(
-      async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => ({
+      async (): Promise<Partial<PaginatedResult<Message>>> => ({
         items: [],
         hasNext: () => false,
       }),

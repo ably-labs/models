@@ -1,4 +1,4 @@
-import { Realtime, Types } from 'ably/promises';
+import { Realtime, ConnectionState, ConnectionStateChange, ChannelStateChange, PaginatedResult, Message } from 'ably';
 import pino from 'pino';
 import { Subject } from 'rxjs';
 import { it, describe, expect, vi, beforeEach } from 'vitest';
@@ -9,14 +9,14 @@ import { ModelOptions } from './types/model.js';
 import { statePromise } from './utilities/promises.js';
 import { getEventPromises } from './utilities/test/promises.js';
 
-vi.mock('ably/promises');
+vi.mock('ably');
 
 type ModelTestContext = { channelName: string } & ModelOptions;
 
 describe('Model', () => {
   beforeEach<ModelTestContext>(async (context) => {
     const ably = new Realtime({});
-    ably.connection.whenState = vi.fn<[Types.ConnectionState], Promise<Types.ConnectionStateChange>>(async () => {
+    ably.connection.whenState = vi.fn<[ConnectionState], Promise<ConnectionStateChange>>(async () => {
       return {
         current: 'connected',
         previous: 'initialized',
@@ -42,7 +42,7 @@ describe('Model', () => {
       }
     });
     channel.subscribe = vi.fn<any, any>(
-      async (): Promise<Types.ChannelStateChange | null> => ({
+      async (): Promise<ChannelStateChange | null> => ({
         current: 'attached',
         previous: 'attaching',
         resumed: false,
@@ -50,7 +50,7 @@ describe('Model', () => {
       }),
     );
     channel.history = vi.fn<any, any>(
-      async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => ({
+      async (): Promise<Partial<PaginatedResult<Message>>> => ({
         items: [],
         hasNext: () => false,
       }),
@@ -119,7 +119,7 @@ describe('Model', () => {
       }
     });
     channel.subscribe = vi.fn<any, any>(
-      async (): Promise<Types.ChannelStateChange | null> => ({
+      async (): Promise<ChannelStateChange | null> => ({
         current: 'attached',
         previous: 'attaching',
         resumed: false,
@@ -127,7 +127,7 @@ describe('Model', () => {
       }),
     );
     channel.history = vi.fn<any, any>(
-      async (): Promise<Partial<Types.PaginatedResult<Types.Message>>> => ({
+      async (): Promise<Partial<PaginatedResult<Message>>> => ({
         items: [],
         hasNext: () => false,
       }),
