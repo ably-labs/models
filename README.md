@@ -39,7 +39,7 @@ The Realtime Data Models SDK uses Ably’s fast, global message distribution net
     - [Installation and authentication](#installation-and-authentication)
     - [Instantiation](#instantiation)
     - [Creating a Model](#creating-a-model)
-  - [Further information](#further-information)
+  - [Documentation and examples](#documentation-and-examples)
   - [Feedback](#feedback)
 
 ---
@@ -166,14 +166,12 @@ await confirmation;
 
 For more information, see [usage docs](./docs/usage.md).
 
-## Further information
+## Documentation and examples
 
- For more information, see:
-
-* Read the [docs](/docs/)
-* Browse the [API docs](https://sdk.ably.com/builds/ably-labs/models/main/typedoc/)
-* Explore the [examples](/examples)
+* Read the [docs on Ably website](https://ably.com/docs/products/livesync).
+* Browse the [API Reference](https://sdk.ably.com/builds/ably-labs/models/main/typedoc/).
+* Explore the [examples](/examples).
 
 ## Feedback
 
-We value your input! If you've explored Ably Realtime Data Models, or even if you considered it but chose not to use it, we'd love to hear your thoughts. Kindly share your feedback through this [form](https://docs.google.com/forms/d/e/1FAIpQLSereeJrUbLRJ5g8EBFY9qglUheyB7-bmfaAq2chFpdAuZJkDA/viewform).
+The Models SDK is currently under development. [We'd love to hear your feedback](https://forms.gle/1XrVbYkhxFvUPBDd7).
