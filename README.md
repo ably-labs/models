@@ -1,4 +1,4 @@
-# Ably Realtime Data Models SDK
+# Ably Models SDK
 
 <p align="left">
   <a href="">
@@ -9,29 +9,8 @@
   </a>
 </p>
 
-Build collaborative, stateful applications with the [Ably](https://ably.com) Realtime Data Models SDK. Backed by your database, you can define live, observable data models in your client applications. You can also render live changes to data from your database in realtime.
-
-![Models SDK Diagram](/docs/images/models-diagram.png "Models SDK Diagram")
-
-**Bring your own database**
-
-Store the data displayed in your frontend application in any database you choose or the one you already use.
-
-**Collaborative by default**
-
-Concurrently render live updates made by multiple users through your database.
-
-**Optimistic events**
-
-Deliver a super-responsive user experience. Show changes instantly, bypassing the wait for a network round trip or your database to confirm mutations. The Realtime Data Models SDK confirms changes behind the scenes, manages rollbacks, and flags any errors or conflicts to your app.
-
-**Backed by Ably**
-
-The Realtime Data Models SDK uses Ably’s fast, global message distribution network to update numerous clients across different regions with the freshest database state.
-
 ---
-
-- [Ably Realtime Data Models SDK](#ably-realtime-data-models-sdk)
+- [Ably Models SDK](#ably-models-sdk)
   - [Overview](#overview)
   - [Development Status](#development-status)
   - [Quickstart](#quickstart)
@@ -46,17 +25,31 @@ The Realtime Data Models SDK uses Ably’s fast, global message distribution net
 
 ## Overview
 
-The Realtime Data Models SDK simplifies syncing application state from the database to the client in realtime. It constantly displays changes made simultaneously by others, creating a reactive, realtime, multiplayer application experience.
+The Ably Models SDK is a key component of the [LiveSync](https://ably.com/docs/products/livesync) product that lets you stream realtime updates from your database at scale to frontend clients.
 
-The Realtime Data Models SDK is a JavaScript (TypeScript) library that enables you to create live and observable data models in your frontend application. These models remain synchronized with the realtime state of your database model. You can easily integrate this SDK into your project regardless of your frontend framework preference. To learn how to use the SDK in a React/Next.js application, see [examples](./examples/livecomments).
+![LiveSync Diagram](/docs/images/what-is-livesync.png "LiveSync Diagram")
 
-Your backend publishes mutation events to Ably. The Realtime Data Models SDK updates your frontend app's local state. You can also pair the SDK with Ably's [Database Connector](https://github.com/ably-labs/adbc) to transmit transactional change events with your database mutations.
+The Models SDK is a frontend library that simplifies subscribing to the changes in data models, applying optimistic updates and merging them with confirmed updates. It is a standalone SDK built on Ably’s JavaScript SDK with full TypeScript support.
 
-> **Note:** Ably's realtime messaging platform integrates with the Realtime Data Models SDK to provide a fast, reliable, scalable global distribution network with seamless recovery.
+The Database Connector and Ably Channels are the other two components of LiveSync that help publish changes from your database to frontend clients.
+
+A model represents a data model of a specific part of your frontend application. Each frontend client can have multiple data models within the same application. 
+
+![Models SDK Diagram](/docs/images/models-diagram.png "Models SDK Diagram")
+
+
+When creating a new Model using the Models SDK you provide two functions to the Model a `sync()` function and a `merge()` function:
+- The `sync(`) function is used by the SDK to retrieve the current state of the data model from your backend.
+- The `merge()` function is used by the SDK to merge state change events published by the Database Connector with the existing frontend state in the Model.
+
+You can use the Models SDK as a standalone library to merge new update events with existing frontend state, but the SDK works best as part of LiveSync.
+
+The data models as part of the Models SDK remain synchronized with the state of your database, in realtime. You can easily integrate this SDK into your project regardless of which frontend framework you use.
+
 
 ## Development Status
 
-The Models SDK is in the public alpha stage. It's designed primarily for experimental use and is currently unsuitable for production use. Your valuable feedback will help us focus on enhancements and resolve issues for upcoming versions.
+LiveSync, and the Models SDK, is in public alpha so that you can explore its capabilities. Your [feedback](https://docs.google.com/forms/d/e/1FAIpQLSd00n1uxgXWPGvMjKwMVL1UDhFKMeh3bSrP52j9AfXifoU-Pg/viewform) will help prioritize improvements and fixes for later releases. The features in this release have been built to work under real-world situations and load, and for real-world use-cases, but there may still be some rough edges in this alpha.
 
 ## Quickstart
 
@@ -164,7 +157,7 @@ updatePost('my-mutation-id', 'new post text')
 await confirmation;
 ```
 
-For more information, see [usage docs](./docs/usage.md).
+For more information, see [usage docs](./docs/usage.md) within this repository.
 
 ## Documentation and examples
 
@@ -174,4 +167,4 @@ For more information, see [usage docs](./docs/usage.md).
 
 ## Feedback
 
-The Models SDK is currently under development. [We'd love to hear your feedback](https://forms.gle/1XrVbYkhxFvUPBDd7).
+The Models SDK is currently in public alpha. [We'd love to hear your feedback](https://forms.gle/1XrVbYkhxFvUPBDd7).
