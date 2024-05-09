@@ -76,9 +76,9 @@ To instantiate the Realtime Data Models SDK, create an [Ably client](https://abl
 
 ```typescript
 import ModelsClient from '@ably-labs/models';
-import { Realtime } from 'ably/promises';
+import { Realtime } from 'ably';
 
-const ably = new Realtime.Promise({ key: 'YOUR_ABLY_API_KEY' });
+const ably = new Realtime({ key: 'YOUR_ABLY_API_KEY' });
 const modelsClient = new ModelsClient({ ably });
 ```
 
@@ -126,7 +126,6 @@ async function updatePost(mutationId: string, content: string) {
 
 // create a new model instance called 'post' by passing the sync and merge functions
 const model = modelsClient.models.get({
-  name: 'post',
   channelName: 'models:posts',
   sync: sync,
   merge: merge,
