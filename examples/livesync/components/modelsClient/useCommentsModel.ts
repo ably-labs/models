@@ -19,7 +19,7 @@ export const useCommentsModel = (issueId: number | null): [CommentData[] | undef
   useEffect(() => {
     if (!issueId) return;
 
-    const model = modelsClient.models.get({
+    const model = modelsClient().models.get({
       name: `comments:${issueId}`,
       channelName: `comments:${issueId}`,
       sync: fetchComments,
