@@ -1,5 +1,5 @@
 import ModelsClient, { Event, ConfirmedEvent, OptimisticEvent } from '@ably-labs/models';
-import Ably from 'ably';
+import { Realtime } from 'ably';
 import pino from 'pino';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -11,7 +11,7 @@ type Post = {
   comments: string[];
 };
 
-const ably = new Ably.Realtime({
+const ably = new Realtime({
   key: process.env.ABLY_API_KEY,
 });
 
