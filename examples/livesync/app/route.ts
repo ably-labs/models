@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import { fetchProjects } from './utils';
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const links = await fetchProjects();
   if (!links.length) {
