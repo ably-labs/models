@@ -4,6 +4,8 @@ import styles from './page.module.css';
 import { fetchProjectBySlug } from '@/app/utils';
 import { redirect } from 'next/navigation';
 
+export const dynamic = "force-dynamic";
+
 export default async function ProjectSlug({ params: { slug } }: { params: { slug: string } }) {
   const project = await fetchProjectBySlug(slug);
   if (!project) {

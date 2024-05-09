@@ -9,6 +9,7 @@ import { fetchProjects } from './utils';
 
 import './global.css';
 import styles from './layout.module.css';
+export const dynamic = "force-dynamic";
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const nextBook = localFont({
