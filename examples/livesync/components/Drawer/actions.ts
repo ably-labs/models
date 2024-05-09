@@ -46,7 +46,7 @@ export const fetchIssueById = async (id: number) => {
 
 export const fetchComments = async (id: number) => {
   const data = await sql.begin(async (sql) => {
-    const comments = await sql<CommentData[]>`
+    const result = await sql<CommentData[]>`
       SELECT
         c.id, c.content, c.updated_at, u.last_name, u.first_name, u.color
       FROM comments c
@@ -54,9 +54,13 @@ export const fetchComments = async (id: number) => {
         ON u.id = c.user_id
       WHERE issue_id = ${id}
       ORDER BY c.updated_at DESC
-    `;
+    `.cursor();
 
     const ids = await sql`SELECT COALESCE(MAX(sequence_id), 0) FROM outbox`;
+    let comments: CommentData[] = [];
+    for await (const [row] of result) {
+      comments.push(row);
+    }
 
     return { data: comments, sequenceId: ids[0].coalesce };
   });

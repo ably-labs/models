@@ -20,10 +20,8 @@ export const useCommentsModel = (issueId: number | null): [CommentData[] | undef
     if (!issueId) return;
 
     const model = modelsClient().models.get({
-      name: `comments:${issueId}`,
       channelName: `comments:${issueId}`,
       sync: fetchComments,
-      // @ts-ignore - types to be fixed for merge functions later in COL-651 https://ably.atlassian.net/browse/COL-651
       merge,
     });
 
