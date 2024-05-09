@@ -18,7 +18,6 @@ To instantiate a `Model` you must provide a unique name to identify the model in
 
 ```ts
 const model = modelsClient.models.get({
-  name: 'myPost',
   channelName: 'post:123',
   sync: /* ... */,
   merge: /* ... */,

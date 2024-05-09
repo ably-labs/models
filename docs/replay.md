@@ -23,7 +23,7 @@ export type SyncFunc<T, P extends any[] | [] = []> = (...args: P) => Promise<{ d
 > Note that if you are using [`adbc`](https://github.com/ably-labs/adbc/), this is the `sequence_id` of the corresponding outbox record, which is a serial integer. The sequence ID to return from your sync function endpoint can therefore be obtained by selecting the largest `sequence_id` in the outbox table. This should be done in the same transaction in which the model state is read from the database.
 > 
 > ```sql
-> SELECT MAX(sequence_id) FROM outbox;
+> SELECT COALESCE(MAX(sequence_id), 0) FROM outbox;
 > ```
 >
 > Note that you should not rely on the sequence itself with e.g. `SELECT nextval('outbox_sequence_id_seq')::integer` as the sequence may be incremented by other concurrent transactions without the effects of those transactions being visible to the transaction that reads the state of the model.
