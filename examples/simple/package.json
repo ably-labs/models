@@ -13,7 +13,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@ably-labs/models": "file:../..",
+    "@ably-labs/models": "0.0.3",
     "ably": "^2.0.3",
     "pino": "^8.14.1",
     "tsconfig-paths": "^4.2.0",
