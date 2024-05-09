@@ -17,7 +17,7 @@
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
   },
   "dependencies": {
-    "@ably-labs/models": "file:../..",
+    "@ably-labs/models": "0.0.3",
     "ably": "^2.0.3",
     "@heroicons/react": "^2.0.18",
     "@prisma/client": "5.0.0",
