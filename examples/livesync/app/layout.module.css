@@ -31,7 +31,7 @@
   grid-area: header;
 }
 
-@media screen and (min-width: 376px) {
+@media screen and (min-width: 1024px) {
   .page {
     display: grid;
     grid-template-rows: var(--size-header-height-lg) calc(100vh - var(--size-header-height-lg)); /* height limitation on second row */

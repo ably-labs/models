@@ -8,7 +8,7 @@ import { CommentData } from './Comment';
 export const fetchDrawerData = async () => {
   const data = await sql.begin(async (sql) => {
     const users = await sql<User[]>`SELECT id, first_name, last_name, color, slug FROM users`;
-    const projects = await sql<ProjectType[]>`SELECT id, name, color FROM projects`;
+    const projects = await sql<ProjectType[]>`SELECT id, name, color FROM projects ORDER BY id DESC`;
 
     return { users, projects };
   });

@@ -18,8 +18,6 @@ export default async function ProjectSlug({ params: { slug } }: { params: { slug
       tab: 'list',
       content: <Project id={id} issues={issues} />,
     },
-    { tab: 'board', content: 'Coming soon!' },
-    { tab: 'timeline', content: 'Coming soon!' },
   ];
 
   return (

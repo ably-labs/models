@@ -34,6 +34,7 @@ export const fetchProjectBySlug = async (slug: string) => {
           LEFT OUTER JOIN users u
           ON u.id = i.owner_id
         WHERE project_id = ${projects[0].id}
+        ORDER BY i.id DESC
       `;
 
     return {

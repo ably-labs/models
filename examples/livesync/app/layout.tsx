@@ -79,14 +79,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 const items = [
   {
     title: 'Reporting',
-    to: '/reporting',
+    to: '/',
     Icon: <ReportingIcon />,
     value: 'reporting',
     isComingSoon: true,
   },
   {
     title: 'Dashboard',
-    to: '/dashboard',
+    to: '/',
     Icon: <DashboardIcon />,
     value: 'dashboard',
     isComingSoon: true,
