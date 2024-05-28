@@ -39,6 +39,10 @@
   animation: fadeInAnimation 2s;
 }
 
+.link {
+  text-decoration: none;
+}
+
 .menu {
   box-sizing: border-box;
   width: 100%;
@@ -74,7 +78,7 @@
   color: var(--coal-noir);
 }
 
-@media screen and (min-width: 376px) {
+@media screen and (min-width: 1024px) {
   .hiddenOnMobile {
     display: block;
   }

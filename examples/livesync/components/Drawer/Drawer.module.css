@@ -1,17 +1,18 @@
 .container {
   background-color: var(--snow-white);
   position: fixed;
-  height: calc(100vh - var(--size-header-height-sm));
-  top: var(--size-header-height-sm);
+  height: 100vh;
+  top: 0;
   right: 0;
   width: 100%;
-  border-left: 1px solid #e1e4e9;
+  border: none;
   transition: transform 0.15s ease-in-out;
   transform: translateX(100%);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   overflow-y: auto;
+  z-index: 9999; /* Ensure it appears above other content */
 }
 
 .isOpen {
@@ -71,12 +72,9 @@
   z-index: 10;
 }
 
-@media screen and (min-width: 376px) {
+@media screen and (min-width: 1024px) {
   .container {
-    height: calc(100vh - var(--size-header-height-lg));
-    top: var(--size-header-height-lg);
-    width: 480px;
-    max-width: 100%;
+    width: calc(100% - 300px);
   }
 
   .inner {

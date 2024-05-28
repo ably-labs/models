@@ -3,9 +3,8 @@
 import { HTMLAttributes, useState } from 'react';
 import cn from 'classnames';
 import { Flex } from '@radix-ui/themes';
-
+import Link from 'next/link';
 import { ExternalUrlIcon, MenuIcon } from '../icons';
-import { HowTo } from '../HowTo';
 import { Button } from '../Button';
 
 import styles from './Header.module.css';
@@ -23,12 +22,15 @@ export const Header = ({ className, children }: HTMLAttributes<HTMLDivElement>) 
         <h1 className={styles.title}>LiveSync Demo</h1>
         <div className={styles.hiddenOnMobile}>
           <Flex gap="5" justify="end" align="center">
-            <HowTo />
-            <Button variant="secondary">
-              <span>LiveSync Docs </span>
-              <ExternalUrlIcon />
-            </Button>
-            <Button>Sign up</Button>
+            <Link className={styles.link} href="https://ably.com/docs/products/livesync" target="_blank">
+              <Button variant="secondary">
+                <span>LiveSync Docs </span>
+                <ExternalUrlIcon />
+              </Button>
+            </Link>
+            <Link className={styles.link} href="https://ably.com/sign-up" target="_blank">
+              <Button>Sign up</Button>
+            </Link>
           </Flex>
         </div>
         <button className={styles.button} aria-label="Mobile menu" onClick={handleMenu}>
@@ -43,13 +45,16 @@ export const Header = ({ className, children }: HTMLAttributes<HTMLDivElement>) 
         {children}
         <div className={styles.divider} />
         <Flex gap="4" direction="column">
-          <HowTo />
           <Flex gap="5" align="center">
+          <Link className={styles.link} href="https://ably.com/docs/products/livesync" target="_blank">
             <Button variant="secondary">
               <span>LiveSync Docs </span>
               <ExternalUrlIcon className={styles.icon} />
             </Button>
-            <Button>Sign up</Button>
+            </Link>
+            <Link className={styles.link} href="https://ably.com/sign-up" target="_blank">
+              <Button>Sign up</Button>
+            </Link>
           </Flex>
         </Flex>
       </div>

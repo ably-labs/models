@@ -2,7 +2,6 @@ export * from './Button';
 export * from './DatePicker';
 export * from './Drawer';
 export * from './Header';
-export * from './HowTo';
 export * from './MenuItems';
 export * from './modelsClient';
 export * from './Owner';
