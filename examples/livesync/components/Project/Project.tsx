@@ -20,7 +20,7 @@ export const Project = ({ issues: initialIssues, id }: Props) => {
     }
 
     reload();
-  });
+  }, [id]);
     
   return (
     <Drawer projectId={id}>
